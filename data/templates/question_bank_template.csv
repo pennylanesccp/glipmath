@@ -1,0 +1,4 @@
+id_question,source,statement,choice_a,choice_b,choice_c,choice_d,choice_e,correct_choice,is_active,topic,difficulty,explanation
+1,OBMEP 2023,Quanto e 2 + 2?,3,4,5,6,,B,true,Aritmetica,Facil,2 + 2 = 4.
+2,Khan Academy,Qual fracao representa metade?,1/3,1/2,2/3,3/4,,B,true,Fracoes,Facil,Metade corresponde a 1/2.
+3,Professor Demo,Qual numero e primo?,9,15,17,21,25,C,false,Numeros,Medio,17 possui apenas dois divisores positivos.

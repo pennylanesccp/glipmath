@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glipmath"
+version = "0.1.0"
+description = "Streamlit MVP for gamified multiple-choice math practice."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "GlipMath" },
+]
+dependencies = [
+    "streamlit[auth]>=1.52,<2",
+    "pandas>=2.2,<3",
+    "gspread>=6,<7",
+    "google-auth>=2.38,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*", "modules*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-ra"

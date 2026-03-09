@@ -1,0 +1,1 @@
+"""GlipMath Streamlit application package."""
