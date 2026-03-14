@@ -1,0 +1,80 @@
+[
+  {
+    "name": "id_question",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Unique question identifier."
+  },
+  {
+    "name": "source",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Question source label."
+  },
+  {
+    "name": "statement",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Question statement shown to the learner."
+  },
+  {
+    "name": "choice_a",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "choice_b",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "choice_c",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "choice_d",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "choice_e",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "correct_choice",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOL",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "topic",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "difficulty",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "explanation",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "created_at_utc",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "updated_at_utc",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  }
+]

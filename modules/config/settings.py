@@ -1,31 +1,14 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
 
 @dataclass(frozen=True, slots=True)
-class WorksheetNames:
-    """Worksheet names used by the application."""
-
-    question_bank: str = "question_bank"
-    whitelist: str = "whitelist"
-    answers: str = "answers"
-
-
-@dataclass(frozen=True, slots=True)
-class GoogleSheetSettings:
-    """Google Sheets connection settings."""
-
-    spreadsheet_id: str | None
-    spreadsheet_url: str | None
-    retry_attempts: int = 3
-
-
-@dataclass(frozen=True, slots=True)
 class AuthSettings:
-    """OIDC-related settings read from Streamlit secrets."""
+    """OIDC-related settings consumed by Streamlit auth."""
 
     redirect_uri: str | None
     cookie_secret: str | None
@@ -49,19 +32,71 @@ class AuthSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class GcpSettings:
+    """Google Cloud runtime settings."""
+
+    project_id: str
+    region: str
+
+
+@dataclass(frozen=True, slots=True)
+class BigQuerySettings:
+    """BigQuery dataset, table, and view names."""
+
+    core_dataset: str
+    events_dataset: str
+    analytics_dataset: str
+    question_bank_table: str
+    whitelist_table: str
+    answers_table: str
+    leaderboard_view: str
+    user_totals_view: str
+    user_daily_activity_view: str
+
+    def question_bank_table_id(self, project_id: str) -> str:
+        """Return the fully qualified question bank table identifier."""
+
+        return f"{project_id}.{self.core_dataset}.{self.question_bank_table}"
+
+    def whitelist_table_id(self, project_id: str) -> str:
+        """Return the fully qualified whitelist table identifier."""
+
+        return f"{project_id}.{self.core_dataset}.{self.whitelist_table}"
+
+    def answers_table_id(self, project_id: str) -> str:
+        """Return the fully qualified answers table identifier."""
+
+        return f"{project_id}.{self.events_dataset}.{self.answers_table}"
+
+    def leaderboard_view_id(self, project_id: str) -> str:
+        """Return the fully qualified leaderboard view identifier."""
+
+        return f"{project_id}.{self.analytics_dataset}.{self.leaderboard_view}"
+
+    def user_totals_view_id(self, project_id: str) -> str:
+        """Return the fully qualified user totals view identifier."""
+
+        return f"{project_id}.{self.analytics_dataset}.{self.user_totals_view}"
+
+    def user_daily_activity_view_id(self, project_id: str) -> str:
+        """Return the fully qualified daily activity view identifier."""
+
+        return f"{project_id}.{self.analytics_dataset}.{self.user_daily_activity_view}"
+
+
+@dataclass(frozen=True, slots=True)
 class AppSettings:
     """Top-level application settings."""
 
     app_name: str
     environment: str
     timezone: str
-    storage_backend: str
     app_version: str
-    google_sheet: GoogleSheetSettings
-    worksheets: WorksheetNames
-    local_csv_base_dir: Path
+    cloud_run_service_name: str
+    repository_root: Path
+    gcp: GcpSettings
+    bigquery: BigQuerySettings
     auth: AuthSettings
-    service_account_info: dict[str, str] | None
 
 
 def load_settings(
@@ -69,48 +104,107 @@ def load_settings(
     *,
     base_dir: Path | None = None,
 ) -> AppSettings:
-    """Load application settings from Streamlit secrets or a supplied mapping."""
+    """Load application settings from environment variables and Streamlit secrets."""
 
     secrets_dict = _to_plain_dict(secrets or _load_streamlit_secrets())
     resolved_base_dir = (base_dir or Path.cwd()).resolve()
 
     app_section = _as_mapping(secrets_dict.get("app"))
-    sheet_section = _as_mapping(secrets_dict.get("google_sheet"))
-    worksheets_section = _as_mapping(secrets_dict.get("worksheets"))
-    local_csv_section = _as_mapping(secrets_dict.get("local_csv"))
+    gcp_section = _as_mapping(secrets_dict.get("gcp"))
+    bigquery_section = _as_mapping(secrets_dict.get("bigquery"))
     auth_section = _as_mapping(secrets_dict.get("auth"))
-    service_account_info = _as_mapping(secrets_dict.get("gcp_service_account"))
+    cloud_run_section = _as_mapping(secrets_dict.get("cloud_run"))
 
-    local_csv_dir = _resolve_path(
-        resolved_base_dir,
-        _string_or_none(local_csv_section.get("base_dir")) or "data/local_dev",
+    project_id = (
+        _env_or_section("GLIPMATH_GCP_PROJECT_ID", gcp_section, "project_id")
+        or _string_or_none(os.getenv("GOOGLE_CLOUD_PROJECT"))
+        or _string_or_none(os.getenv("GCP_PROJECT"))
+        or "ide-math-app"
     )
 
     return AppSettings(
-        app_name=_string_or_none(app_section.get("app_name")) or "GlipMath",
-        environment=_string_or_none(app_section.get("environment")) or "local",
-        timezone=_string_or_none(app_section.get("timezone")) or "America/Sao_Paulo",
-        storage_backend=_string_or_none(app_section.get("storage_backend")) or "google_sheets",
-        app_version=_string_or_none(app_section.get("app_version")) or "0.1.0",
-        google_sheet=GoogleSheetSettings(
-            spreadsheet_id=_string_or_none(sheet_section.get("spreadsheet_id")),
-            spreadsheet_url=_string_or_none(sheet_section.get("spreadsheet_url")),
-            retry_attempts=_int_or_default(sheet_section.get("retry_attempts"), 3),
+        app_name=_env_or_section("GLIPMATH_APP_NAME", app_section, "app_name") or "GlipMath",
+        environment=_env_or_section("GLIPMATH_ENVIRONMENT", app_section, "environment") or "local",
+        timezone=_env_or_section("GLIPMATH_TIMEZONE", app_section, "timezone") or "America/Sao_Paulo",
+        app_version=_env_or_section("GLIPMATH_APP_VERSION", app_section, "app_version") or "0.1.0",
+        cloud_run_service_name=(
+            _env_or_section("GLIPMATH_CLOUD_RUN_SERVICE", cloud_run_section, "service_name")
+            or "glipmath-app"
         ),
-        worksheets=WorksheetNames(
-            question_bank=_string_or_none(worksheets_section.get("question_bank")) or "question_bank",
-            whitelist=_string_or_none(worksheets_section.get("whitelist")) or "whitelist",
-            answers=_string_or_none(worksheets_section.get("answers")) or "answers",
+        repository_root=resolved_base_dir,
+        gcp=GcpSettings(
+            project_id=project_id,
+            region=_env_or_section("GLIPMATH_REGION", gcp_section, "region") or "southamerica-east1",
         ),
-        local_csv_base_dir=local_csv_dir,
+        bigquery=BigQuerySettings(
+            core_dataset=(
+                _env_or_section("GLIPMATH_BIGQUERY_CORE_DATASET", bigquery_section, "core_dataset")
+                or "glipmath_core"
+            ),
+            events_dataset=(
+                _env_or_section("GLIPMATH_BIGQUERY_EVENTS_DATASET", bigquery_section, "events_dataset")
+                or "glipmath_events"
+            ),
+            analytics_dataset=(
+                _env_or_section(
+                    "GLIPMATH_BIGQUERY_ANALYTICS_DATASET",
+                    bigquery_section,
+                    "analytics_dataset",
+                )
+                or "glipmath_analytics"
+            ),
+            question_bank_table=(
+                _env_or_section(
+                    "GLIPMATH_QUESTION_BANK_TABLE",
+                    bigquery_section,
+                    "question_bank_table",
+                )
+                or "question_bank"
+            ),
+            whitelist_table=(
+                _env_or_section("GLIPMATH_WHITELIST_TABLE", bigquery_section, "whitelist_table")
+                or "whitelist"
+            ),
+            answers_table=(
+                _env_or_section("GLIPMATH_ANSWERS_TABLE", bigquery_section, "answers_table")
+                or "answers"
+            ),
+            leaderboard_view=(
+                _env_or_section("GLIPMATH_LEADERBOARD_VIEW", bigquery_section, "leaderboard_view")
+                or "v_leaderboard"
+            ),
+            user_totals_view=(
+                _env_or_section("GLIPMATH_USER_TOTALS_VIEW", bigquery_section, "user_totals_view")
+                or "v_user_totals"
+            ),
+            user_daily_activity_view=(
+                _env_or_section(
+                    "GLIPMATH_USER_DAILY_ACTIVITY_VIEW",
+                    bigquery_section,
+                    "user_daily_activity_view",
+                )
+                or "v_user_daily_activity"
+            ),
+        ),
         auth=AuthSettings(
-            redirect_uri=_string_or_none(auth_section.get("redirect_uri")),
-            cookie_secret=_string_or_none(auth_section.get("cookie_secret")),
-            client_id=_string_or_none(auth_section.get("client_id")),
-            client_secret=_string_or_none(auth_section.get("client_secret")),
-            server_metadata_url=_string_or_none(auth_section.get("server_metadata_url")),
+            redirect_uri=_env_or_section("STREAMLIT_AUTH_REDIRECT_URI", auth_section, "redirect_uri"),
+            cookie_secret=_env_or_section(
+                "STREAMLIT_AUTH_COOKIE_SECRET",
+                auth_section,
+                "cookie_secret",
+            ),
+            client_id=_env_or_section("STREAMLIT_AUTH_CLIENT_ID", auth_section, "client_id"),
+            client_secret=_env_or_section(
+                "STREAMLIT_AUTH_CLIENT_SECRET",
+                auth_section,
+                "client_secret",
+            ),
+            server_metadata_url=_env_or_section(
+                "STREAMLIT_AUTH_SERVER_METADATA_URL",
+                auth_section,
+                "server_metadata_url",
+            ),
         ),
-        service_account_info=service_account_info or None,
     )
 
 
@@ -123,6 +217,12 @@ def _load_streamlit_secrets() -> dict[str, Any]:
         return _to_plain_dict(st.secrets)
     except Exception:
         return {}
+
+
+def _env_or_section(env_name: str, section: Mapping[str, Any], key: str) -> str | None:
+    """Return an environment variable value or fall back to a secrets section key."""
+
+    return _string_or_none(os.getenv(env_name)) or _string_or_none(section.get(key))
 
 
 def _to_plain_dict(value: Any) -> Any:
@@ -150,19 +250,3 @@ def _string_or_none(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
-
-
-def _int_or_default(value: Any, default: int) -> int:
-    """Parse an integer setting or return a default."""
-
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def _resolve_path(base_dir: Path, configured_path: str) -> Path:
-    """Resolve a possibly relative path against the repository root."""
-
-    path = Path(configured_path)
-    return path if path.is_absolute() else (base_dir / path).resolve()

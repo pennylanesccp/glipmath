@@ -6,16 +6,16 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from modules.domain.models import AnswerEvaluation, AnswerRecord, AppUser, Question
+from modules.domain.models import AnswerAttempt, AnswerEvaluation, Question, User
 from modules.storage.schema_validation import prepare_dataframe, require_columns, worksheet_row_number
-from modules.utils.datetime_utils import parse_iso_datetime, utc_now
-from modules.utils.id_utils import next_numeric_id
-from modules.utils.normalization import normalize_choice
+from modules.utils.datetime_utils import parse_local_datetime, parse_timestamp, utc_now
+from modules.utils.id_utils import generate_answer_id
+from modules.utils.normalization import clean_optional_text, normalize_choice
 
 if TYPE_CHECKING:
     from modules.storage.answer_repository import AnswerRepository
 
-ANSWERS_WORKSHEET_NAME = "answers"
+ANSWERS_RESOURCE_NAME = "answers"
 ANSWERS_REQUIRED_COLUMNS = [
     "id_answer",
     "id_user",
@@ -42,12 +42,11 @@ class AnswerService:
     def submit_answer(
         self,
         *,
-        user: AppUser,
+        user: User,
         question: Question,
         selected_choice: str,
         session_id: str,
         time_spent_seconds: float,
-        existing_answers: list[AnswerRecord],
     ) -> AnswerEvaluation:
         """Evaluate an answer and append a new answer log row."""
 
@@ -57,24 +56,23 @@ class AnswerService:
             selected_choice=selected_choice,
             session_id=session_id,
             time_spent_seconds=time_spent_seconds,
-            existing_answers=existing_answers,
             timezone_name=self.timezone_name,
             app_version=self.app_version,
         )
-        self.answer_repository.append_answer_row(evaluation.record.to_row())
+        self.answer_repository.append_answer_row(evaluation.record.to_bigquery_row())
         return evaluation
 
 
-def parse_answers_dataframe(dataframe: pd.DataFrame) -> tuple[list[AnswerRecord], list[str]]:
-    """Parse answer history, tolerating empty worksheets for new deployments."""
+def parse_answers_dataframe(dataframe: pd.DataFrame) -> tuple[list[AnswerAttempt], list[str]]:
+    """Parse answer history, tolerating empty tables for new deployments."""
 
     prepared = prepare_dataframe(dataframe)
     if prepared.empty and not list(prepared.columns):
         return [], []
 
-    require_columns(prepared, ANSWERS_REQUIRED_COLUMNS, ANSWERS_WORKSHEET_NAME)
+    require_columns(prepared, ANSWERS_REQUIRED_COLUMNS, ANSWERS_RESOURCE_NAME)
 
-    answers: list[AnswerRecord] = []
+    answers: list[AnswerAttempt] = []
     issues: list[str] = []
     for index, row in prepared.iterrows():
         if _is_blank_row(row.to_dict()):
@@ -82,15 +80,15 @@ def parse_answers_dataframe(dataframe: pd.DataFrame) -> tuple[list[AnswerRecord]
 
         row_number = worksheet_row_number(index)
         try:
-            answered_at_utc = parse_iso_datetime(str(row.get("answered_at_utc", "")))
+            answered_at_utc = parse_timestamp(row.get("answered_at_utc"))
             if answered_at_utc is None:
-                raise ValueError("answered_at_utc must be a valid ISO timestamp.")
-            answered_at_local = parse_iso_datetime(str(row.get("answered_at_local", "")))
+                raise ValueError("answered_at_utc must be a valid timestamp.")
+            answered_at_local = parse_local_datetime(row.get("answered_at_local"))
             answers.append(
-                AnswerRecord(
-                    id_answer=_parse_required_int(row.get("id_answer"), "id_answer"),
+                AnswerAttempt(
+                    id_answer=_parse_required_text(row.get("id_answer"), "id_answer"),
                     id_user=_parse_required_int(row.get("id_user"), "id_user"),
-                    email=str(row.get("email", "")).strip().lower(),
+                    email=_parse_required_text(row.get("email"), "email").lower(),
                     id_question=_parse_required_int(row.get("id_question"), "id_question"),
                     selected_choice=normalize_choice(str(row.get("selected_choice", ""))),
                     correct_choice=normalize_choice(str(row.get("correct_choice", ""))),
@@ -98,26 +96,25 @@ def parse_answers_dataframe(dataframe: pd.DataFrame) -> tuple[list[AnswerRecord]
                     answered_at_utc=answered_at_utc,
                     answered_at_local=answered_at_local,
                     time_spent_seconds=float(row.get("time_spent_seconds", 0) or 0),
-                    session_id=str(row.get("session_id", "")).strip(),
-                    source=_clean_text(row.get("source")),
-                    topic=_clean_text(row.get("topic")),
-                    app_version=_clean_text(row.get("app_version")),
+                    session_id=_parse_required_text(row.get("session_id"), "session_id"),
+                    source=clean_optional_text(row.get("source")),
+                    topic=clean_optional_text(row.get("topic")),
+                    app_version=clean_optional_text(row.get("app_version")),
                 )
             )
         except ValueError as exc:
-            issues.append(f"{ANSWERS_WORKSHEET_NAME} row {row_number}: {exc}")
+            issues.append(f"{ANSWERS_RESOURCE_NAME} row {row_number}: {exc}")
 
     return answers, issues
 
 
 def build_answer_evaluation(
     *,
-    user: AppUser,
+    user: User,
     question: Question,
     selected_choice: str,
     session_id: str,
     time_spent_seconds: float,
-    existing_answers: list[AnswerRecord],
     timezone_name: str,
     app_version: str,
 ) -> AnswerEvaluation:
@@ -128,11 +125,11 @@ def build_answer_evaluation(
         raise ValueError("selected_choice must be one of the question alternatives.")
 
     answered_at_utc = utc_now()
-    answered_at_local = answered_at_utc.astimezone(ZoneInfo(timezone_name))
+    answered_at_local = answered_at_utc.astimezone(ZoneInfo(timezone_name)).replace(tzinfo=None)
     is_correct = normalized_choice == question.correct_choice
 
-    record = AnswerRecord(
-        id_answer=next_numeric_id(answer.id_answer for answer in existing_answers),
+    record = AnswerAttempt(
+        id_answer=generate_answer_id(),
         id_user=user.id_user,
         email=user.email,
         id_question=question.id_question,
@@ -153,7 +150,7 @@ def build_answer_evaluation(
     )
 
 
-def answers_for_user(answers: list[AnswerRecord], user: AppUser) -> list[AnswerRecord]:
+def answers_for_user(answers: list[AnswerAttempt], user: User) -> list[AnswerAttempt]:
     """Return answers submitted by a specific user."""
 
     return [answer for answer in answers if answer.id_user == user.id_user]
@@ -174,18 +171,23 @@ def _parse_required_int(value: object, field_name: str) -> int:
         raise ValueError(f"{field_name} must be a valid integer.") from exc
 
 
+def _parse_required_text(value: object, field_name: str) -> str:
+    text = clean_optional_text(value)
+    if not text:
+        raise ValueError(f"{field_name} cannot be blank.")
+    return text
+
+
 def _parse_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+
     normalized = str(value).strip().lower()
     if normalized in {"true", "1", "yes"}:
         return True
     if normalized in {"false", "0", "no"}:
         return False
     raise ValueError("is_correct must be a boolean-like value.")
-
-
-def _clean_text(value: object) -> str | None:
-    text = str(value).strip()
-    return text or None
 
 
 def _is_blank_row(row: dict[str, object]) -> bool:

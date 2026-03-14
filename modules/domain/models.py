@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from modules.utils.datetime_utils import to_bigquery_datetime_string, to_iso_timestamp
+
 
 @dataclass(frozen=True, slots=True)
 class Question:
@@ -16,6 +18,8 @@ class Question:
     topic: str | None = None
     difficulty: str | None = None
     explanation: str | None = None
+    created_at_utc: datetime | None = None
+    updated_at_utc: datetime | None = None
 
     def available_choices(self) -> list[tuple[str, str]]:
         """Return ordered choices for rendering."""
@@ -32,13 +36,15 @@ class AuthIdentity:
 
 
 @dataclass(frozen=True, slots=True)
-class AppUser:
+class User:
     """User authorized to use the application."""
 
     id_user: int
     email: str
     name: str | None = None
     is_active: bool = True
+    created_at_utc: datetime | None = None
+    updated_at_utc: datetime | None = None
 
     @property
     def display_name(self) -> str:
@@ -48,10 +54,10 @@ class AppUser:
 
 
 @dataclass(frozen=True, slots=True)
-class AnswerRecord:
-    """Append-only answer event stored in Google Sheets."""
+class AnswerAttempt:
+    """Append-only answer event persisted in BigQuery."""
 
-    id_answer: int
+    id_answer: str
     id_user: int
     email: str
     id_question: int
@@ -66,8 +72,8 @@ class AnswerRecord:
     topic: str | None = None
     app_version: str | None = None
 
-    def to_row(self) -> dict[str, object]:
-        """Serialize the answer for worksheet appends."""
+    def to_bigquery_row(self) -> dict[str, object]:
+        """Serialize the answer for BigQuery streaming inserts."""
 
         return {
             "id_answer": self.id_answer,
@@ -76,14 +82,14 @@ class AnswerRecord:
             "id_question": self.id_question,
             "selected_choice": self.selected_choice,
             "correct_choice": self.correct_choice,
-            "is_correct": str(self.is_correct).lower(),
-            "answered_at_utc": self.answered_at_utc.isoformat(),
-            "answered_at_local": self.answered_at_local.isoformat() if self.answered_at_local else "",
+            "is_correct": self.is_correct,
+            "answered_at_utc": to_iso_timestamp(self.answered_at_utc),
+            "answered_at_local": to_bigquery_datetime_string(self.answered_at_local),
             "time_spent_seconds": round(self.time_spent_seconds, 2),
             "session_id": self.session_id,
-            "source": self.source or "",
-            "topic": self.topic or "",
-            "app_version": self.app_version or "",
+            "source": self.source,
+            "topic": self.topic,
+            "app_version": self.app_version,
         }
 
 
@@ -91,7 +97,7 @@ class AnswerRecord:
 class AnswerEvaluation:
     """Result of evaluating and preparing an answer submission."""
 
-    record: AnswerRecord
+    record: AnswerAttempt
     feedback_message: str
 
 

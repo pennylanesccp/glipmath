@@ -1,2 +1,0 @@
-id_answer,id_user,email,id_question,selected_choice,correct_choice,is_correct,answered_at_utc,answered_at_local,time_spent_seconds,session_id,source,topic,app_version
-1,1,ana@example.com,1,B,B,true,2026-03-07T15:00:00+00:00,2026-03-07T12:00:00-03:00,8.4,session-demo-001,OBMEP 2023,Aritmetica,0.1.0

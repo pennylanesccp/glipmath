@@ -1,0 +1,4 @@
+id_user,email,name,is_active,created_at_utc,updated_at_utc
+1,ana@example.com,Ana,true,2026-03-14T00:00:00+00:00,2026-03-14T00:00:00+00:00
+2,bruno@example.com,Bruno,true,2026-03-14T00:00:00+00:00,2026-03-14T00:00:00+00:00
+3,carla@example.com,Carla,true,2026-03-14T00:00:00+00:00,2026-03-14T00:00:00+00:00

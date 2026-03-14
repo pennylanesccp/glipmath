@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 TRUE_VALUES = {"1", "true", "t", "yes", "y", "sim", "s"}
-FALSE_VALUES = {"0", "false", "f", "no", "n", "nao", "não"}
+FALSE_VALUES = {"0", "false", "f", "no", "n", "nao"}
 
 
 def normalize_email(value: str | None) -> str:
@@ -29,7 +29,7 @@ def clean_optional_text(value: Any) -> str | None:
 
 
 def coerce_bool(value: Any, *, default: bool) -> bool:
-    """Interpret typical spreadsheet boolean-like values."""
+    """Interpret common boolean-like values."""
 
     if isinstance(value, bool):
         return value

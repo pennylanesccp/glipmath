@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from uuid import uuid4
 
 
-def next_numeric_id(existing_ids: Iterable[int]) -> int:
-    """Return the next positive integer after the current maximum."""
+def generate_answer_id() -> str:
+    """Generate a collision-resistant answer identifier for append-only events."""
 
-    return max((value for value in existing_ids if value > 0), default=0) + 1
+    return uuid4().hex

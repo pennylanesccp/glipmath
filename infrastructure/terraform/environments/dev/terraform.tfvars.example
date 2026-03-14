@@ -1,0 +1,11 @@
+project_id                     = "ide-math-app"
+environment                    = "dev"
+region                         = "southamerica-east1"
+bigquery_location              = "southamerica-east1"
+service_name                   = "glipmath-app"
+artifact_repository_id         = "glipmath"
+seed_bucket_name               = "ide-math-app-dev-glipmath-seed"
+deploy_cloud_run               = false
+container_image                = "southamerica-east1-docker.pkg.dev/ide-math-app/glipmath/glipmath:latest"
+allow_unauthenticated          = true
+create_deploy_service_account  = false

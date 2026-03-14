@@ -12,9 +12,10 @@ from modules.storage.schema_validation import (
     require_columns,
     worksheet_row_number,
 )
+from modules.utils.datetime_utils import parse_timestamp
 from modules.utils.normalization import clean_optional_text, coerce_bool, normalize_choice
 
-QUESTION_WORKSHEET_NAME = "question_bank"
+QUESTION_RESOURCE_NAME = "question_bank"
 QUESTION_REQUIRED_COLUMNS = [
     "id_question",
     "source",
@@ -36,8 +37,8 @@ def parse_question_bank_dataframe(
     if prepared.empty and not list(prepared.columns):
         return [], []
 
-    require_columns(prepared, QUESTION_REQUIRED_COLUMNS, QUESTION_WORKSHEET_NAME)
-    ensure_unique_integer_values(prepared, "id_question", QUESTION_WORKSHEET_NAME)
+    require_columns(prepared, QUESTION_REQUIRED_COLUMNS, QUESTION_RESOURCE_NAME)
+    ensure_unique_integer_values(prepared, "id_question", QUESTION_RESOURCE_NAME)
 
     questions: list[Question] = []
     issues: list[str] = []
@@ -46,7 +47,7 @@ def parse_question_bank_dataframe(
         try:
             question = _parse_question_row(row.to_dict())
         except ValueError as exc:
-            issues.append(f"{QUESTION_WORKSHEET_NAME} row {row_number}: {exc}")
+            issues.append(f"{QUESTION_RESOURCE_NAME} row {row_number}: {exc}")
             continue
         if question is not None:
             questions.append(question)
@@ -112,6 +113,8 @@ def _parse_question_row(row: dict[str, object]) -> Question | None:
         topic=clean_optional_text(row.get("topic")),
         difficulty=clean_optional_text(row.get("difficulty")),
         explanation=clean_optional_text(row.get("explanation")),
+        created_at_utc=parse_timestamp(row.get("created_at_utc")),
+        updated_at_utc=parse_timestamp(row.get("updated_at_utc")),
     )
 
 

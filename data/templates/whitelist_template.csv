@@ -1,4 +1,0 @@
-id_user,email,name,is_active
-1,ana@example.com,Ana,true
-2,bruno@example.com,Bruno,true
-3,inativo@example.com,Usuario Inativo,false

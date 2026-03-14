@@ -1,21 +1,33 @@
 # MVP Scope
 
-GlipMath MVP is intentionally small:
+## In Scope
 
-- Google OIDC login through Streamlit.
-- Whitelist-based authorization from Google Sheets.
-- One multiple-choice math question at a time.
-- Append-only answer logging in the `answers` worksheet.
-- Basic gamification indicators:
-  - day streak
-  - question streak
-  - leaderboard position
+- Streamlit web app
+- Google OIDC login
+- whitelist authorization from BigQuery
+- one-question-at-a-time experience
+- append-only answer logging to BigQuery
+- day streak
+- question streak
+- leaderboard position
+- Cloud Run deployment path
+- Terraform-managed GCP foundation
+- CSV-based question and whitelist admin flow
 
-Out of scope for this repository version:
+## Out of Scope
 
-- adaptive recommendation engines
+- admin UI
 - teacher dashboards
-- admin CRUD pages
-- rich analytics
-- offline-first support
-- non-Google identity providers
+- adaptive sequencing
+- spaced repetition
+- class segmentation
+- real-time multiplayer features
+- content authoring inside the app
+
+## Intended Quality Bar
+
+- thin UI files
+- deterministic business logic
+- centralized BigQuery access
+- documented infrastructure
+- production-minded MVP, not a temporary prototype

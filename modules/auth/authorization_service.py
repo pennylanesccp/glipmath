@@ -2,24 +2,24 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from modules.domain.models import AppUser
+from modules.domain.models import User
 from modules.services.user_service import find_user_by_email, list_active_users, parse_whitelist_dataframe
 from modules.storage.whitelist_repository import WhitelistRepository
 
 
 class AuthorizationService:
-    """Authorize authenticated identities against the whitelist worksheet."""
+    """Authorize authenticated identities against the whitelist table."""
 
     def __init__(self, whitelist_repository: WhitelistRepository) -> None:
         self._whitelist_repository = whitelist_repository
 
-    def load_users(self) -> tuple[list[AppUser], list[str]]:
+    def load_users(self) -> tuple[list[User], list[str]]:
         """Load all whitelist entries."""
 
         frame = self._whitelist_repository.load_frame()
         return parse_whitelist_dataframe(frame)
 
-    def authorize(self, email: str | None, *, fallback_name: str | None = None) -> AppUser | None:
+    def authorize(self, email: str | None, *, fallback_name: str | None = None) -> User | None:
         """Return the active authorized user that matches the provided email."""
 
         users, _ = self.load_users()
@@ -30,7 +30,7 @@ class AuthorizationService:
             return replace(user, name=fallback_name)
         return user
 
-    def list_active_users(self) -> list[AppUser]:
+    def list_active_users(self) -> list[User]:
         """Return all active whitelist users."""
 
         users, _ = self.load_users()

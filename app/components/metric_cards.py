@@ -11,7 +11,7 @@ def render_metric_cards(
 ) -> None:
     """Render the top gamification metrics."""
 
-    streak_day_column, streak_question_column, leaderboard_column = st.columns(3)
-    streak_day_column.metric("Day streak", day_streak)
-    streak_question_column.metric("Question streak", question_streak)
-    leaderboard_column.metric("Leaderboard", leaderboard_position)
+    day_column, question_column, leaderboard_column = st.columns(3)
+    day_column.metric("Sequencia diaria", day_streak)
+    question_column.metric("Sequencia de acertos", question_streak)
+    leaderboard_column.metric("Posicao no ranking", leaderboard_position)

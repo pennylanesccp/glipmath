@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
-from modules.domain.models import AnswerRecord
+from modules.domain.models import AnswerAttempt
 from modules.utils.datetime_utils import today_in_timezone
 
 
 def compute_day_streak(
-    answers: list[AnswerRecord],
+    answers: list[AnswerAttempt],
     *,
     timezone_name: str,
     today: date | None = None,
@@ -36,7 +36,7 @@ def compute_day_streak(
     return streak
 
 
-def compute_question_streak(answers: list[AnswerRecord]) -> int:
+def compute_question_streak(answers: list[AnswerAttempt]) -> int:
     """Compute the current consecutive correct-answer streak."""
 
     ordered_answers = sorted(answers, key=lambda answer: answer.answered_at_utc, reverse=True)
@@ -48,7 +48,7 @@ def compute_question_streak(answers: list[AnswerRecord]) -> int:
     return streak
 
 
-def _answer_local_date(answer: AnswerRecord, timezone_name: str) -> date:
+def _answer_local_date(answer: AnswerAttempt, timezone_name: str) -> date:
     if answer.answered_at_local is not None:
         return answer.answered_at_local.date()
     return answer.answered_at_utc.astimezone(ZoneInfo(timezone_name)).date()

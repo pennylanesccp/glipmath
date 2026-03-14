@@ -14,9 +14,9 @@ def render_leaderboard(
 ) -> None:
     """Render a compact leaderboard table."""
 
-    st.subheader("Leaderboard")
+    st.subheader("Ranking")
     if not leaderboard:
-        st.info("O leaderboard ainda nao tem participantes.")
+        st.info("O ranking ainda nao tem participantes.")
         return
 
     rows: list[dict[str, object]] = []

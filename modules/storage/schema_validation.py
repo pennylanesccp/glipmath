@@ -5,8 +5,11 @@ from collections.abc import Callable, Iterable
 import pandas as pd
 
 
-class WorksheetValidationError(ValueError):
-    """Raised when a worksheet cannot be safely interpreted."""
+class DataValidationError(ValueError):
+    """Raised when a dataset extract cannot be safely interpreted."""
+
+
+WorksheetValidationError = DataValidationError
 
 
 def prepare_dataframe(dataframe: pd.DataFrame | None) -> pd.DataFrame:
@@ -22,22 +25,22 @@ def prepare_dataframe(dataframe: pd.DataFrame | None) -> pd.DataFrame:
 def require_columns(
     dataframe: pd.DataFrame,
     required_columns: Iterable[str],
-    worksheet_name: str,
+    resource_name: str,
 ) -> None:
     """Ensure the dataframe exposes the expected columns."""
 
     missing = [column for column in required_columns if column not in dataframe.columns]
     if missing:
         formatted = ", ".join(sorted(missing))
-        raise WorksheetValidationError(
-            f"Worksheet '{worksheet_name}' is missing required columns: {formatted}."
+        raise DataValidationError(
+            f"Resource '{resource_name}' is missing required columns: {formatted}."
         )
 
 
 def ensure_unique_integer_values(
     dataframe: pd.DataFrame,
     column_name: str,
-    worksheet_name: str,
+    resource_name: str,
 ) -> None:
     """Raise if duplicate integer-like identifiers are found."""
 
@@ -55,15 +58,15 @@ def ensure_unique_integer_values(
 
     if duplicates:
         formatted = ", ".join(str(value) for value in sorted(duplicates))
-        raise WorksheetValidationError(
-            f"Worksheet '{worksheet_name}' contains duplicate values in '{column_name}': {formatted}."
+        raise DataValidationError(
+            f"Resource '{resource_name}' contains duplicate values in '{column_name}': {formatted}."
         )
 
 
 def ensure_unique_normalized_values(
     dataframe: pd.DataFrame,
     column_name: str,
-    worksheet_name: str,
+    resource_name: str,
     normalizer: Callable[[str | None], str],
 ) -> None:
     """Raise if duplicate normalized text values are found."""
@@ -80,12 +83,12 @@ def ensure_unique_normalized_values(
 
     if duplicates:
         formatted = ", ".join(sorted(duplicates))
-        raise WorksheetValidationError(
-            f"Worksheet '{worksheet_name}' contains duplicate normalized values in '{column_name}': {formatted}."
+        raise DataValidationError(
+            f"Resource '{resource_name}' contains duplicate normalized values in '{column_name}': {formatted}."
         )
 
 
 def worksheet_row_number(dataframe_index: int) -> int:
-    """Return the original worksheet row number for a dataframe row."""
+    """Return a human-friendly row number for CSV-style diagnostics."""
 
     return dataframe_index + 2

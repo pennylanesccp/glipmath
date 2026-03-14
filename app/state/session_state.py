@@ -14,6 +14,7 @@ QUESTION_STARTED_AT_KEY = "glipmath_question_started_at"
 QUESTION_ANSWERED_KEY = "glipmath_question_answered"
 LAST_ANSWER_RESULT_KEY = "glipmath_last_answer_result"
 QUESTION_SELECTION_KEY = "glipmath_question_selection"
+SUBMISSION_IN_PROGRESS_KEY = "glipmath_submission_in_progress"
 
 
 def initialize_session_state() -> None:
@@ -25,6 +26,7 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(QUESTION_ANSWERED_KEY, False)
     st.session_state.setdefault(LAST_ANSWER_RESULT_KEY, None)
     st.session_state.setdefault(QUESTION_SELECTION_KEY, None)
+    st.session_state.setdefault(SUBMISSION_IN_PROGRESS_KEY, False)
 
 
 def get_session_id() -> str:
@@ -51,6 +53,7 @@ def set_current_question(id_question: int) -> None:
     st.session_state[QUESTION_ANSWERED_KEY] = False
     st.session_state[LAST_ANSWER_RESULT_KEY] = None
     st.session_state[QUESTION_SELECTION_KEY] = None
+    st.session_state[SUBMISSION_IN_PROGRESS_KEY] = False
 
 
 def clear_current_question() -> None:
@@ -62,6 +65,7 @@ def clear_current_question() -> None:
     st.session_state[QUESTION_ANSWERED_KEY] = False
     st.session_state[LAST_ANSWER_RESULT_KEY] = None
     st.session_state[QUESTION_SELECTION_KEY] = None
+    st.session_state[SUBMISSION_IN_PROGRESS_KEY] = False
 
 
 def get_question_started_at() -> datetime | None:
@@ -79,11 +83,33 @@ def is_current_question_answered() -> bool:
     return bool(st.session_state[QUESTION_ANSWERED_KEY])
 
 
+def is_submission_in_progress() -> bool:
+    """Return whether a submission is currently being processed."""
+
+    initialize_session_state()
+    return bool(st.session_state[SUBMISSION_IN_PROGRESS_KEY])
+
+
+def start_submission() -> None:
+    """Set the transient submission lock."""
+
+    initialize_session_state()
+    st.session_state[SUBMISSION_IN_PROGRESS_KEY] = True
+
+
+def finish_submission() -> None:
+    """Release the transient submission lock."""
+
+    initialize_session_state()
+    st.session_state[SUBMISSION_IN_PROGRESS_KEY] = False
+
+
 def mark_question_answered(evaluation: AnswerEvaluation) -> None:
     """Persist the latest submission outcome in session state."""
 
     initialize_session_state()
     st.session_state[QUESTION_ANSWERED_KEY] = True
+    st.session_state[SUBMISSION_IN_PROGRESS_KEY] = False
     st.session_state[LAST_ANSWER_RESULT_KEY] = {
         "id_question": evaluation.record.id_question,
         "selected_choice": evaluation.record.selected_choice,

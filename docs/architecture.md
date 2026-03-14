@@ -1,115 +1,110 @@
 # Architecture
 
-## Design Goals
+## Overview
 
-GlipMath is an MVP, but it is structured like a small maintainable Python application:
+GlipMath is a small but production-minded Streamlit application deployed on Cloud Run and backed by BigQuery.
 
-- typed modules
-- small cohesive files
-- explicit storage boundaries
-- testable domain logic
-- minimal logic inside Streamlit page files
+The architecture is intentionally split into five layers:
 
-## Layers
-
-### `app/`
-
-Contains Streamlit-specific composition:
-
-- `streamlit_app.py`: entrypoint and routing
-- `pages/`: logical page renderers
-- `components/`: reusable UI fragments
-- `state/`: session-state helpers for rerun-safe flows
-
-### `modules/domain/`
-
-Typed dataclasses representing app concepts:
-
-- `Question`
-- `AppUser`
-- `AnswerRecord`
-- `LeaderboardEntry`
-
-### `modules/services/`
-
-Pure business logic and data interpretation:
-
-- question validation and selection
-- answer parsing and evaluation
-- streak calculations
-- leaderboard calculations
-- whitelist parsing and lookup
-
-### `modules/auth/`
-
-Authentication and authorization helpers:
-
-- Streamlit OIDC integration wrappers
-- whitelist-based authorization service
-
-### `modules/storage/`
-
-Persistence adapters:
-
-- Google Sheets backend for production
-- CSV backend for local storage workflows
-- repositories for worksheet access
-- schema validation helpers
-
-### `modules/config/`
-
-Settings loaded from Streamlit secrets with typed dataclasses.
+- UI: `app/`
+- Domain models: `modules/domain/`
+- Business services: `modules/services/`
+- Storage adapters: `modules/storage/`
+- Infrastructure: `infrastructure/terraform/`
 
 ## Runtime Flow
 
-1. Streamlit starts `app/streamlit_app.py`.
-2. Settings are loaded from `.streamlit/secrets.toml`.
-3. If the user is not authenticated, the login page is rendered.
-4. After authentication, the whitelist is loaded and matched by normalized email.
-5. If authorized, the app loads:
-   - question bank
-   - whitelist users
-   - answer history
-6. Services compute:
-   - valid questions
-   - user history
-   - day streak
-   - question streak
-   - leaderboard
-7. The main page renders one question at a time.
-8. On submission, one append-only answer row is written to `answers`.
+1. The user opens the Streamlit app.
+2. Streamlit OIDC handles Google login.
+3. The app normalizes the email and checks BigQuery `whitelist`.
+4. Authorized users load active questions from `question_bank`.
+5. The app loads the current user's answer history from `answers`.
+6. The app loads leaderboard rows from `v_leaderboard`.
+7. On submission, the app evaluates the answer and appends one event row to `answers`.
 
-## Data Integrity Strategy
+## Layer Responsibilities
 
-The app is intentionally tolerant but not silent:
+### `app/`
 
-- missing required worksheet columns: blocking error
-- duplicate IDs or duplicate normalized whitelist emails: blocking error
-- malformed active question rows: skipped and surfaced in diagnostics
-- malformed answer rows: skipped and surfaced in diagnostics
-- empty `answers` worksheet: allowed
+- Page routing and orchestration
+- Session state
+- Streamlit components
+- Portuguese-BR user-facing text
 
-## Storage Strategy
+No BigQuery SQL or business rules should live here.
 
-Production target:
+### `modules/domain/`
 
-- private Google Sheet
-- service account credentials in Streamlit secrets
-- append-only answer logging
+- `Question`
+- `User`
+- `AnswerAttempt`
+- `LeaderboardEntry`
 
-Development fallback:
+These are typed containers used across the app.
 
-- CSV files under `data/local_dev/`
-- same worksheet naming convention as the production sheet
+### `modules/services/`
 
-## UI Strategy
+- Question validation and selection
+- Answer evaluation
+- Day streak and question streak rules
+- Leaderboard ranking logic
+- Whitelist parsing and normalization
 
-The UI is intentionally simple:
+These modules are designed to stay deterministic and easy to test.
 
-- login screen
-- access denied screen
-- one main authenticated screen
-- top metrics
-- compact leaderboard
-- single question card
-- answer feedback and next-question flow
+### `modules/storage/`
+
+- BigQuery client wrapper
+- Question repository
+- Whitelist repository
+- Answer repository
+
+All BigQuery queries stay here so UI files remain thin.
+
+### `infrastructure/terraform/`
+
+- Project service enablement
+- Service accounts
+- BigQuery datasets, tables, and views
+- Secret Manager placeholders
+- Artifact Registry
+- GCS bucket
+- Cloud Run service
+
+## Data Access Pattern
+
+The app uses:
+
+- table reads for `question_bank`
+- table reads for `whitelist`
+- user-scoped reads for `answers`
+- streaming inserts for `answers`
+- analytics view reads for `v_leaderboard`
+
+This keeps the MVP simple while preserving a clean path to future optimization.
+
+## Auth Design
+
+Google OIDC is handled by Streamlit auth helpers:
+
+- local runs read `.streamlit/secrets.toml`
+- Cloud Run receives env vars from Secret Manager
+- `scripts/bootstrap_streamlit_secrets.py` writes a runtime secrets file inside the container
+
+Authorization is separate from authentication:
+
+- authentication: Google identity
+- authorization: active email match in BigQuery `whitelist`
+
+## Deployment Design
+
+- Local development: Streamlit + ADC + BigQuery
+- Production deployment: Docker image on Cloud Run
+- No local filesystem persistence
+- Runtime identity: Cloud Run service account
+
+## Design Tradeoffs
+
+- BigQuery streaming inserts were chosen for MVP simplicity over more advanced write APIs.
+- Current question streak is kept in Python because it is simpler and clearer than an MVP SQL implementation.
+- Leaderboard aggregation is provisioned as a BigQuery view so app reads stay small.

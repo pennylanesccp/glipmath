@@ -1,21 +1,21 @@
 from datetime import datetime, timezone
 
-from modules.domain.models import AnswerRecord, AppUser
+from modules.domain.models import AnswerAttempt, User
 from modules.services.leaderboard_service import compute_leaderboard, find_user_position, format_position
 
 
-def _answer(id_answer: int, id_user: int, is_correct: bool) -> AnswerRecord:
-    timestamp = datetime(2026, 3, 7, 15, id_answer, tzinfo=timezone.utc)
-    return AnswerRecord(
+def _answer(id_answer: str, id_user: int, is_correct: bool) -> AnswerAttempt:
+    timestamp = datetime(2026, 3, 7, 15, 0, tzinfo=timezone.utc)
+    return AnswerAttempt(
         id_answer=id_answer,
         id_user=id_user,
         email=f"user{id_user}@example.com",
-        id_question=id_answer,
+        id_question=1,
         selected_choice="A",
         correct_choice="A",
         is_correct=is_correct,
         answered_at_utc=timestamp,
-        answered_at_local=timestamp,
+        answered_at_local=timestamp.replace(tzinfo=None),
         time_spent_seconds=4.0,
         session_id="session",
     )
@@ -23,15 +23,15 @@ def _answer(id_answer: int, id_user: int, is_correct: bool) -> AnswerRecord:
 
 def test_compute_leaderboard_orders_by_correct_then_answers_then_email() -> None:
     users = [
-        AppUser(id_user=1, email="ana@example.com", name="Ana", is_active=True),
-        AppUser(id_user=2, email="bia@example.com", name="Bia", is_active=True),
-        AppUser(id_user=3, email="cai@example.com", name="Cai", is_active=True),
+        User(id_user=1, email="ana@example.com", name="Ana", is_active=True),
+        User(id_user=2, email="bia@example.com", name="Bia", is_active=True),
+        User(id_user=3, email="cai@example.com", name="Cai", is_active=True),
     ]
     answers = [
-        _answer(1, 1, True),
-        _answer(2, 1, True),
-        _answer(3, 2, True),
-        _answer(4, 2, False),
+        _answer("a1", 1, True),
+        _answer("a2", 1, True),
+        _answer("a3", 2, True),
+        _answer("a4", 2, False),
     ]
 
     leaderboard = compute_leaderboard(users, answers)
@@ -42,10 +42,10 @@ def test_compute_leaderboard_orders_by_correct_then_answers_then_email() -> None
 
 def test_compute_leaderboard_ignores_inactive_users() -> None:
     users = [
-        AppUser(id_user=1, email="ana@example.com", is_active=True),
-        AppUser(id_user=2, email="bia@example.com", is_active=False),
+        User(id_user=1, email="ana@example.com", is_active=True),
+        User(id_user=2, email="bia@example.com", is_active=False),
     ]
-    answers = [_answer(1, 2, True)]
+    answers = [_answer("a1", 2, True)]
 
     leaderboard = compute_leaderboard(users, answers)
 

@@ -4,11 +4,11 @@ import streamlit as st
 
 
 def render_auth_setup_warning() -> None:
-    """Render a setup warning when auth secrets are missing."""
+    """Render a setup warning when auth configuration is missing."""
 
     st.warning(
         "A autenticacao Google ainda nao esta configurada. "
-        "Preencha `.streamlit/secrets.toml` com os dados OIDC antes de usar o app."
+        "Preencha `.streamlit/secrets.toml` no ambiente local ou injete as variaveis de auth via Secret Manager no Cloud Run."
     )
 
 
@@ -17,7 +17,7 @@ def render_unauthorized_message(email: str | None) -> None:
 
     st.error("Acesso nao autorizado.")
     st.write(
-        "Sua conta Google foi autenticada, mas o seu email ainda nao esta liberado para usar o GlipMath."
+        "Sua conta Google foi autenticada, mas este email ainda nao esta liberado para usar o GlipMath."
     )
     if email:
         st.caption(f"Email detectado: {email}")
