@@ -1,0 +1,331 @@
+<style>
+    :root {
+        --gm-bg: #020817;
+        --gm-surface: rgba(10, 18, 38, 0.92);
+        --gm-border: rgba(129, 140, 248, 0.18);
+        --gm-shadow-card: 0 24px 64px rgba(2, 8, 23, 0.45);
+        --gm-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.28);
+
+        --gm-toggle-track: rgba(79, 70, 229, 0.22);
+        --gm-toggle-thumb: #ffffff;
+        --gm-toggle-icon: #0f172a;
+
+        --gsi-bg: #131314;
+        --gsi-border: #8e918f;
+        --gsi-text: #e3e3e3;
+        --gsi-state-hover: rgba(255, 255, 255, 0.08);
+        --gsi-state-focus: rgba(255, 255, 255, 0.12);
+        --gsi-state-active: rgba(255, 255, 255, 0.16);
+    }
+
+    [data-theme="light"] {
+        --gm-bg: #f8fafc;
+        --gm-surface: rgba(255, 255, 255, 0.96);
+        --gm-border: rgba(148, 163, 184, 0.22);
+        --gm-shadow-card: 0 24px 64px rgba(15, 23, 42, 0.10);
+        --gm-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.12);
+
+        --gm-toggle-track: #dbe4ff;
+        --gm-toggle-thumb: #4f46e5;
+        --gm-toggle-icon: #ffffff;
+
+        --gsi-bg: #ffffff;
+        --gsi-border: #747775;
+        --gsi-text: #1f1f1f;
+        --gsi-state-hover: rgba(60, 64, 67, 0.08);
+        --gsi-state-focus: rgba(60, 64, 67, 0.12);
+        --gsi-state-active: rgba(60, 64, 67, 0.16);
+    }
+
+    [data-testid="stSidebar"],
+    [data-testid="collapsedControl"],
+    [data-testid="stToolbar"],
+    [data-testid="stStatusWidget"],
+    [data-testid="stHeader"] {
+        display: none !important;
+    }
+
+    [data-testid="stAppViewContainer"] {
+        background:
+            radial-gradient(circle at top, rgba(79, 70, 229, 0.18), transparent 28%),
+            linear-gradient(180deg, var(--gm-bg) 0%, var(--gm-bg) 100%);
+    }
+
+    .block-container {
+        max-width: 480px;
+        padding: 18px 18px 28px;
+    }
+
+    @media (max-width: 420px) {
+        .block-container {
+            padding: 14px 14px 24px;
+        }
+    }
+
+    .gm-login-shell {
+        min-height: calc(100vh - 36px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .gm-login-topbar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 18px;
+    }
+
+    .gm-theme-toggle,
+    .gm-theme-toggle:visited {
+        background: var(--gm-toggle-track);
+        border-radius: 999px;
+        box-shadow: var(--gm-shadow-soft);
+        display: inline-flex;
+        height: 40px;
+        position: relative;
+        text-decoration: none;
+        width: 72px;
+    }
+
+    .gm-theme-toggle-thumb {
+        align-items: center;
+        background: var(--gm-toggle-thumb);
+        border-radius: 50%;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+        display: flex;
+        height: 32px;
+        justify-content: center;
+        left: 4px;
+        position: absolute;
+        top: 4px;
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 32px;
+    }
+
+    .gm-theme-toggle--dark .gm-theme-toggle-thumb {
+        transform: translateX(32px);
+    }
+
+    .gm-theme-icon {
+        color: var(--gm-toggle-icon);
+        height: 16px;
+        position: absolute;
+        width: 16px;
+        transition: opacity 0.2s ease, transform 0.28s ease;
+    }
+
+    .gm-theme-icon--sun {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .gm-theme-icon--moon {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+
+    .gm-theme-toggle--dark .gm-theme-icon--sun {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+
+    .gm-theme-toggle--dark .gm-theme-icon--moon {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .gm-login-card {
+        background: var(--gm-surface);
+        border: 1px solid var(--gm-border);
+        border-radius: 28px;
+        box-shadow: var(--gm-shadow-card);
+        padding: 34px 22px 28px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 26px;
+        backdrop-filter: blur(12px);
+        margin-top: 56px;
+    }
+
+    .gm-logo {
+        display: block;
+        width: 100%;
+        max-width: 320px;
+        height: auto;
+    }
+
+    .gm-google-button-wrap {
+        width: min(100%, 320px);
+    }
+
+    .gm-google-form {
+        margin: 0;
+        width: 100%;
+    }
+
+    .gsi-material-button {
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+        -webkit-appearance: none;
+        appearance: none;
+        background-color: var(--gsi-bg);
+        background-image: none;
+        border: 1px solid var(--gsi-border);
+        border-radius: 999px;
+        box-sizing: border-box;
+        color: var(--gsi-text);
+        cursor: pointer;
+        font-family: "Roboto", Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        height: 44px;
+        letter-spacing: 0.25px;
+        outline: none;
+        overflow: hidden;
+        padding: 0;
+        position: relative;
+        text-align: center;
+        transition: box-shadow .18s ease, transform .18s ease, opacity .18s ease;
+        vertical-align: middle;
+        white-space: nowrap;
+        width: 100%;
+        box-shadow: var(--gm-shadow-soft);
+    }
+
+    .gsi-material-button:hover {
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
+        transform: translateY(-1px);
+    }
+
+    .gsi-material-button:active {
+        transform: translateY(1px);
+    }
+
+    .gsi-material-button.is-disabled {
+        cursor: default;
+        opacity: 0.58;
+        pointer-events: none;
+    }
+
+    .gsi-material-button .gsi-material-button-state {
+        transition: opacity .218s;
+        background-color: currentColor;
+        opacity: 0;
+        position: absolute;
+        inset: 0;
+    }
+
+    .gsi-material-button:hover .gsi-material-button-state {
+        opacity: 0.08;
+    }
+
+    .gsi-material-button:focus .gsi-material-button-state,
+    .gsi-material-button:focus-visible .gsi-material-button-state {
+        opacity: 0.12;
+    }
+
+    .gsi-material-button:active .gsi-material-button-state {
+        opacity: 0.16;
+    }
+
+    .gsi-material-button-content-wrapper {
+        align-items: center;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        height: 100%;
+        justify-content: center;
+        position: relative;
+        width: 100%;
+    }
+
+    .gsi-material-button-icon {
+        height: 18px;
+        margin-right: 12px;
+        min-width: 18px;
+        width: 18px;
+    }
+
+    .gsi-material-button-icon svg {
+        display: block;
+        height: 18px;
+        width: 18px;
+    }
+
+    .gsi-material-button-contents {
+        flex-grow: 0;
+        font-family: "Roboto", Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 20px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 420px) {
+        .gm-login-card {
+            border-radius: 24px;
+            padding: 28px 18px 22px;
+            gap: 22px;
+            margin-top: 40px;
+        }
+
+        .gm-logo {
+            max-width: 280px;
+        }
+    }
+</style>
+
+<section class="gm-login-shell" data-theme="{{THEME_NAME}}">
+    <div class="gm-login-topbar">
+        <a
+            href="{{THEME_TOGGLE_HREF}}"
+            class="gm-theme-toggle {{THEME_TOGGLE_CLASS}}"
+            target="_self"
+            rel="noopener noreferrer"
+            aria-label="Alternar entre modo claro e escuro"
+        >
+            <span class="gm-theme-toggle-thumb">
+                <svg class="gm-theme-icon gm-theme-icon--sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4.2" fill="currentColor"></circle>
+                    <path d="M12 2.5V5.2M12 18.8V21.5M21.5 12H18.8M5.2 12H2.5M18.72 5.28L16.8 7.2M7.2 16.8L5.28 18.72M18.72 18.72L16.8 16.8M7.2 7.2L5.28 5.28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                </svg>
+                <svg class="gm-theme-icon gm-theme-icon--moon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M20.2 14.2A8.7 8.7 0 0 1 9.8 3.8 9.2 9.2 0 1 0 20.2 14.2Z"></path>
+                </svg>
+            </span>
+        </a>
+    </div>
+
+    <div class="gm-login-card">
+        <img
+            class="gm-logo"
+            src="{{LOGO_DATA_URI}}"
+            alt="IDE"
+        />
+
+        <div class="gm-google-button-wrap">
+            <form class="gm-google-form" action="{{GOOGLE_BUTTON_HREF}}" method="get">
+                <button class="gsi-material-button{{GOOGLE_BUTTON_CLASS}}" type="submit" aria-label="Continue with Google">
+                    <div class="gsi-material-button-state"></div>
+                    <div class="gsi-material-button-content-wrapper">
+                        <div class="gsi-material-button-icon">
+                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" xmlns:xlink="http://www.w3.org/1999/xlink" style="display: block;">
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                                <path fill="none" d="M0 0h48v48H0z"></path>
+                            </svg>
+                        </div>
+                        <span class="gsi-material-button-contents">Continue with Google</span>
+                        <span style="display: none;">Continue with Google</span>
+                    </div>
+                </button>
+            </form>
+        </div>
+    </div>
+</section>
