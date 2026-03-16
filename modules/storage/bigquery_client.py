@@ -26,6 +26,7 @@ class BigQueryClient:
         location: str,
         service_account_info: Mapping[str, Any] | None = None,
     ) -> None:
+        self._table_columns_cache: dict[str, tuple[str, ...]] = {}
         credentials = None
         auth_mode = "application_default_credentials"
         if service_account_info:
@@ -64,6 +65,29 @@ class BigQueryClient:
             location,
             auth_mode,
         )
+
+    def get_table_column_names(self, table_id: str) -> tuple[str, ...]:
+        """Return the top-level column names for a BigQuery table."""
+
+        cached = self._table_columns_cache.get(table_id)
+        if cached is not None:
+            return cached
+
+        try:
+            logger.debug("Loading BigQuery table schema | table_id=%s", table_id)
+            table = self._client.get_table(table_id)
+        except Exception as exc:
+            logger.exception("Failed to load BigQuery table schema | table_id=%s", table_id)
+            raise BigQueryError(f"BigQuery schema lookup failed: {exc}") from exc
+
+        column_names = tuple(field.name for field in table.schema)
+        self._table_columns_cache[table_id] = column_names
+        logger.debug(
+            "Loaded BigQuery table schema | table_id=%s | columns=%s",
+            table_id,
+            list(column_names),
+        )
+        return column_names
 
     def query_to_dataframe(
         self,
