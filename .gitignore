@@ -9,6 +9,8 @@ data/db/
 data/raw/
 trash/
 tests/*
+!tests/
+!tests/*.py
 tasks
 secrets/
 

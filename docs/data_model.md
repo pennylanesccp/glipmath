@@ -93,13 +93,24 @@ Definitions:
   - rank in `v_leaderboard`
   - users with zero answers do not yet appear in the leaderboard view
 
-## Seed Format
+## Input Formats
 
-The question bank seed template is JSONL:
+Canonical question-bank input:
 
 - `sql/seeds/question_bank_template.jsonl`
 
-Each line is one question object that already matches the nested BigQuery schema, which avoids awkward CSV-to-nested transformations for the MVP.
+Supported raw import input:
+
+- `data/*.csv` in the vestibulinho flat-question format
+  - `question_number`
+  - `statement`
+  - `question_a` to `question_e`
+  - `source`
+  - `answer`
+
+The import pipeline converts the raw CSV rows into the nested BigQuery schema before validation and load.
+
+For this raw CSV path, `id_question` is generated deterministically from `source` plus `question_number`.
 
 Version-controlled schema files:
 

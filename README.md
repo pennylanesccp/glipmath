@@ -27,6 +27,7 @@ There is no Docker, Cloud Run, Artifact Registry, Secret Manager runtime flow, o
 glipmath/
 |- .streamlit/
 |- app/
+|- data/
 |- modules/
 |- infrastructure/terraform/
 |- sql/
@@ -102,14 +103,15 @@ The app combines the correct answer and wrong answers in memory, assigns stable 
    - `[bigquery]` for dataset/table/view names
    - `[gcp_service_account]` for the BigQuery runtime service account JSON fields
 5. Apply Terraform for the GCP data layer.
-6. Validate and load the question bank:
+6. Place supported raw question files under `data/`.
+7. Validate and load the question bank:
 
    ```powershell
-   python scripts/validate_question_bank.py
-   python scripts/load_question_bank_to_bigquery.py
+   python scripts/validate_question_bank.py --input-path data
+   python scripts/load_question_bank_to_bigquery.py --input-path data
    ```
 
-7. Run the app:
+8. Run the app:
 
    ```powershell
    .\run_streamlit.ps1
@@ -149,13 +151,18 @@ There is no admin UI in the MVP.
 
 Use:
 
-- `python scripts/validate_question_bank.py`
-- `python scripts/load_question_bank_to_bigquery.py`
+- `python scripts/validate_question_bank.py --input-path data`
+- `python scripts/load_question_bank_to_bigquery.py --input-path data`
 - `python scripts/backfill_local_dev_data.py --user-email ana@example.com`
 
-Question bank seed asset:
+Supported question inputs:
 
+- `data/*.csv` in the vestibulinho flat-question format
 - `sql/seeds/question_bank_template.jsonl`
+
+The pipeline converts supported raw files into the canonical nested question-bank rows in memory, then validates and loads them.
+
+For the current vestibulinho CSV pipeline, `id_question` is derived deterministically from `source` plus `question_number`.
 
 The question bank loader replaces the current contents of `glipmath_core.question_bank`.
 
@@ -185,6 +192,7 @@ python -m pytest
 
 The test suite avoids real GCP calls and covers:
 
+- raw question import from the `data/` pipeline
 - nested question parsing and validation
 - alternative randomization
 - answer correctness evaluation

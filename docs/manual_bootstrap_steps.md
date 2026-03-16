@@ -78,18 +78,21 @@ Populate:
 - BigQuery config under `[gcp]` and `[bigquery]`
 - the service account JSON fields under `[gcp_service_account]`
 
-## 9. Prepare the Question Bank Seed
+## 9. Prepare the Question Bank Input
 
 Use:
 
-- `sql/seeds/question_bank_template.jsonl`
+- raw question files under `data/`
+- or `sql/seeds/question_bank_template.jsonl`
 
 Validate and load:
 
 ```powershell
-python scripts/validate_question_bank.py
-python scripts/load_question_bank_to_bigquery.py
+python scripts/validate_question_bank.py --input-path data
+python scripts/load_question_bank_to_bigquery.py --input-path data
 ```
+
+The current raw CSV pipeline supports the vestibulinho flat-question format and converts it into the nested `question_bank` schema before load.
 
 The question bank load script replaces the current contents of the target table.
 
