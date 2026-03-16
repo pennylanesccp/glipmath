@@ -112,6 +112,7 @@ def render_main_page(
                     return
                 clear_question_skip(current_question.id_question)
                 mark_question_answered(evaluation, selected_option_id=selected_alternative.option_id)
+                st.cache_data.clear()
                 st.rerun()
         return
 

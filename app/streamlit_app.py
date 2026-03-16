@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 from app.components.theme import apply_app_theme
@@ -68,8 +69,15 @@ def main() -> None:
 
     try:
         context = build_runtime_context(settings)
-        question_frame = context.question_repository.load_frame()
-        user_answer_frame = context.answer_repository.load_user_frame(authorized_user.email)
+        question_frame = load_question_frame(
+            context.question_repository,
+            settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+        )
+        user_answer_frame = load_user_answer_frame(
+            context.answer_repository,
+            settings.bigquery.answers_table_id(settings.gcp.project_id),
+            authorized_user.email,
+        )
     except BigQueryError as exc:
         logger.exception(
             "BigQuery-backed app startup failed for user_email=%s",
@@ -133,6 +141,27 @@ def build_runtime_context(settings: AppSettings) -> RuntimeContext:
             app_version=settings.app_version,
         ),
     )
+
+
+@st.cache_data(show_spinner=False, ttl=300)
+def load_question_frame(
+    _question_repository: QuestionRepository,
+    question_table_id: str,
+) -> pd.DataFrame:
+    """Load and cache active questions for the current table."""
+
+    return _question_repository.load_frame()
+
+
+@st.cache_data(show_spinner=False, ttl=30)
+def load_user_answer_frame(
+    _answer_repository: AnswerRepository,
+    answers_table_id: str,
+    user_email: str,
+) -> pd.DataFrame:
+    """Load and cache one user's answer history briefly across reruns."""
+
+    return _answer_repository.load_user_frame(user_email)
 
 
 def _render_diagnostics(
