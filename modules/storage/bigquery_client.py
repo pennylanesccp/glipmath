@@ -124,7 +124,9 @@ class BigQueryClient:
             raise BigQueryError(f"BigQuery query failed: {exc}") from exc
 
         materialization_started_at = perf_counter()
-        dataframe = result.to_dataframe(create_bqstorage_client=False)
+        column_names = [field.name for field in result.schema]
+        rows = list(result)
+        dataframe = pd.DataFrame.from_records(rows, columns=column_names)
         logger.debug(
             "BigQuery query succeeded | job_id=%s | rows=%s | query_elapsed_ms=%.2f | materialization_elapsed_ms=%.2f",
             getattr(query_job, "job_id", None),
