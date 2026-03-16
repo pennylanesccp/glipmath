@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import random
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
@@ -24,6 +25,15 @@ QUESTION_REQUIRED_COLUMNS = [
     "correct_answer",
     "wrong_answers",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class QuestionRowIssue:
+    """Validation issue tied to one canonical question-bank row."""
+
+    row_index: int
+    row_number: int
+    message: str
 
 
 def parse_question_bank_dataframe(
@@ -50,6 +60,50 @@ def parse_question_bank_dataframe(
         if question is not None:
             questions.append(question)
     return questions, issues
+
+
+def find_valid_question_bank_row_indexes(
+    rows: Sequence[dict[str, object]],
+) -> tuple[list[int], list[QuestionRowIssue]]:
+    """Return the canonical row indexes that can be safely loaded."""
+
+    prepared = prepare_dataframe(pd.DataFrame(rows))
+    if prepared.empty and not list(prepared.columns):
+        return [], []
+
+    require_columns(prepared, QUESTION_REQUIRED_COLUMNS, QUESTION_RESOURCE_NAME)
+
+    duplicate_id_by_index = _find_duplicate_id_by_index(prepared)
+    valid_indexes: list[int] = []
+    issues: list[QuestionRowIssue] = []
+    for index, row in prepared.iterrows():
+        row_number = worksheet_row_number(index)
+        duplicate_id = duplicate_id_by_index.get(index)
+        if duplicate_id is not None:
+            issues.append(
+                QuestionRowIssue(
+                    row_index=index,
+                    row_number=row_number,
+                    message=f"id_question must be unique; duplicate value {duplicate_id}.",
+                )
+            )
+            continue
+
+        try:
+            _parse_question_row(row.to_dict())
+        except ValueError as exc:
+            issues.append(
+                QuestionRowIssue(
+                    row_index=index,
+                    row_number=row_number,
+                    message=str(exc),
+                )
+            )
+            continue
+
+        valid_indexes.append(index)
+
+    return valid_indexes, issues
 
 
 def select_next_question(
@@ -226,3 +280,26 @@ def _parse_required_text(value: object, field_name: str) -> str:
     if not text:
         raise ValueError(f"{field_name} cannot be blank.")
     return text
+
+
+def _find_duplicate_id_by_index(dataframe: pd.DataFrame) -> dict[int, int]:
+    ids_by_index: dict[int, int] = {}
+    row_indexes_by_id: dict[int, list[int]] = {}
+
+    for index, row in dataframe.iterrows():
+        try:
+            parsed_id = int(str(row.get("id_question")).strip())
+        except (TypeError, ValueError):
+            continue
+
+        ids_by_index[index] = parsed_id
+        row_indexes_by_id.setdefault(parsed_id, []).append(index)
+
+    duplicates: dict[int, int] = {}
+    for parsed_id, row_indexes in row_indexes_by_id.items():
+        if len(row_indexes) < 2:
+            continue
+        for row_index in row_indexes:
+            duplicates[row_index] = ids_by_index[row_index]
+
+    return duplicates

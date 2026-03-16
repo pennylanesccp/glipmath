@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -30,8 +32,39 @@ ALTERNATIVE_COLUMN_BY_LABEL = {
 }
 
 
+@dataclass(frozen=True, slots=True)
+class ImportedQuestionRow:
+    """One canonical question row plus the raw import context that produced it."""
+
+    row: dict[str, Any]
+    source_file: str
+    row_number: int | None = None
+    raw_row: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class QuestionImportFailure:
+    """A question row that could not be imported safely."""
+
+    source_file: str
+    error: str
+    row_number: int | None = None
+    raw_row: dict[str, Any] | None = None
+
+
 def load_question_bank_rows(input_path: Path) -> list[dict[str, Any]]:
     """Load canonical question-bank rows from a directory, CSV file, or JSONL file."""
+
+    imported_rows, failures = load_question_bank_import_rows(input_path)
+    if failures:
+        raise ValueError("\n".join(format_question_import_failure(failure) for failure in failures))
+    return [item.row for item in imported_rows]
+
+
+def load_question_bank_import_rows(
+    input_path: Path,
+) -> tuple[list[ImportedQuestionRow], list[QuestionImportFailure]]:
+    """Load canonical question-bank rows and collect any row-level import failures."""
 
     if not input_path.exists():
         raise FileNotFoundError(f"Question input path not found: {input_path}")
@@ -45,10 +78,13 @@ def load_question_bank_rows(input_path: Path) -> list[dict[str, Any]]:
         if not files:
             raise ValueError(f"No supported question files found under '{input_path}'.")
 
-        rows: list[dict[str, Any]] = []
+        imported_rows: list[ImportedQuestionRow] = []
+        failures: list[QuestionImportFailure] = []
         for file_path in files:
-            rows.extend(load_question_bank_rows(file_path))
-        return rows
+            file_rows, file_failures = load_question_bank_import_rows(file_path)
+            imported_rows.extend(file_rows)
+            failures.extend(file_failures)
+        return imported_rows, failures
 
     suffix = input_path.suffix.lower()
     if suffix == ".jsonl":
@@ -56,6 +92,45 @@ def load_question_bank_rows(input_path: Path) -> list[dict[str, Any]]:
     if suffix == ".csv":
         return _load_vestibulinho_csv_rows(input_path)
     raise ValueError(f"Unsupported question input file type: {input_path.suffix}")
+
+
+def format_question_import_failure(failure: QuestionImportFailure) -> str:
+    """Return a human-readable failure description."""
+
+    location = failure.source_file
+    if failure.row_number is not None:
+        location = f"{location} row {failure.row_number}"
+    return f"{location}: {failure.error}"
+
+
+def write_question_import_failures_csv(
+    failures: list[QuestionImportFailure],
+    output_path: Path,
+) -> None:
+    """Write a CSV report with the failed raw rows and their error messages."""
+
+    raw_columns = sorted(
+        {
+            key
+            for failure in failures
+            for key in (failure.raw_row or {}).keys()
+        }
+    )
+    fieldnames = ["source_file", "row_number", "error", *raw_columns]
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for failure in failures:
+            row = {
+                "source_file": failure.source_file,
+                "row_number": failure.row_number or "",
+                "error": failure.error,
+            }
+            for column in raw_columns:
+                row[column] = _stringify_csv_value((failure.raw_row or {}).get(column, ""))
+            writer.writerow(row)
 
 
 def build_question_row_from_vestibulinho_row(
@@ -109,32 +184,48 @@ def generate_question_id(*, source: str, question_number: int) -> int:
     return int.from_bytes(digest[:8], "big") & 0x7FFFFFFFFFFFFFFF
 
 
-def _load_vestibulinho_csv_rows(csv_path: Path) -> list[dict[str, Any]]:
+def _load_vestibulinho_csv_rows(
+    csv_path: Path,
+) -> tuple[list[ImportedQuestionRow], list[QuestionImportFailure]]:
     dataframe = pd.read_csv(csv_path, dtype=str, keep_default_na=False)
     prepared = prepare_dataframe(dataframe)
     require_columns(prepared, RAW_VESTIBULINHO_REQUIRED_COLUMNS, csv_path.name)
 
-    rows: list[dict[str, Any]] = []
-    issues: list[str] = []
+    rows: list[ImportedQuestionRow] = []
+    failures: list[QuestionImportFailure] = []
     for index, row in prepared.iterrows():
         row_number = worksheet_row_number(index)
+        raw_row = row.to_dict()
         try:
             rows.append(
-                build_question_row_from_vestibulinho_row(
-                    row.to_dict(),
-                    default_source=csv_path.stem,
+                ImportedQuestionRow(
+                    row=build_question_row_from_vestibulinho_row(
+                        raw_row,
+                        default_source=csv_path.stem,
+                    ),
+                    source_file=csv_path.name,
+                    row_number=row_number,
+                    raw_row=raw_row,
                 )
             )
         except ValueError as exc:
-            issues.append(f"{csv_path.name} row {row_number}: {exc}")
+            failures.append(
+                QuestionImportFailure(
+                    source_file=csv_path.name,
+                    row_number=row_number,
+                    error=str(exc),
+                    raw_row=raw_row,
+                )
+            )
 
-    if issues:
-        raise ValueError("\n".join(issues))
-    return rows
+    return rows, failures
 
 
-def _read_jsonl_rows(jsonl_path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
+def _read_jsonl_rows(
+    jsonl_path: Path,
+) -> tuple[list[ImportedQuestionRow], list[QuestionImportFailure]]:
+    rows: list[ImportedQuestionRow] = []
+    failures: list[QuestionImportFailure] = []
     with jsonl_path.open("r", encoding="utf-8-sig") as handle:
         for line_number, raw_line in enumerate(handle, start=1):
             line = raw_line.strip()
@@ -143,15 +234,34 @@ def _read_jsonl_rows(jsonl_path: Path) -> list[dict[str, Any]]:
             try:
                 parsed = json.loads(line)
             except json.JSONDecodeError as exc:
-                raise ValueError(
-                    f"Invalid JSON on line {line_number} of '{jsonl_path}'."
-                ) from exc
-            if not isinstance(parsed, dict):
-                raise ValueError(
-                    f"Expected a JSON object on line {line_number} of '{jsonl_path}'."
+                failures.append(
+                    QuestionImportFailure(
+                        source_file=jsonl_path.name,
+                        row_number=line_number,
+                        error="invalid JSON object.",
+                        raw_row={"raw_line": raw_line.rstrip("\r\n")},
+                    )
                 )
-            rows.append(parsed)
-    return rows
+                continue
+            if not isinstance(parsed, dict):
+                failures.append(
+                    QuestionImportFailure(
+                        source_file=jsonl_path.name,
+                        row_number=line_number,
+                        error="expected a JSON object.",
+                        raw_row={"raw_line": raw_line.rstrip("\r\n")},
+                    )
+                )
+                continue
+            rows.append(
+                ImportedQuestionRow(
+                    row=parsed,
+                    source_file=jsonl_path.name,
+                    row_number=line_number,
+                    raw_row=parsed,
+                )
+            )
+    return rows, failures
 
 
 def _extract_alternatives(row: dict[str, object]) -> dict[str, dict[str, Any]]:
@@ -194,3 +304,11 @@ def _parse_answer_label(value: object) -> str:
     if normalized not in ALTERNATIVE_COLUMN_BY_LABEL:
         raise ValueError("answer must be one of A, B, C, D, or E.")
     return normalized
+
+
+def _stringify_csv_value(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    return str(value)

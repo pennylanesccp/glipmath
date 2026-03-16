@@ -165,6 +165,8 @@ The pipeline converts supported raw files into the canonical nested question-ban
 
 For the current vestibulinho CSV pipeline, `id_question` is derived deterministically from `source` plus `question_number`.
 
+The load script skips invalid rows, writes them to `trash/question_bank_failed_rows.csv` by default, and still loads the valid subset into BigQuery. Use `--failed-rows-output` to override that path.
+
 The question bank loader replaces the current contents of `glipmath_core.question_bank`.
 
 ## Terraform Summary

@@ -6,6 +6,7 @@ import pytest
 from modules.domain.models import Question, QuestionAlternative
 from modules.services.question_service import (
     build_display_alternatives,
+    find_valid_question_bank_row_indexes,
     parse_question_bank_dataframe,
     select_next_question,
 )
@@ -137,3 +138,43 @@ def test_select_next_question_prioritizes_unseen_questions() -> None:
 
     assert selected is not None
     assert selected.id_question == 2
+
+
+def test_find_valid_question_bank_row_indexes_skips_duplicate_and_malformed_rows() -> None:
+    rows = [
+        {
+            "id_question": 1,
+            "statement": "Pergunta valida",
+            "correct_answer": {"alternative_text": "1", "explanation": None},
+            "wrong_answers": [{"alternative_text": "2", "explanation": None}],
+            "is_active": True,
+        },
+        {
+            "id_question": 2,
+            "statement": "Duplicada A",
+            "correct_answer": {"alternative_text": "3", "explanation": None},
+            "wrong_answers": [{"alternative_text": "4", "explanation": None}],
+            "is_active": True,
+        },
+        {
+            "id_question": 2,
+            "statement": "Duplicada B",
+            "correct_answer": {"alternative_text": "5", "explanation": None},
+            "wrong_answers": [{"alternative_text": "6", "explanation": None}],
+            "is_active": True,
+        },
+        {
+            "id_question": 3,
+            "statement": "",
+            "correct_answer": {"alternative_text": "7", "explanation": None},
+            "wrong_answers": [{"alternative_text": "8", "explanation": None}],
+            "is_active": True,
+        },
+    ]
+
+    valid_indexes, issues = find_valid_question_bank_row_indexes(rows)
+
+    assert valid_indexes == [0]
+    assert [issue.row_number for issue in issues] == [3, 4, 5]
+    assert issues[0].message == "id_question must be unique; duplicate value 2."
+    assert issues[2].message == "statement cannot be blank."

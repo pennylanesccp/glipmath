@@ -94,6 +94,8 @@ python scripts/load_question_bank_to_bigquery.py --input-path data
 
 The current raw CSV pipeline supports the vestibulinho flat-question format and converts it into the nested `question_bank` schema before load.
 
+The load script skips invalid rows and writes a CSV report to `trash/question_bank_failed_rows.csv` by default. Override the report path with `--failed-rows-output` if needed.
+
 The question bank load script replaces the current contents of the target table.
 
 Optional synthetic answer data for local/dev testing:

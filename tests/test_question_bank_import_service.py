@@ -4,7 +4,9 @@ import json
 from modules.services.question_bank_import_service import (
     build_question_row_from_vestibulinho_row,
     generate_question_id,
+    load_question_bank_import_rows,
     load_question_bank_rows,
+    write_question_import_failures_csv,
 )
 
 
@@ -105,3 +107,104 @@ def test_load_question_bank_rows_from_directory_supports_csv_and_jsonl(tmp_path)
         for row in rows
     )
     assert any(row["id_question"] == 999 and row["subject"] == "ciencias" for row in rows)
+
+
+def test_load_question_bank_import_rows_collects_invalid_csv_rows(tmp_path) -> None:
+    csv_path = tmp_path / "vestibulinho_questions.csv"
+    with csv_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "question_number",
+                "statement",
+                "question_a",
+                "question_b",
+                "question_c",
+                "question_d",
+                "question_e",
+                "source",
+                "answer",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "question_number": "1",
+                "statement": "Quanto e 1 + 1?",
+                "question_a": "1",
+                "question_b": "2",
+                "question_c": "3",
+                "question_d": "4",
+                "question_e": "",
+                "source": "Vestibulinho 1SEM2025",
+                "answer": "B",
+            }
+        )
+        writer.writerow(
+            {
+                "question_number": "2",
+                "statement": "",
+                "question_a": "1",
+                "question_b": "",
+                "question_c": "",
+                "question_d": "",
+                "question_e": "",
+                "source": "Vestibulinho 1SEM2025",
+                "answer": "A",
+            }
+        )
+
+    imported_rows, failures = load_question_bank_import_rows(csv_path)
+
+    assert len(imported_rows) == 1
+    assert len(failures) == 1
+    assert failures[0].source_file == "vestibulinho_questions.csv"
+    assert failures[0].row_number == 3
+    assert failures[0].error == "statement cannot be blank."
+
+
+def test_write_question_import_failures_csv_persists_raw_row_context(tmp_path) -> None:
+    csv_path = tmp_path / "vestibulinho_questions.csv"
+    with csv_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "question_number",
+                "statement",
+                "question_a",
+                "question_b",
+                "question_c",
+                "question_d",
+                "question_e",
+                "source",
+                "answer",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "question_number": "2",
+                "statement": "",
+                "question_a": "1",
+                "question_b": "",
+                "question_c": "",
+                "question_d": "",
+                "question_e": "",
+                "source": "Vestibulinho 1SEM2025",
+                "answer": "A",
+            }
+        )
+
+    _, failures = load_question_bank_import_rows(csv_path)
+    output_path = tmp_path / "failed_rows.csv"
+
+    write_question_import_failures_csv(failures, output_path)
+
+    with output_path.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert len(rows) == 1
+    assert rows[0]["source_file"] == "vestibulinho_questions.csv"
+    assert rows[0]["row_number"] == "2"
+    assert rows[0]["error"] == "statement cannot be blank."
+    assert rows[0]["question_number"] == "2"
