@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
@@ -60,6 +61,23 @@ class AnswerService:
         )
         self.answer_repository.append_answer_row(evaluation.record.to_bigquery_row())
         return evaluation
+
+
+def append_answer_history(
+    answers: Sequence[AnswerAttempt],
+    new_answer: AnswerAttempt,
+) -> list[AnswerAttempt]:
+    """Prepend a newly submitted answer if it is not already present."""
+
+    if any(answer.id_answer == new_answer.id_answer for answer in answers):
+        return list(answers)
+    return [new_answer, *answers]
+
+
+def extract_answered_question_ids(answers: Sequence[AnswerAttempt]) -> set[int]:
+    """Return the unique answered question identifiers from answer history."""
+
+    return {answer.id_question for answer in answers}
 
 
 def parse_answers_dataframe(dataframe: pd.DataFrame) -> tuple[list[AnswerAttempt], list[str]]:

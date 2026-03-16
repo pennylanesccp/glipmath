@@ -90,7 +90,14 @@ The app combines the correct answer and wrong answers in memory, assigns stable 
 2. Install dependencies:
 
    ```powershell
-   python -m pip install -r requirements.txt
+   python -m pip install -e .
+   ```
+
+   Optional extras:
+
+   ```powershell
+   python -m pip install -e .[dev]
+   python -m pip install -e .[admin]
    ```
 
 3. Copy the example secrets file:
@@ -184,6 +191,7 @@ Gemini is used only for offline/admin enrichment of question explanations.
 Useful command:
 
 ```powershell
+python -m pip install -e .[admin]
 python scripts/enrich_question_explanations.py --dry-run --limit 10
 ```
 
@@ -210,6 +218,7 @@ See:
 Run unit tests with:
 
 ```powershell
+python -m pip install -e .[dev]
 python -m pytest
 ```
 

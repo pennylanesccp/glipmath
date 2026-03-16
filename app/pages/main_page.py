@@ -5,33 +5,25 @@ import streamlit as st
 from app.components.header import render_header
 from app.components.question_card import render_question_card
 from app.state.session_state import (
+    append_user_answer_attempt,
     clear_question_skip,
     clear_current_question,
     finish_submission,
-    get_current_alternatives,
-    get_current_question_id,
     get_last_answer_result,
     get_question_started_at,
     get_session_id,
-    get_skipped_question_ids,
     initialize_session_state,
     is_current_question_answered,
     is_submission_in_progress,
     mark_question_skipped,
     mark_question_answered,
-    set_current_question,
     start_submission,
 )
 from modules.auth.auth_service import trigger_logout
 from modules.config.settings import AppSettings
-from modules.domain.models import AnswerAttempt, DisplayAlternative, Question, User
+from modules.domain.models import DisplayAlternative, Question, User
 from modules.services.answer_service import AnswerService
-from modules.services.question_service import (
-    build_display_alternatives,
-    find_display_alternative,
-    find_question_by_id,
-    select_next_question,
-)
+from modules.services.question_service import find_display_alternative
 from modules.storage.bigquery_client import BigQueryError
 from modules.utils.datetime_utils import utc_now
 
@@ -40,8 +32,8 @@ def render_main_page(
     *,
     settings: AppSettings,
     user: User,
-    questions: list[Question],
-    answers: list[AnswerAttempt],
+    current_question: Question | None,
+    alternatives: list[DisplayAlternative],
     answer_service: AnswerService,
 ) -> None:
     """Render the authenticated application page."""
@@ -56,7 +48,6 @@ def render_main_page(
         trigger_logout()
         st.stop()
 
-    current_question, alternatives = _ensure_current_question(questions, answers)
     if current_question is None:
         st.info("Nao ha questoes ativas e validas disponiveis no momento.")
         return
@@ -111,8 +102,8 @@ def render_main_page(
                     st.error(f"Nao foi possivel registrar a resposta: {exc}")
                     return
                 clear_question_skip(current_question.id_question)
+                append_user_answer_attempt(user.email, evaluation.record)
                 mark_question_answered(evaluation, selected_option_id=selected_alternative.option_id)
-                st.cache_data.clear()
                 st.rerun()
         return
 
@@ -120,29 +111,6 @@ def render_main_page(
     if st.button("Proxima questao", type="primary", use_container_width=True):
         clear_current_question()
         st.rerun()
-
-
-def _ensure_current_question(
-    questions: list[Question],
-    answers: list[AnswerAttempt],
-) -> tuple[Question | None, list[DisplayAlternative]]:
-    current_question = find_question_by_id(questions, get_current_question_id())
-    current_alternatives = get_current_alternatives()
-    if current_question is not None and current_alternatives:
-        return current_question, current_alternatives
-
-    answered_question_ids = {answer.id_question for answer in answers}
-    skipped_question_ids = get_skipped_question_ids()
-    next_question = select_next_question(
-        questions,
-        answered_question_ids | skipped_question_ids,
-    )
-    if next_question is None:
-        return None, []
-
-    alternatives = build_display_alternatives(next_question)
-    set_current_question(next_question.id_question, alternatives)
-    return next_question, alternatives
 
 
 def _render_answer_feedback(last_result: dict[str, object] | None) -> None:

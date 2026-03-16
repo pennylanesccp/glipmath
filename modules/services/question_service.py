@@ -62,6 +62,42 @@ def parse_question_bank_dataframe(
     return questions, issues
 
 
+def parse_question_id_dataframe(
+    dataframe: pd.DataFrame,
+) -> tuple[list[int], list[str]]:
+    """Parse a dataframe containing only active question identifiers."""
+
+    prepared = prepare_dataframe(dataframe)
+    if prepared.empty and not list(prepared.columns):
+        return [], []
+
+    require_columns(prepared, ["id_question"], QUESTION_RESOURCE_NAME)
+    ensure_unique_integer_values(prepared, "id_question", QUESTION_RESOURCE_NAME)
+
+    question_ids: list[int] = []
+    issues: list[str] = []
+    for index, row in prepared.iterrows():
+        row_number = worksheet_row_number(index)
+        try:
+            question_ids.append(_parse_required_int(row.get("id_question"), "id_question"))
+        except ValueError as exc:
+            issues.append(f"{QUESTION_RESOURCE_NAME} row {row_number}: {exc}")
+    return question_ids, issues
+
+
+def parse_single_question_dataframe(
+    dataframe: pd.DataFrame,
+) -> tuple[Question | None, list[str]]:
+    """Parse a dataframe expected to contain at most one active question row."""
+
+    questions, issues = parse_question_bank_dataframe(dataframe)
+    if len(questions) > 1:
+        issues.append("question_bank query returned more than one row for a single question lookup.")
+    if not questions:
+        return None, issues
+    return questions[0], issues
+
+
 def find_valid_question_bank_row_indexes(
     rows: Sequence[dict[str, object]],
 ) -> tuple[list[int], list[QuestionRowIssue]]:
@@ -127,6 +163,28 @@ def select_next_question(
     chooser = randomizer or random.Random()
     ordered_pool = sorted(pool, key=lambda question: question.id_question)
     return chooser.choice(ordered_pool)
+
+
+def select_next_question_id(
+    question_ids: Iterable[int],
+    answered_question_ids: set[int],
+    *,
+    randomizer: random.Random | None = None,
+) -> int | None:
+    """Select the next question ID, prioritizing unseen IDs first."""
+
+    available_question_ids = sorted({int(question_id) for question_id in question_ids})
+    if not available_question_ids:
+        return None
+
+    unseen_question_ids = [
+        question_id
+        for question_id in available_question_ids
+        if question_id not in answered_question_ids
+    ]
+    pool = unseen_question_ids or available_question_ids
+    chooser = randomizer or random.Random()
+    return chooser.choice(pool)
 
 
 def find_question_by_id(

@@ -8,7 +8,10 @@ from modules.services.question_service import (
     build_display_alternatives,
     find_valid_question_bank_row_indexes,
     parse_question_bank_dataframe,
+    parse_question_id_dataframe,
+    parse_single_question_dataframe,
     select_next_question,
+    select_next_question_id,
 )
 from modules.storage.schema_validation import WorksheetValidationError
 
@@ -138,6 +141,45 @@ def test_select_next_question_prioritizes_unseen_questions() -> None:
 
     assert selected is not None
     assert selected.id_question == 2
+
+
+def test_select_next_question_id_prioritizes_unseen_question_ids() -> None:
+    selected = select_next_question_id(
+        [1, 2, 3],
+        answered_question_ids={1, 3},
+        randomizer=random.Random(7),
+    )
+
+    assert selected == 2
+
+
+def test_parse_question_id_dataframe_reads_integer_ids() -> None:
+    frame = pd.DataFrame([{"id_question": "10"}, {"id_question": 22}])
+
+    question_ids, issues = parse_question_id_dataframe(frame)
+
+    assert question_ids == [10, 22]
+    assert issues == []
+
+
+def test_parse_single_question_dataframe_returns_single_question() -> None:
+    frame = pd.DataFrame(
+        [
+            {
+                "id_question": 1,
+                "statement": "Quanto e 2 + 2?",
+                "correct_answer": {"alternative_text": "4", "explanation": None},
+                "wrong_answers": [{"alternative_text": "3", "explanation": None}],
+                "is_active": True,
+            }
+        ]
+    )
+
+    question, issues = parse_single_question_dataframe(frame)
+
+    assert not issues
+    assert question is not None
+    assert question.id_question == 1
 
 
 def test_find_valid_question_bank_row_indexes_skips_duplicate_and_malformed_rows() -> None:

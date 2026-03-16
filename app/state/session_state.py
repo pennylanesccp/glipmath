@@ -5,10 +5,12 @@ from uuid import uuid4
 
 import streamlit as st
 
-from modules.domain.models import AnswerEvaluation, DisplayAlternative
+from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative
+from modules.services.answer_service import append_answer_history, extract_answered_question_ids
 from modules.utils.datetime_utils import utc_now
 
 SESSION_ID_KEY = "glipmath_session_id"
+AUTHENTICATED_USER_EMAIL_KEY = "glipmath_authenticated_user_email"
 CURRENT_QUESTION_ID_KEY = "glipmath_current_question_id"
 CURRENT_ALTERNATIVES_KEY = "glipmath_current_alternatives"
 QUESTION_STARTED_AT_KEY = "glipmath_question_started_at"
@@ -17,6 +19,11 @@ LAST_ANSWER_RESULT_KEY = "glipmath_last_answer_result"
 QUESTION_SELECTION_KEY = "glipmath_question_selection"
 SUBMISSION_IN_PROGRESS_KEY = "glipmath_submission_in_progress"
 SKIPPED_QUESTION_IDS_KEY = "glipmath_skipped_question_ids"
+INVALID_QUESTION_IDS_KEY = "glipmath_invalid_question_ids"
+USER_ANSWER_HISTORY_KEY = "glipmath_user_answer_history"
+USER_ANSWER_HISTORY_ISSUES_KEY = "glipmath_user_answer_history_issues"
+USER_ANSWER_HISTORY_LOADED_KEY = "glipmath_user_answer_history_loaded"
+USER_ANSWERED_QUESTION_IDS_KEY = "glipmath_user_answered_question_ids"
 THEME_MODE_KEY = "glipmath_theme_mode"
 
 
@@ -24,6 +31,7 @@ def initialize_session_state() -> None:
     """Ensure all GlipMath session keys exist."""
 
     st.session_state.setdefault(SESSION_ID_KEY, uuid4().hex)
+    st.session_state.setdefault(AUTHENTICATED_USER_EMAIL_KEY, None)
     st.session_state.setdefault(CURRENT_QUESTION_ID_KEY, None)
     st.session_state.setdefault(CURRENT_ALTERNATIVES_KEY, [])
     st.session_state.setdefault(QUESTION_STARTED_AT_KEY, None)
@@ -32,6 +40,11 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(QUESTION_SELECTION_KEY, None)
     st.session_state.setdefault(SUBMISSION_IN_PROGRESS_KEY, False)
     st.session_state.setdefault(SKIPPED_QUESTION_IDS_KEY, [])
+    st.session_state.setdefault(INVALID_QUESTION_IDS_KEY, [])
+    st.session_state.setdefault(USER_ANSWER_HISTORY_KEY, [])
+    st.session_state.setdefault(USER_ANSWER_HISTORY_ISSUES_KEY, [])
+    st.session_state.setdefault(USER_ANSWER_HISTORY_LOADED_KEY, False)
+    st.session_state.setdefault(USER_ANSWERED_QUESTION_IDS_KEY, [])
     st.session_state.setdefault(THEME_MODE_KEY, "dark")
 
 
@@ -40,6 +53,94 @@ def get_session_id() -> str:
 
     initialize_session_state()
     return str(st.session_state[SESSION_ID_KEY])
+
+
+def bind_authenticated_user(user_email: str) -> None:
+    """Reset user-scoped session state when the authenticated user changes."""
+
+    initialize_session_state()
+    current_email = st.session_state[AUTHENTICATED_USER_EMAIL_KEY]
+    if current_email == user_email:
+        return
+
+    st.session_state[AUTHENTICATED_USER_EMAIL_KEY] = user_email
+    st.session_state[SESSION_ID_KEY] = uuid4().hex
+    st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
+    st.session_state[INVALID_QUESTION_IDS_KEY] = []
+    st.session_state[USER_ANSWER_HISTORY_KEY] = []
+    st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY] = []
+    st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = False
+    st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
+    clear_current_question()
+
+
+def has_loaded_user_answer_history(user_email: str) -> bool:
+    """Return whether the current user's answer snapshot is already in session."""
+
+    initialize_session_state()
+    return (
+        st.session_state[AUTHENTICATED_USER_EMAIL_KEY] == user_email
+        and bool(st.session_state[USER_ANSWER_HISTORY_LOADED_KEY])
+    )
+
+
+def set_user_answer_history(
+    user_email: str,
+    answers: list[AnswerAttempt],
+    *,
+    issues: list[str] | None = None,
+) -> None:
+    """Persist the current user's parsed answer history in session state."""
+
+    bind_authenticated_user(user_email)
+    st.session_state[USER_ANSWER_HISTORY_KEY] = list(answers)
+    st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY] = list(issues or [])
+    st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = True
+    st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = sorted(extract_answered_question_ids(answers))
+
+
+def get_user_answer_history(user_email: str) -> list[AnswerAttempt]:
+    """Return the current user's parsed answer history from session state."""
+
+    if not has_loaded_user_answer_history(user_email):
+        return []
+    raw_answers = st.session_state[USER_ANSWER_HISTORY_KEY]
+    if not isinstance(raw_answers, list):
+        return []
+    return [answer for answer in raw_answers if isinstance(answer, AnswerAttempt)]
+
+
+def get_user_answer_history_issues(user_email: str) -> list[str]:
+    """Return any issues found while loading the user's answer snapshot."""
+
+    if not has_loaded_user_answer_history(user_email):
+        return []
+    raw_issues = st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY]
+    if not isinstance(raw_issues, list):
+        return []
+    return [str(issue) for issue in raw_issues]
+
+
+def append_user_answer_attempt(user_email: str, answer: AnswerAttempt) -> None:
+    """Append one new answer attempt to the current user's in-session history."""
+
+    bind_authenticated_user(user_email)
+    updated_answers = append_answer_history(get_user_answer_history(user_email), answer)
+    st.session_state[USER_ANSWER_HISTORY_KEY] = updated_answers
+    st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = sorted(extract_answered_question_ids(updated_answers))
+    st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = True
+
+
+def get_answered_question_ids(user_email: str) -> set[int]:
+    """Return the answered question IDs for the current authenticated user."""
+
+    if not has_loaded_user_answer_history(user_email):
+        return set()
+
+    raw_ids = st.session_state[USER_ANSWERED_QUESTION_IDS_KEY]
+    if not isinstance(raw_ids, list):
+        return set()
+    return {int(value) for value in raw_ids if value is not None}
 
 
 def get_current_question_id() -> int | None:
@@ -184,6 +285,24 @@ def get_skipped_question_ids() -> set[int]:
     if not isinstance(raw_ids, list):
         return set()
     return {int(value) for value in raw_ids if value is not None}
+
+
+def get_invalid_question_ids() -> set[int]:
+    """Return question IDs rejected during the current browser session."""
+
+    initialize_session_state()
+    raw_ids = st.session_state[INVALID_QUESTION_IDS_KEY]
+    if not isinstance(raw_ids, list):
+        return set()
+    return {int(value) for value in raw_ids if value is not None}
+
+
+def mark_question_invalid(id_question: int) -> None:
+    """Prevent a malformed question row from being selected again this session."""
+
+    invalid_ids = get_invalid_question_ids()
+    invalid_ids.add(id_question)
+    st.session_state[INVALID_QUESTION_IDS_KEY] = sorted(invalid_ids)
 
 
 def mark_question_skipped(id_question: int) -> None:

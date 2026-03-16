@@ -40,6 +40,41 @@ class QuestionRepository:
         """
         return self._bigquery_client.query_to_dataframe(query)
 
+    def load_active_id_frame(self) -> pd.DataFrame:
+        """Load the active question identifiers only."""
+
+        query = f"""
+            SELECT
+                id_question
+            FROM `{self._table_id}`
+            WHERE is_active = TRUE
+        """
+        return self._bigquery_client.query_to_dataframe(query)
+
+    def load_question_frame_by_id(self, id_question: int) -> pd.DataFrame:
+        """Load a single active question by identifier."""
+
+        query = f"""
+            SELECT
+                id_question,
+                statement,
+                correct_answer,
+                wrong_answers,
+                subject,
+                topic,
+                difficulty,
+                source,
+                is_active
+            FROM `{self._table_id}`
+            WHERE is_active = TRUE
+              AND id_question = @id_question
+            LIMIT 1
+        """
+        return self._bigquery_client.query_to_dataframe(
+            query,
+            parameters=[bigquery.ScalarQueryParameter("id_question", "INT64", id_question)],
+        )
+
     def load_missing_explanations_frame(self, *, limit: int | None = None) -> pd.DataFrame:
         """Load active questions that still need one or more explanations."""
 

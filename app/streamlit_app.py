@@ -2,19 +2,40 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 
-import pandas as pd
 import streamlit as st
 
 from app.components.theme import apply_app_theme
 from app.pages.login_page import render_login_page, render_not_authorized_page
 from app.pages.main_page import render_main_page
-from app.state.session_state import initialize_session_state
+from app.state.session_state import (
+    bind_authenticated_user,
+    clear_current_question,
+    get_answered_question_ids,
+    get_current_alternatives,
+    get_current_question_id,
+    get_invalid_question_ids,
+    get_skipped_question_ids,
+    get_user_answer_history,
+    get_user_answer_history_issues,
+    has_loaded_user_answer_history,
+    initialize_session_state,
+    mark_question_invalid,
+    set_current_question,
+    set_user_answer_history,
+)
 from modules.auth.auth_service import get_authenticated_identity
 from modules.auth.authorization_service import AuthorizationService
 from modules.config.settings import AppSettings, load_settings
+from modules.domain.models import AnswerAttempt, DisplayAlternative, Question
 from modules.services.answer_service import AnswerService, parse_answers_dataframe
-from modules.services.question_service import parse_question_bank_dataframe
+from modules.services.question_service import (
+    build_display_alternatives,
+    parse_question_id_dataframe,
+    parse_single_question_dataframe,
+    select_next_question_id,
+)
 from modules.storage.answer_repository import AnswerRepository
 from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
@@ -69,14 +90,21 @@ def main() -> None:
 
     try:
         context = build_runtime_context(settings)
-        question_frame = load_question_frame(
+        bind_authenticated_user(authorized_user.email)
+        question_ids, question_index_issues = load_active_question_ids(
             context.question_repository,
             settings.bigquery.question_bank_table_id(settings.gcp.project_id),
         )
-        user_answer_frame = load_user_answer_frame(
-            context.answer_repository,
-            settings.bigquery.answers_table_id(settings.gcp.project_id),
-            authorized_user.email,
+        _ensure_user_answer_history_loaded(
+            answer_repository=context.answer_repository,
+            answers_table_id=settings.bigquery.answers_table_id(settings.gcp.project_id),
+            user_email=authorized_user.email,
+        )
+        current_question, current_alternatives, question_lookup_issues = resolve_current_question(
+            question_repository=context.question_repository,
+            question_table_id=settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+            active_question_ids=question_ids,
+            answered_question_ids=get_answered_question_ids(authorized_user.email),
         )
     except BigQueryError as exc:
         logger.exception(
@@ -90,8 +118,8 @@ def main() -> None:
             st.exception(exc.__cause__ or exc)
         return
 
-    questions, question_issues = parse_question_bank_dataframe(question_frame)
-    answers, answer_issues = parse_answers_dataframe(user_answer_frame)
+    question_issues = list(question_index_issues) + list(question_lookup_issues)
+    answer_issues = get_user_answer_history_issues(authorized_user.email)
 
     _render_diagnostics(
         settings=settings,
@@ -101,8 +129,8 @@ def main() -> None:
     render_main_page(
         settings=settings,
         user=authorized_user,
-        questions=questions,
-        answers=answers,
+        current_question=current_question,
+        alternatives=current_alternatives,
         answer_service=context.answer_service,
     )
 
@@ -144,24 +172,136 @@ def build_runtime_context(settings: AppSettings) -> RuntimeContext:
 
 
 @st.cache_data(show_spinner=False, ttl=300)
-def load_question_frame(
+def load_active_question_ids(
     _question_repository: QuestionRepository,
     question_table_id: str,
-) -> pd.DataFrame:
-    """Load and cache active questions for the current table."""
+) -> tuple[list[int], list[str]]:
+    """Load and cache the active question identifiers for the current table."""
 
-    return _question_repository.load_frame()
+    logger = get_logger(__name__)
+    started_at = perf_counter()
+    question_id_frame = _question_repository.load_active_id_frame()
+    question_ids, issues = parse_question_id_dataframe(question_id_frame)
+    logger.debug(
+        "Loaded active question IDs | table_id=%s | count=%s | issues=%s | elapsed_ms=%.2f",
+        question_table_id,
+        len(question_ids),
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return question_ids, issues
 
 
-@st.cache_data(show_spinner=False, ttl=30)
-def load_user_answer_frame(
+@st.cache_data(show_spinner=False, ttl=300)
+def load_question_snapshot(
+    _question_repository: QuestionRepository,
+    question_table_id: str,
+    id_question: int,
+) -> tuple[Question | None, list[str]]:
+    """Load and cache one fully parsed question for display."""
+
+    logger = get_logger(__name__)
+    started_at = perf_counter()
+    question_frame = _question_repository.load_question_frame_by_id(id_question)
+    question, issues = parse_single_question_dataframe(question_frame)
+    logger.debug(
+        "Loaded question snapshot | table_id=%s | id_question=%s | found=%s | issues=%s | elapsed_ms=%.2f",
+        question_table_id,
+        id_question,
+        question is not None,
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return question, issues
+
+
+@st.cache_data(show_spinner=False, ttl=120)
+def load_user_answer_history(
     _answer_repository: AnswerRepository,
     answers_table_id: str,
     user_email: str,
-) -> pd.DataFrame:
-    """Load and cache one user's answer history briefly across reruns."""
+) -> tuple[list[AnswerAttempt], list[str]]:
+    """Load and cache one user's parsed answer history."""
 
-    return _answer_repository.load_user_frame(user_email)
+    logger = get_logger(__name__)
+    started_at = perf_counter()
+    answer_frame = _answer_repository.load_user_frame(user_email)
+    answers, issues = parse_answers_dataframe(answer_frame)
+    logger.debug(
+        "Loaded user answer history | table_id=%s | user_email=%s | answers=%s | issues=%s | elapsed_ms=%.2f",
+        answers_table_id,
+        user_email,
+        len(answers),
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return answers, issues
+
+
+def _ensure_user_answer_history_loaded(
+    *,
+    answer_repository: AnswerRepository,
+    answers_table_id: str,
+    user_email: str,
+) -> list[AnswerAttempt]:
+    if not has_loaded_user_answer_history(user_email):
+        answers, issues = load_user_answer_history(
+            answer_repository,
+            answers_table_id,
+            user_email,
+        )
+        set_user_answer_history(user_email, answers, issues=issues)
+    return get_user_answer_history(user_email)
+
+
+def resolve_current_question(
+    *,
+    question_repository: QuestionRepository,
+    question_table_id: str,
+    active_question_ids: list[int],
+    answered_question_ids: set[int],
+) -> tuple[Question | None, list[DisplayAlternative], list[str]]:
+    """Resolve the current question, selecting and caching one if needed."""
+
+    issues: list[str] = []
+    current_question_id = get_current_question_id()
+    current_alternatives = get_current_alternatives()
+    if current_question_id is not None and current_alternatives:
+        current_question, current_issues = load_question_snapshot(
+            question_repository,
+            question_table_id,
+            current_question_id,
+        )
+        if current_question is not None and not current_issues:
+            return current_question, current_alternatives, []
+        issues.extend(current_issues)
+        mark_question_invalid(current_question_id)
+        clear_current_question()
+
+    excluded_question_ids = (
+        set(answered_question_ids)
+        | get_skipped_question_ids()
+        | get_invalid_question_ids()
+    )
+
+    while True:
+        next_question_id = select_next_question_id(active_question_ids, excluded_question_ids)
+        if next_question_id is None:
+            return None, [], issues
+
+        next_question, current_issues = load_question_snapshot(
+            question_repository,
+            question_table_id,
+            next_question_id,
+        )
+        if next_question is not None and not current_issues:
+            alternatives = build_display_alternatives(next_question)
+            set_current_question(next_question.id_question, alternatives)
+            return next_question, alternatives, issues
+
+        issues.extend(current_issues or [f"question_bank row for id_question {next_question_id} was not found."])
+        mark_question_invalid(next_question_id)
+        excluded_question_ids.add(next_question_id)
 
 
 def _render_diagnostics(

@@ -52,6 +52,11 @@ Notes:
 - `GEMINI_MODEL` defaults to `gemini-2.5-flash-lite` if omitted in app config.
 - the enrichment script reads secrets through the shared config loader
 - student question answering does not require Gemini to be configured
+- install the admin extra before running enrichment:
+
+  ```powershell
+  python -m pip install -e .[admin]
+  ```
 
 ## Enrichment Script
 

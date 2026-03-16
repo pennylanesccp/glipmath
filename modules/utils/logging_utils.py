@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 APP_LOGGER_NAME = "glipmath"
+_CONFIGURED_SIGNATURE: tuple[int, str | None] | None = None
 
 
 def configure_logging(
@@ -14,9 +15,19 @@ def configure_logging(
 ) -> logging.Logger:
     """Configure the application logger for console and optional file output."""
 
+    global _CONFIGURED_SIGNATURE
+
     logger = logging.getLogger(APP_LOGGER_NAME)
     logger.propagate = False
-    logger.setLevel(_coerce_level(level))
+    configured_level = _coerce_level(level)
+    configured_log_file = str(log_file) if log_file is not None else None
+    signature = (configured_level, configured_log_file)
+
+    if _CONFIGURED_SIGNATURE == signature and logger.handlers:
+        logger.setLevel(configured_level)
+        return logger
+
+    logger.setLevel(configured_level)
 
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
@@ -41,8 +52,9 @@ def configure_logging(
     logger.debug(
         "Logging configured | level=%s | log_file=%s",
         logging.getLevelName(logger.level),
-        str(log_file) if log_file is not None else "<none>",
+        configured_log_file or "<none>",
     )
+    _CONFIGURED_SIGNATURE = signature
     return logger
 
 

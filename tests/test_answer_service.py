@@ -4,7 +4,12 @@ import pandas as pd
 import pytest
 
 from modules.domain.models import DisplayAlternative, Question, QuestionAlternative, User
-from modules.services.answer_service import build_answer_evaluation, parse_answers_dataframe
+from modules.services.answer_service import (
+    append_answer_history,
+    build_answer_evaluation,
+    extract_answered_question_ids,
+    parse_answers_dataframe,
+)
 
 
 def test_build_answer_evaluation_marks_correct_answer() -> None:
@@ -96,3 +101,49 @@ def test_parse_answers_dataframe_reads_new_answer_schema() -> None:
     assert answers[0].user_email == "ana@example.com"
     assert answers[0].selected_alternative_text == "3"
     assert answers[0].subject == "matematica"
+
+
+def test_append_answer_history_prepends_and_deduplicates() -> None:
+    existing_answer = parse_answers_dataframe(
+        pd.DataFrame(
+            [
+                {
+                    "id_answer": "a1",
+                    "id_question": 1,
+                    "user_email": "ana@example.com",
+                    "selected_alternative_text": "3",
+                    "correct_alternative_text": "4",
+                    "is_correct": False,
+                    "answered_at_utc": datetime(2026, 3, 14, 12, 0, tzinfo=timezone.utc),
+                    "answered_at_local": datetime(2026, 3, 14, 9, 0),
+                    "time_spent_seconds": 5.5,
+                    "session_id": "session-1",
+                }
+            ]
+        )
+    )[0][0]
+    new_answer = parse_answers_dataframe(
+        pd.DataFrame(
+            [
+                {
+                    "id_answer": "a2",
+                    "id_question": 2,
+                    "user_email": "ana@example.com",
+                    "selected_alternative_text": "5",
+                    "correct_alternative_text": "5",
+                    "is_correct": True,
+                    "answered_at_utc": datetime(2026, 3, 14, 12, 5, tzinfo=timezone.utc),
+                    "answered_at_local": datetime(2026, 3, 14, 9, 5),
+                    "time_spent_seconds": 4.2,
+                    "session_id": "session-1",
+                }
+            ]
+        )
+    )[0][0]
+
+    combined_answers = append_answer_history([existing_answer], new_answer)
+    deduplicated_answers = append_answer_history(combined_answers, new_answer)
+
+    assert [answer.id_answer for answer in combined_answers] == ["a2", "a1"]
+    assert [answer.id_answer for answer in deduplicated_answers] == ["a2", "a1"]
+    assert extract_answered_question_ids(deduplicated_answers) == {1, 2}

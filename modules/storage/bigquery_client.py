@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from time import perf_counter
 from typing import Any
 
 import pandas as pd
@@ -99,6 +100,7 @@ class BigQueryClient:
 
         job_config = bigquery.QueryJobConfig(query_parameters=list(parameters or []))
         query_job = None
+        query_started_at = perf_counter()
         try:
             logger.debug(
                 "Executing BigQuery query | location=%s | parameters=%s | sql=%s",
@@ -120,13 +122,18 @@ class BigQueryClient:
                 _compact_sql(sql),
             )
             raise BigQueryError(f"BigQuery query failed: {exc}") from exc
-        rows = [dict(row.items()) for row in result]
+
+        materialization_started_at = perf_counter()
+        column_names = [field.name for field in result.schema]
+        dataframe = pd.DataFrame.from_records(result, columns=column_names)
         logger.debug(
-            "BigQuery query succeeded | job_id=%s | rows=%s",
+            "BigQuery query succeeded | job_id=%s | rows=%s | query_elapsed_ms=%.2f | materialization_elapsed_ms=%.2f",
             getattr(query_job, "job_id", None),
-            len(rows),
+            len(dataframe),
+            (materialization_started_at - query_started_at) * 1000,
+            (perf_counter() - materialization_started_at) * 1000,
         )
-        return pd.DataFrame(rows)
+        return dataframe
 
     def execute(
         self,

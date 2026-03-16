@@ -3,6 +3,7 @@ from __future__ import annotations
 import streamlit as st
 
 from app.components.auth_status import render_access_message, render_auth_setup_warning
+from app.state.session_state import get_theme_mode
 from modules.auth.auth_service import trigger_login, trigger_logout
 from modules.config.settings import AppSettings
 
@@ -10,8 +11,15 @@ from modules.config.settings import AppSettings
 def render_login_page(settings: AppSettings) -> None:
     """Render the unauthenticated login screen."""
 
-    st.markdown(
-        """
+    is_light_mode = get_theme_mode() == "light"
+    button_background = "#FFFFFF" if is_light_mode else "#131314"
+    button_text = "#1f1f1f" if is_light_mode else "#e3e3e3"
+    button_border = "#747775" if is_light_mode else "#8e918f"
+    button_disabled_background = "#ffffff61" if is_light_mode else "#13131461"
+    button_disabled_border = "#1f1f1f1f" if is_light_mode else "#8e918f1f"
+    button_state_color = "#303030" if is_light_mode else "white"
+
+    button_css = """
         <style>
         .st-key-glipmath_google_login {
           display: flex;
@@ -25,12 +33,12 @@ def render_login_page(settings: AppSettings) -> None:
           -webkit-appearance: none;
           appearance: none;
           align-items: center;
-          background-color: #FFFFFF;
+          background-color: __BUTTON_BACKGROUND__;
           background-image: none;
-          border: 1px solid #747775;
+          border: 1px solid __BUTTON_BORDER__;
           border-radius: 4px;
           box-sizing: border-box;
-          color: #1f1f1f;
+          color: __BUTTON_TEXT__;
           cursor: pointer;
           display: flex;
           font-family: 'Roboto', arial, sans-serif;
@@ -66,7 +74,7 @@ def render_login_page(settings: AppSettings) -> None:
         }
 
         .st-key-glipmath_google_login button::after {
-          background-color: #303030;
+          background-color: __BUTTON_STATE_COLOR__;
           bottom: 0;
           content: "";
           left: 0;
@@ -90,7 +98,7 @@ def render_login_page(settings: AppSettings) -> None:
         }
 
         .st-key-glipmath_google_login button p {
-          color: #1f1f1f;
+          color: __BUTTON_TEXT__;
           flex-grow: 1;
           font-family: 'Roboto', arial, sans-serif;
           font-size: 14px;
@@ -104,8 +112,8 @@ def render_login_page(settings: AppSettings) -> None:
         }
 
         .st-key-glipmath_google_login button:disabled {
-          background-color: #ffffff61;
-          border-color: #1f1f1f1f;
+          background-color: __BUTTON_DISABLED_BACKGROUND__;
+          border-color: __BUTTON_DISABLED_BORDER__;
           cursor: default;
         }
 
@@ -127,7 +135,19 @@ def render_login_page(settings: AppSettings) -> None:
           opacity: 8%;
         }
         </style>
-        """,
+        """
+    button_css = (
+        button_css
+        .replace("__BUTTON_BACKGROUND__", button_background)
+        .replace("__BUTTON_BORDER__", button_border)
+        .replace("__BUTTON_TEXT__", button_text)
+        .replace("__BUTTON_DISABLED_BACKGROUND__", button_disabled_background)
+        .replace("__BUTTON_DISABLED_BORDER__", button_disabled_border)
+        .replace("__BUTTON_STATE_COLOR__", button_state_color)
+    )
+
+    st.markdown(
+        button_css,
         unsafe_allow_html=True,
     )
 
