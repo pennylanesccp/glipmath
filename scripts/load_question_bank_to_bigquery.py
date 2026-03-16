@@ -9,10 +9,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from modules.services.question_bank_import_service import (
-    ImportedQuestionRow,
     QuestionImportFailure,
+    StagedQuestionRoots,
     format_question_import_failure,
     load_question_bank_import_rows,
+    load_staged_question_bank_import_rows,
+    is_staged_question_root,
     reconcile_staged_question_files,
     write_question_import_failures_csv,
 )
@@ -38,20 +40,25 @@ def main() -> None:
         "--input-path",
         type=Path,
         default=Path("data"),
-        help="Path to a question CSV, canonical JSONL, or a directory containing them.",
+        help="Path to a question CSV, canonical JSONL, a plain directory, or a staged data root.",
     )
     parser.add_argument(
         "--failed-rows-output",
         type=Path,
         default=None,
-        help="Optional CSV report path for skipped rows. Defaults to trash/<input>_failed_rows.csv.",
+        help=(
+            "Optional CSV report path for skipped rows. Defaults to "
+            "data/new/question_bank_failed_rows.csv for staged roots or "
+            "trash/<input>_failed_rows.csv otherwise."
+        ),
     )
     args = parser.parse_args()
 
     try:
-        if _is_staged_data_root(args.input_path):
-            imported_rows, import_failures = _load_staged_question_rows(args.input_path)
-            staged_roots = _staged_roots(args.input_path)
+        if is_staged_question_root(args.input_path):
+            imported_rows, import_failures, staged_roots = load_staged_question_bank_import_rows(
+                args.input_path
+            )
         else:
             imported_rows, import_failures = load_question_bank_import_rows(args.input_path)
             staged_roots = None
@@ -116,7 +123,7 @@ def main() -> None:
 def _default_failed_rows_output(
     input_path: Path,
     *,
-    staged_roots: _StagedRoots | None = None,
+    staged_roots: StagedQuestionRoots | None = None,
 ) -> Path:
     """Return the default location for the skipped-row report."""
 
@@ -124,47 +131,6 @@ def _default_failed_rows_output(
         return staged_roots.new_root / "question_bank_failed_rows.csv"
     stem = input_path.stem if input_path.is_file() else "question_bank"
     return Path("trash") / f"{stem}_failed_rows.csv"
-
-
-class _StagedRoots:
-    def __init__(self, *, new_root: Path, processed_root: Path) -> None:
-        self.new_root = new_root
-        self.processed_root = processed_root
-
-
-def _is_staged_data_root(input_path: Path) -> bool:
-    return input_path.is_dir() and (input_path / "new").is_dir() and (input_path / "processed").is_dir()
-
-
-def _staged_roots(input_path: Path) -> _StagedRoots:
-    return _StagedRoots(
-        new_root=input_path / "new",
-        processed_root=input_path / "processed",
-    )
-
-
-def _load_staged_question_rows(
-    input_path: Path,
-) -> tuple[list[ImportedQuestionRow], list[QuestionImportFailure]]:
-    staged_roots = _staged_roots(input_path)
-    processed_rows, processed_failures = _load_optional_question_rows(staged_roots.processed_root)
-    new_rows, new_failures = _load_optional_question_rows(staged_roots.new_root)
-    combined_rows = [*processed_rows, *new_rows]
-    combined_failures = [*processed_failures, *new_failures]
-    if not combined_rows and not combined_failures:
-        raise ValueError(f"No supported question files found under '{input_path}'.")
-    return combined_rows, combined_failures
-
-
-def _load_optional_question_rows(
-    input_path: Path,
-) -> tuple[list[ImportedQuestionRow], list[QuestionImportFailure]]:
-    try:
-        return load_question_bank_import_rows(input_path)
-    except ValueError as exc:
-        if "No supported question files found under" in str(exc):
-            return [], []
-        raise
 
 
 if __name__ == "__main__":

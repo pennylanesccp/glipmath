@@ -58,6 +58,14 @@ class QuestionImportFailure:
     raw_line: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class StagedQuestionRoots:
+    """Canonical staged raw-data roots."""
+
+    new_root: Path
+    processed_root: Path
+
+
 def load_question_bank_rows(input_path: Path) -> list[dict[str, Any]]:
     """Load canonical question-bank rows from a directory, CSV file, or JSONL file."""
 
@@ -98,6 +106,36 @@ def load_question_bank_import_rows(
     if suffix == ".csv":
         return _load_vestibulinho_csv_rows(input_path)
     raise ValueError(f"Unsupported question input file type: {input_path.suffix}")
+
+
+def is_staged_question_root(input_path: Path) -> bool:
+    """Return whether the path uses the `new/` and `processed/` staging layout."""
+
+    return input_path.is_dir() and (input_path / "new").is_dir() and (input_path / "processed").is_dir()
+
+
+def staged_question_roots(input_path: Path) -> StagedQuestionRoots:
+    """Return the derived staged raw-data roots for a staged input directory."""
+
+    return StagedQuestionRoots(
+        new_root=input_path / "new",
+        processed_root=input_path / "processed",
+    )
+
+
+def load_staged_question_bank_import_rows(
+    input_path: Path,
+) -> tuple[list[ImportedQuestionRow], list[QuestionImportFailure], StagedQuestionRoots]:
+    """Load both staged folders while tolerating one side being temporarily empty."""
+
+    roots = staged_question_roots(input_path)
+    processed_rows, processed_failures = _load_optional_question_rows(roots.processed_root)
+    new_rows, new_failures = _load_optional_question_rows(roots.new_root)
+    combined_rows = [*processed_rows, *new_rows]
+    combined_failures = [*processed_failures, *new_failures]
+    if not combined_rows and not combined_failures:
+        raise ValueError(f"No supported question files found under '{input_path}'.")
+    return combined_rows, combined_failures, roots
 
 
 def format_question_import_failure(failure: QuestionImportFailure) -> str:
@@ -437,3 +475,14 @@ def _ordered_fieldnames(rows: Sequence[dict[str, Any]]) -> list[str]:
             if key not in fieldnames:
                 fieldnames.append(key)
     return fieldnames
+
+
+def _load_optional_question_rows(
+    input_path: Path,
+) -> tuple[list[ImportedQuestionRow], list[QuestionImportFailure]]:
+    try:
+        return load_question_bank_import_rows(input_path)
+    except ValueError as exc:
+        if "No supported question files found under" in str(exc):
+            return [], []
+        raise

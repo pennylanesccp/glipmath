@@ -6,6 +6,7 @@ from modules.services.question_bank_import_service import (
     generate_question_id,
     load_question_bank_import_rows,
     load_question_bank_rows,
+    load_staged_question_bank_import_rows,
     reconcile_staged_question_files,
     write_question_import_failures_csv,
 )
@@ -331,3 +332,64 @@ def test_reconcile_staged_question_files_keeps_failures_in_new_and_moves_valid_r
     assert processed_rows[0]["question_number"] == "1"
     assert len(new_rows) == 1
     assert new_rows[0]["question_number"] == "2"
+
+
+def test_load_staged_question_bank_import_rows_combines_processed_and_new_roots(tmp_path) -> None:
+    processed_root = tmp_path / "processed"
+    new_root = tmp_path / "new"
+    processed_root.mkdir()
+    new_root.mkdir()
+
+    processed_path = processed_root / "vestibulinho_questions.csv"
+    with processed_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "question_number",
+                "statement",
+                "question_a",
+                "question_b",
+                "question_c",
+                "question_d",
+                "question_e",
+                "source",
+                "answer",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "question_number": "1",
+                "statement": "Quanto e 1 + 1?",
+                "question_a": "1",
+                "question_b": "2",
+                "question_c": "3",
+                "question_d": "4",
+                "question_e": "",
+                "source": "Vestibulinho 1SEM2025",
+                "answer": "B",
+            }
+        )
+
+    new_path = new_root / "bonus_questions.jsonl"
+    new_path.write_text(
+        json.dumps(
+            {
+                "id_question": 999,
+                "statement": "Quanto e 3 + 3?",
+                "correct_answer": {"alternative_text": "6", "explanation": None},
+                "wrong_answers": [{"alternative_text": "5", "explanation": None}],
+                "source": "jsonl",
+                "is_active": True,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    imported_rows, failures, roots = load_staged_question_bank_import_rows(tmp_path)
+
+    assert not failures
+    assert len(imported_rows) == 2
+    assert roots.new_root == new_root
+    assert roots.processed_root == processed_root
