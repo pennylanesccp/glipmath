@@ -17,6 +17,7 @@ from modules.services.question_service import parse_question_bank_dataframe
 from modules.storage.answer_repository import AnswerRepository
 from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
+from modules.utils.logging_utils import configure_logging, get_logger
 
 
 @dataclass(slots=True)
@@ -31,16 +32,26 @@ class RuntimeContext:
 def main() -> None:
     """Streamlit entrypoint."""
 
+    base_dir = Path(__file__).resolve().parents[1]
+
     st.set_page_config(
         page_title="GlipMath",
         layout="centered",
         initial_sidebar_state="collapsed",
     )
     initialize_session_state()
-    apply_app_theme()
-
-    base_dir = Path(__file__).resolve().parents[1]
     settings = load_settings(base_dir=base_dir)
+    logger = configure_logging(
+        level="DEBUG" if settings.environment != "prod" else "INFO",
+        log_file=base_dir / "logs" / "glipmath.log",
+    )
+    logger.info(
+        "Starting app run | environment=%s | project_id=%s | location=%s",
+        settings.environment,
+        settings.gcp.project_id,
+        settings.gcp.location,
+    )
+    apply_app_theme()
     identity = get_authenticated_identity()
 
     if identity is None:
@@ -60,8 +71,15 @@ def main() -> None:
         question_frame = context.question_repository.load_frame()
         user_answer_frame = context.answer_repository.load_user_frame(authorized_user.email)
     except BigQueryError as exc:
+        logger.exception(
+            "BigQuery-backed app startup failed for user_email=%s",
+            authorized_user.email,
+        )
         st.title(settings.app_name)
         st.error(str(exc))
+        if settings.environment != "prod":
+            st.caption(f"Log detalhado: `{base_dir / 'logs' / 'glipmath.log'}`")
+            st.exception(exc.__cause__ or exc)
         return
 
     questions, question_issues = parse_question_bank_dataframe(question_frame)
@@ -85,6 +103,13 @@ def main() -> None:
 def build_runtime_context(settings: AppSettings) -> RuntimeContext:
     """Create repositories and services from configuration."""
 
+    logger = get_logger(__name__)
+    logger.debug(
+        "Building runtime context | project_id=%s | question_table=%s | answers_table=%s",
+        settings.gcp.project_id,
+        settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+        settings.bigquery.answers_table_id(settings.gcp.project_id),
+    )
     bigquery_client = BigQueryClient(
         project_id=settings.gcp.project_id,
         location=settings.gcp.location,

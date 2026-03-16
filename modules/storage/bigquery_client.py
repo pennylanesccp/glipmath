@@ -6,10 +6,14 @@ from typing import Any
 import pandas as pd
 from google.cloud import bigquery
 from google.oauth2 import service_account
+from modules.utils.logging_utils import get_logger
 
 
 class BigQueryError(RuntimeError):
     """Raised when a BigQuery operation fails."""
+
+
+logger = get_logger(__name__)
 
 
 class BigQueryClient:
@@ -23,12 +27,15 @@ class BigQueryClient:
         service_account_info: Mapping[str, Any] | None = None,
     ) -> None:
         credentials = None
+        auth_mode = "application_default_credentials"
         if service_account_info:
             try:
                 credentials = service_account.Credentials.from_service_account_info(
                     dict(service_account_info)
                 )
+                auth_mode = "streamlit_service_account"
             except Exception as exc:
+                logger.exception("Invalid service-account info supplied to BigQuery client.")
                 raise BigQueryError(
                     "Invalid BigQuery service-account credentials in Streamlit secrets."
                 ) from exc
@@ -41,10 +48,22 @@ class BigQueryClient:
                 credentials=credentials,
             )
         except Exception as exc:
+            logger.exception(
+                "Failed to initialize BigQuery client | project_id=%s | location=%s | auth_mode=%s",
+                project_id,
+                location,
+                auth_mode,
+            )
             raise BigQueryError(
                 "BigQuery credentials are not configured. Add a valid [gcp_service_account] "
                 "block to Streamlit secrets or configure Application Default Credentials locally."
             ) from exc
+        logger.info(
+            "Initialized BigQuery client | project_id=%s | location=%s | auth_mode=%s",
+            project_id,
+            location,
+            auth_mode,
+        )
 
     def query_to_dataframe(
         self,
@@ -55,15 +74,35 @@ class BigQueryClient:
         """Execute a query and return the results as a dataframe."""
 
         job_config = bigquery.QueryJobConfig(query_parameters=list(parameters or []))
+        query_job = None
         try:
-            result = self._client.query(
+            logger.debug(
+                "Executing BigQuery query | location=%s | parameters=%s | sql=%s",
+                self._location,
+                _format_parameters(parameters),
+                _compact_sql(sql),
+            )
+            query_job = self._client.query(
                 sql,
                 job_config=job_config,
                 location=self._location,
-            ).result()
+            )
+            result = query_job.result()
         except Exception as exc:
-            raise BigQueryError("BigQuery query failed.") from exc
-        return pd.DataFrame([dict(row.items()) for row in result])
+            logger.exception(
+                "BigQuery query failed | job_id=%s | parameters=%s | sql=%s",
+                getattr(query_job, "job_id", None),
+                _format_parameters(parameters),
+                _compact_sql(sql),
+            )
+            raise BigQueryError(f"BigQuery query failed: {exc}") from exc
+        rows = [dict(row.items()) for row in result]
+        logger.debug(
+            "BigQuery query succeeded | job_id=%s | rows=%s",
+            getattr(query_job, "job_id", None),
+            len(rows),
+        )
+        return pd.DataFrame(rows)
 
     def execute(
         self,
@@ -74,14 +113,32 @@ class BigQueryClient:
         """Execute a statement that does not need a dataframe result."""
 
         job_config = bigquery.QueryJobConfig(query_parameters=list(parameters or []))
+        query_job = None
         try:
-            self._client.query(
+            logger.debug(
+                "Executing BigQuery statement | location=%s | parameters=%s | sql=%s",
+                self._location,
+                _format_parameters(parameters),
+                _compact_sql(sql),
+            )
+            query_job = self._client.query(
                 sql,
                 job_config=job_config,
                 location=self._location,
-            ).result()
+            )
+            query_job.result()
         except Exception as exc:
-            raise BigQueryError("BigQuery statement failed.") from exc
+            logger.exception(
+                "BigQuery statement failed | job_id=%s | parameters=%s | sql=%s",
+                getattr(query_job, "job_id", None),
+                _format_parameters(parameters),
+                _compact_sql(sql),
+            )
+            raise BigQueryError(f"BigQuery statement failed: {exc}") from exc
+        logger.debug(
+            "BigQuery statement succeeded | job_id=%s",
+            getattr(query_job, "job_id", None),
+        )
 
     def insert_rows_json(self, table_id: str, rows: Sequence[Mapping[str, Any]]) -> None:
         """Append JSON rows to a BigQuery table."""
@@ -89,9 +146,47 @@ class BigQueryClient:
         if not rows:
             return
         try:
+            logger.debug(
+                "Inserting BigQuery rows | table_id=%s | row_count=%s",
+                table_id,
+                len(rows),
+            )
             errors = self._client.insert_rows_json(table_id, list(rows))
         except Exception as exc:
-            raise BigQueryError("BigQuery insert failed.") from exc
+            logger.exception(
+                "BigQuery insert failed | table_id=%s | row_count=%s",
+                table_id,
+                len(rows),
+            )
+            raise BigQueryError(f"BigQuery insert failed: {exc}") from exc
 
         if errors:
+            logger.error(
+                "BigQuery insert returned errors | table_id=%s | errors=%s",
+                table_id,
+                errors,
+            )
             raise BigQueryError(f"BigQuery insert returned errors: {errors}")
+        logger.debug(
+            "BigQuery insert succeeded | table_id=%s | row_count=%s",
+            table_id,
+            len(rows),
+        )
+
+
+def _compact_sql(sql: str) -> str:
+    return " ".join(line.strip() for line in sql.strip().splitlines() if line.strip())
+
+
+def _format_parameters(
+    parameters: Sequence[bigquery.ScalarQueryParameter] | None,
+) -> list[dict[str, Any]]:
+    if not parameters:
+        return []
+    formatted: list[dict[str, Any]] = []
+    for parameter in parameters:
+        try:
+            formatted.append(parameter.to_api_repr())
+        except Exception:
+            formatted.append({"value": repr(parameter)})
+    return formatted
