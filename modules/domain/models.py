@@ -26,12 +26,13 @@ class DisplayAlternative:
 
 @dataclass(frozen=True, slots=True)
 class Question:
-    """A validated math question loaded from BigQuery."""
+    """A validated question loaded from BigQuery."""
 
     id_question: int
     statement: str
     correct_answer: QuestionAlternative
     wrong_answers: tuple[QuestionAlternative, ...]
+    subject: str | None = None
     topic: str | None = None
     difficulty: str | None = None
     source: str | None = None
@@ -75,6 +76,7 @@ class AnswerAttempt:
     answered_at_local: datetime | None
     time_spent_seconds: float
     session_id: str
+    subject: str | None = None
     topic: str | None = None
     difficulty: str | None = None
     source: str | None = None
@@ -94,6 +96,7 @@ class AnswerAttempt:
             "answered_at_local": to_bigquery_datetime_string(self.answered_at_local),
             "time_spent_seconds": round(self.time_spent_seconds, 2),
             "session_id": self.session_id,
+            "subject": self.subject,
             "topic": self.topic,
             "difficulty": self.difficulty,
             "source": self.source,

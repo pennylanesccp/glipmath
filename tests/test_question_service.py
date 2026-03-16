@@ -59,6 +59,7 @@ def test_parse_question_bank_accepts_json_strings_for_nested_fields() -> None:
                 "statement": "Quanto e 5 - 2?",
                 "correct_answer": '{"alternative_text": "3", "explanation": "5 menos 2 e 3."}',
                 "wrong_answers": '[{"alternative_text": "2", "explanation": "Subtraiu demais."}]',
+                "subject": "matematica",
                 "is_active": "true",
             }
         ]
@@ -69,6 +70,7 @@ def test_parse_question_bank_accepts_json_strings_for_nested_fields() -> None:
     assert not issues
     assert questions[0].correct_answer.alternative_text == "3"
     assert questions[0].wrong_answers[0].alternative_text == "2"
+    assert questions[0].subject == "matematica"
 
 
 def test_parse_question_bank_raises_for_duplicate_ids() -> None:

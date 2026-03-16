@@ -37,6 +37,7 @@ class AnswerRepository:
                 answered_at_local,
                 time_spent_seconds,
                 session_id,
+                subject,
                 topic,
                 difficulty,
                 source,

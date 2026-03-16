@@ -20,6 +20,8 @@ def render_question_card(
         metadata: list[str] = []
         if question.source:
             metadata.append(f"Fonte: {question.source}")
+        if question.subject:
+            metadata.append(f"Materia: {question.subject}")
         if question.topic:
             metadata.append(f"Topico: {question.topic}")
         if question.difficulty:

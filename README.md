@@ -79,6 +79,7 @@ Analytics views:
 
 - `correct_answer` is a struct with `alternative_text` and `explanation`
 - `wrong_answers` is a repeated struct array with the same shape
+- `subject` stores the broad discipline so the same bank can hold math and non-math questions
 
 The app combines the correct answer and wrong answers in memory, assigns stable runtime option IDs, randomizes display order, and persists both the selected alternative text and the canonical correct alternative text.
 

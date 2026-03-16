@@ -21,6 +21,7 @@ class QuestionRepository:
                 statement,
                 correct_answer,
                 wrong_answers,
+                subject,
                 topic,
                 difficulty,
                 source,

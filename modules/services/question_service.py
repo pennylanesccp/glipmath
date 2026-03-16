@@ -150,6 +150,7 @@ def _parse_question_row(row: dict[str, object]) -> Question | None:
         statement=statement,
         correct_answer=correct_answer,
         wrong_answers=wrong_answers,
+        subject=clean_optional_text(row.get("subject")),
         topic=clean_optional_text(row.get("topic")),
         difficulty=clean_optional_text(row.get("difficulty")),
         source=clean_optional_text(row.get("source")),

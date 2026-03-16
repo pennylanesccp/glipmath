@@ -90,6 +90,7 @@ def build_question_row_from_vestibulinho_row(
         "statement": statement,
         "correct_answer": correct_alternative,
         "wrong_answers": wrong_alternatives,
+        "subject": clean_optional_text(row.get("subject")),
         "topic": clean_optional_text(row.get("topic")),
         "difficulty": clean_optional_text(row.get("difficulty")),
         "source": source,

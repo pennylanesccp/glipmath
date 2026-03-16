@@ -83,6 +83,7 @@ def main() -> None:
                 answered_at_local=answered_at_local,
                 time_spent_seconds=round(8 + offset * 1.5, 2),
                 session_id=f"backfill-{user_index}",
+                subject=question.subject,
                 source=question.source,
                 topic=question.topic,
                 difficulty=question.difficulty,

@@ -16,6 +16,7 @@
 - `wrong_answers RECORD REPEATED`
   - `alternative_text STRING REQUIRED`
   - `explanation STRING NULLABLE`
+- `subject STRING NULLABLE`
 - `topic STRING NULLABLE`
 - `difficulty STRING NULLABLE`
 - `source STRING NULLABLE`
@@ -37,6 +38,7 @@ Why nested?
 - BigQuery stores the canonical correct answer and wrong answers cleanly
 - the app can randomize answer order at runtime
 - explanations can live beside each alternative
+- `subject` lets the same bank hold math and non-math content cleanly
 
 ## `glipmath_events.answers`
 
@@ -50,6 +52,7 @@ Why nested?
 - `answered_at_local DATETIME REQUIRED`
 - `time_spent_seconds FLOAT64 REQUIRED`
 - `session_id STRING REQUIRED`
+- `subject STRING NULLABLE`
 - `topic STRING NULLABLE`
 - `difficulty STRING NULLABLE`
 - `source STRING NULLABLE`
@@ -105,6 +108,7 @@ Supported raw import input:
   - `question_number`
   - `statement`
   - `question_a` to `question_e`
+  - `subject` optional
   - `source`
   - `answer`
 

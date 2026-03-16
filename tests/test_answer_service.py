@@ -13,6 +13,7 @@ def test_build_answer_evaluation_marks_correct_answer() -> None:
         statement="Quanto e 2 + 2?",
         correct_answer=QuestionAlternative("4", "Explicacao correta."),
         wrong_answers=(QuestionAlternative("3", "Explicacao incorreta."),),
+        subject="matematica",
         topic="aritmetica",
         difficulty="facil",
         source="seed",
@@ -36,6 +37,7 @@ def test_build_answer_evaluation_marks_correct_answer() -> None:
     assert evaluation.record.user_email == "ana@example.com"
     assert evaluation.record.is_correct is True
     assert evaluation.record.correct_alternative_text == "4"
+    assert evaluation.record.subject == "matematica"
     assert evaluation.correct_explanation == "Explicacao correta."
     assert evaluation.selected_explanation is None
 
@@ -79,6 +81,7 @@ def test_parse_answers_dataframe_reads_new_answer_schema() -> None:
                 "answered_at_local": datetime(2026, 3, 14, 9, 0),
                 "time_spent_seconds": 5.5,
                 "session_id": "session-1",
+                "subject": "matematica",
                 "topic": "aritmetica",
                 "difficulty": "facil",
                 "source": "seed",
@@ -92,3 +95,4 @@ def test_parse_answers_dataframe_reads_new_answer_schema() -> None:
     assert not issues
     assert answers[0].user_email == "ana@example.com"
     assert answers[0].selected_alternative_text == "3"
+    assert answers[0].subject == "matematica"

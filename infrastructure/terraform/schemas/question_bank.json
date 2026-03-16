@@ -48,6 +48,11 @@
     ]
   },
   {
+    "name": "subject",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
     "name": "topic",
     "type": "STRING",
     "mode": "NULLABLE"

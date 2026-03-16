@@ -18,6 +18,7 @@ def test_build_question_row_from_vestibulinho_row_maps_correct_and_wrong_answers
             "question_c": "5",
             "question_d": "6",
             "question_e": "",
+            "subject": "matematica",
             "source": "Vestibulinho 1SEM2026",
             "answer": "B",
         }
@@ -26,6 +27,7 @@ def test_build_question_row_from_vestibulinho_row_maps_correct_and_wrong_answers
     assert row["statement"] == "Quanto e 2 + 2?"
     assert row["correct_answer"]["alternative_text"] == "4"
     assert [item["alternative_text"] for item in row["wrong_answers"]] == ["3", "5", "6"]
+    assert row["subject"] == "matematica"
     assert row["source"] == "Vestibulinho 1SEM2026"
     assert row["is_active"] is True
 
@@ -53,6 +55,7 @@ def test_load_question_bank_rows_from_directory_supports_csv_and_jsonl(tmp_path)
                 "question_c",
                 "question_d",
                 "question_e",
+                "subject",
                 "source",
                 "answer",
             ],
@@ -67,6 +70,7 @@ def test_load_question_bank_rows_from_directory_supports_csv_and_jsonl(tmp_path)
                 "question_c": "3",
                 "question_d": "4",
                 "question_e": "",
+                "subject": "matematica",
                 "source": "Vestibulinho 1SEM2025",
                 "answer": "B",
             }
@@ -80,6 +84,7 @@ def test_load_question_bank_rows_from_directory_supports_csv_and_jsonl(tmp_path)
                 "statement": "Quanto e 3 + 3?",
                 "correct_answer": {"alternative_text": "6", "explanation": None},
                 "wrong_answers": [{"alternative_text": "5", "explanation": None}],
+                "subject": "ciencias",
                 "topic": None,
                 "difficulty": None,
                 "source": "jsonl",
@@ -95,5 +100,8 @@ def test_load_question_bank_rows_from_directory_supports_csv_and_jsonl(tmp_path)
     rows = load_question_bank_rows(tmp_path)
 
     assert len(rows) == 2
-    assert any(row["statement"] == "Quanto e 1 + 1?" for row in rows)
-    assert any(row["id_question"] == 999 for row in rows)
+    assert any(
+        row["statement"] == "Quanto e 1 + 1?" and row["subject"] == "matematica"
+        for row in rows
+    )
+    assert any(row["id_question"] == 999 and row["subject"] == "ciencias" for row in rows)
