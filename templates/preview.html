@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>IDE — Login</title>
+
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --border: #e2e8f0;
+            --shadow-soft: 0 8px 30px rgba(15, 23, 42, 0.06);
+            --shadow-card: 0 20px 48px rgba(15, 23, 42, 0.08);
+
+            --toggle-track: #dbe4ff;
+            --toggle-thumb: #4f46e5;
+            --toggle-icon: #ffffff;
+
+            --google-light-bg: #ffffff;
+            --google-light-border: #747775;
+            --google-light-text: #1f1f1f;
+
+            --google-dark-bg: #131314;
+            --google-dark-border: #8e918f;
+            --google-dark-text: #e3e3e3;
+        }
+
+        body.dark {
+            --bg: #0b1220;
+            --surface: #111a2c;
+            --text: #eef2ff;
+            --border: rgba(255, 255, 255, 0.08);
+            --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.28);
+            --shadow-card: 0 24px 56px rgba(0, 0, 0, 0.34);
+
+            --toggle-track: #1e293b;
+            --toggle-thumb: #f8fafc;
+            --toggle-icon: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            min-height: 100%;
+        }
+
+        body {
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(79, 70, 229, 0.10), transparent 28%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg) 100%);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            transition: background 0.28s ease, color 0.28s ease;
+        }
+
+        .app-shell {
+            width: 100%;
+            max-width: 480px;
+            min-height: 100vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 18px 32px;
+        }
+
+        .theme-toggle-wrap {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            z-index: 10;
+        }
+
+        .theme-toggle {
+            position: relative;
+            width: 72px;
+            height: 40px;
+            border: none;
+            border-radius: 999px;
+            background: var(--toggle-track);
+            box-shadow: var(--shadow-soft);
+            cursor: pointer;
+            transition: all 0.28s ease;
+            padding: 0;
+        }
+
+        .theme-toggle-track {
+            position: absolute;
+            inset: 0;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .theme-toggle-thumb {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--toggle-thumb);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), background 0.28s ease;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+        }
+
+        body.dark .theme-toggle-thumb {
+            transform: translateX(32px);
+        }
+
+        .theme-icon {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            transition: opacity 0.2s ease, transform 0.28s ease;
+        }
+
+        .theme-icon--sun {
+            color: var(--toggle-icon);
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .theme-icon--moon {
+            color: var(--toggle-icon);
+            opacity: 0;
+            transform: scale(0.6);
+        }
+
+        body.dark .theme-icon--sun {
+            opacity: 0;
+            transform: scale(0.6);
+        }
+
+        body.dark .theme-icon--moon {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .login-card {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            box-shadow: var(--shadow-card);
+            padding: 32px 22px 26px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 28px;
+            transition: background 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+        }
+
+        .logo-wrap {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .logo-wrap img {
+            width: min(100%, 320px);
+            height: auto;
+            display: block;
+        }
+
+        .actions {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            align-items: center;
+        }
+
+        .google-btn {
+            width: 100%;
+            max-width: 320px;
+            min-height: 40px;
+            border-radius: 999px;
+            border: 1px solid var(--google-light-border);
+            background: var(--google-light-bg);
+            color: var(--google-light-text);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 12px;
+            font-family: Roboto, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 20px;
+            font-weight: 500;
+            text-decoration: none;
+            box-shadow: var(--shadow-soft);
+            transition:
+                transform 0.18s ease,
+                box-shadow 0.18s ease,
+                background 0.28s ease,
+                color 0.28s ease,
+                border-color 0.28s ease;
+        }
+
+        body.dark .google-btn {
+            background: var(--google-dark-bg);
+            border-color: var(--google-dark-border);
+            color: var(--google-dark-text);
+        }
+
+        .google-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px rgba(15, 23, 42, 0.10);
+        }
+
+        .google-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
+        }
+
+        .google-icon {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 auto;
+            display: block;
+        }
+
+        @media (max-width: 420px) {
+            .app-shell {
+                padding: 20px 14px 28px;
+            }
+
+            .theme-toggle-wrap {
+                top: 14px;
+                right: 14px;
+            }
+
+            .login-card {
+                padding: 28px 18px 22px;
+                border-radius: 24px;
+                gap: 24px;
+            }
+
+            .logo-wrap img {
+                width: min(100%, 280px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <div class="theme-toggle-wrap">
+            <button
+                class="theme-toggle"
+                id="themeToggle"
+                type="button"
+                aria-label="Alternar entre modo claro e escuro"
+                aria-pressed="false"
+            >
+                <span class="theme-toggle-track"></span>
+                <span class="theme-toggle-thumb">
+                    <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="4.2" fill="currentColor"></circle>
+                        <path d="M12 2.5V5.2M12 18.8V21.5M21.5 12H18.8M5.2 12H2.5M18.72 5.28L16.8 7.2M7.2 16.8L5.28 18.72M18.72 18.72L16.8 16.8M7.2 7.2L5.28 5.28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                    </svg>
+                    <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M20.2 14.2A8.7 8.7 0 0 1 9.8 3.8 9.2 9.2 0 1 0 20.2 14.2Z"></path>
+                    </svg>
+                </span>
+            </button>
+        </div>
+
+        <main class="login-card" aria-label="Tela de login">
+            <div class="logo-wrap">
+                <img src="ide-logo.png" alt="IDE" />
+            </div>
+
+            <div class="actions">
+                <a href="#" class="google-btn" aria-label="Continue with Google">
+                    <svg class="google-icon" viewBox="0 0 18 18" aria-hidden="true">
+                        <path fill="#4285F4" d="M17.64 9.2045c0-.6382-.0573-1.2518-.1636-1.8409H9v3.4818h4.8436c-.2086 1.125-.8427 2.0782-1.7959 2.7164v2.2582h2.9086c1.7018-1.5668 2.6837-3.8741 2.6837-6.6155Z"/>
+                        <path fill="#34A853" d="M9 18c2.43 0 4.4673-.8059 5.9563-2.1791l-2.9086-2.2582c-.8059.54-1.8368.8591-3.0477.8591-2.3455 0-4.3282-1.5845-5.0364-3.7136H.9573v2.3318A8.9995 8.9995 0 0 0 9 18Z"/>
+                        <path fill="#FBBC05" d="M3.9636 10.7082A5.4104 5.4104 0 0 1 3.6818 9c0-.5932.1023-1.1686.2818-1.7082V4.9609H.9573A8.9995 8.9995 0 0 0 0 9c0 1.4523.3482 2.8277.9573 4.0391l3.0063-2.3309Z"/>
+                        <path fill="#EA4335" d="M9 3.5795c1.3214 0 2.5077.4541 3.4405 1.3455l2.5809-2.5809C13.4632.8918 11.426.0 9 .0A8.9995 8.9995 0 0 0 .9573 4.9609l3.0063 2.3309C4.6718 5.1641 6.6545 3.5795 9 3.5795Z"/>
+                    </svg>
+                    <span>Continue with Google</span>
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const body = document.body;
+        const themeToggle = document.getElementById("themeToggle");
+        const savedTheme = localStorage.getItem("ide-theme");
+
+        if (savedTheme === "dark") {
+            body.classList.add("dark");
+            themeToggle.setAttribute("aria-pressed", "true");
+        }
+
+        themeToggle.addEventListener("click", () => {
+            body.classList.toggle("dark");
+            const isDark = body.classList.contains("dark");
+            localStorage.setItem("ide-theme", isDark ? "dark" : "light");
+            themeToggle.setAttribute("aria-pressed", isDark ? "true" : "false");
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Practice Screen — Answered</title>
+    <style>
+        :root {
+            --bg-color: #F8FAFC;
+            --surface-color: #FFFFFF;
+            --primary-color: #4F46E5;
+            --primary-light: #EEF2FF;
+            --text-main: #0F172A;
+            --text-secondary: #475569;
+            --border-light: #E2E8F0;
+            --border-hover: #CBD5E1;
+            --shadow-subtle: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+            --shadow-card: 0 12px 32px -4px rgba(15, 23, 42, 0.04);
+            --fire-color: #F97316;
+            --podium-color: #EAB308;
+            --success-color: #16A34A;
+            --success-bg: #F0FDF4;
+            --success-border: #BBF7D0;
+            --error-color: #DC2626;
+            --error-bg: #FEF2F2;
+            --error-border: #FECACA;
+            --radius-sm: 12px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-pill: 9999px;
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 20px 24px 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: linear-gradient(to bottom, var(--bg-color) 80%, transparent);
+        }
+
+        .subject-selector {
+            position: relative;
+            min-width: 0;
+            flex: 1 1 auto;
+            max-width: 180px;
+        }
+
+        .subject-selector select {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 100%;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-pill);
+            padding: 8px 36px 8px 16px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            box-shadow: var(--shadow-subtle);
+            outline: none;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .subject-selector::after {
+            content: "";
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            pointer-events: none;
+        }
+
+        .status-area {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .status-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: var(--surface-color);
+            padding: 6px 12px;
+            border-radius: var(--radius-pill);
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+            box-shadow: var(--shadow-subtle);
+            border: 1px solid var(--border-light);
+            white-space: nowrap;
+        }
+
+        .status-chip img {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 8px 24px 32px 24px;
+            overflow-y: auto;
+        }
+
+        .question-card {
+            background-color: var(--surface-color);
+            padding: 28px 24px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-card);
+            margin-bottom: 20px;
+        }
+
+        .question-statement {
+            font-size: 18px;
+            line-height: 1.65;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .alternatives {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: flex-start;
+            padding: 18px 20px;
+            background-color: var(--surface-color);
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .radio-circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--border-hover);
+            margin-right: 16px;
+            margin-top: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: var(--transition);
+        }
+
+        .radio-circle::after {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transform: scale(0);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .option-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .option-text {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            line-height: 1.4;
+            transition: var(--transition);
+        }
+
+        .option-explanation {
+            font-size: 14px;
+            line-height: 1.55;
+            color: var(--text-secondary);
+            padding-top: 10px;
+            border-top: 1px solid rgba(15, 23, 42, 0.08);
+        }
+
+        .option-label--selected {
+            border-color: var(--primary-color);
+            background-color: var(--primary-light);
+        }
+
+        .option-label--selected .radio-circle {
+            border-color: var(--primary-color);
+        }
+
+        .option-label--selected .radio-circle::after {
+            background-color: var(--primary-color);
+            transform: scale(1);
+        }
+
+        .option-label--selected .option-text {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .option-label--correct {
+            border-color: var(--success-color);
+            background-color: var(--success-bg);
+        }
+
+        .option-label--correct .radio-circle {
+            border-color: var(--success-color);
+        }
+
+        .option-label--correct .radio-circle::after {
+            background-color: var(--success-color);
+            transform: scale(1);
+        }
+
+        .option-label--correct .option-text,
+        .option-label--correct .option-explanation {
+            color: var(--success-color);
+        }
+
+        .option-label--correct .option-text {
+            font-weight: 700;
+        }
+
+        .option-label--wrong {
+            border-color: var(--error-color);
+            background-color: var(--error-bg);
+        }
+
+        .option-label--wrong .option-text,
+        .option-label--wrong .option-explanation {
+            color: var(--error-color);
+        }
+
+        .option-label--wrong .option-text {
+            font-weight: 700;
+        }
+
+        .option-label--wrong-selected {
+            border-color: var(--error-color);
+            background-color: var(--error-bg);
+        }
+
+        .option-label--wrong-selected .radio-circle {
+            border-color: var(--error-color);
+        }
+
+        .option-label--wrong-selected .radio-circle::after {
+            background-color: var(--error-color);
+            transform: scale(1);
+        }
+
+        .option-label--wrong-selected .option-text,
+        .option-label--wrong-selected .option-explanation {
+            color: var(--error-color);
+        }
+
+        .option-label--wrong-selected .option-text {
+            font-weight: 700;
+        }
+
+        .bottom-action {
+            padding: 16px 24px 32px 24px;
+            background: linear-gradient(to top, var(--bg-color) 70%, transparent);
+            position: sticky;
+            bottom: 0;
+        }
+
+        .bottom-action-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .result-card {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--error-border);
+            background: var(--error-bg);
+            color: var(--error-color);
+            font-size: 15px;
+            font-weight: 800;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .result-card--correct {
+            border-color: var(--success-border);
+            background: var(--success-bg);
+            color: var(--success-color);
+        }
+
+        .result-card--wrong {
+            border-color: var(--error-border);
+            background: var(--error-bg);
+            color: var(--error-color);
+        }
+
+        .btn-primary {
+            flex: 1 1 auto;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: var(--radius-md);
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.4);
+            transition: var(--transition);
+        }
+
+        .btn-primary:active {
+            transform: translateY(2px);
+            box-shadow: 0 4px 12px -4px rgba(79, 70, 229, 0.4);
+        }
+
+        @media (max-width: 420px) {
+            header {
+                padding: 18px 18px 14px 18px;
+            }
+
+            main {
+                padding: 8px 18px 28px 18px;
+            }
+
+            .bottom-action {
+                padding: 14px 18px 26px 18px;
+            }
+
+            .question-card {
+                padding: 24px 20px;
+                margin-bottom: 16px;
+            }
+
+            .question-statement {
+                font-size: 17px;
+            }
+
+            .option-label {
+                padding: 16px 16px;
+            }
+
+            .option-text,
+            .option-explanation {
+                font-size: 15px;
+            }
+
+            .status-chip {
+                padding: 6px 10px;
+                font-size: 13px;
+            }
+
+            .subject-selector {
+                max-width: 155px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="subject-selector">
+                <select aria-label="Selecionar disciplina">
+                    <option value="todas">Todas</option>
+                    <option value="matematica" selected>Matemática</option>
+                    <option value="portugues">Português</option>
+                    <option value="historia">História</option>
+                    <option value="geografia">Geografia</option>
+                    <option value="biologia">Biologia</option>
+                    <option value="fisica">Física</option>
+                    <option value="quimica">Química</option>
+                </select>
+            </div>
+
+            <div class="status-area">
+                <div class="status-chip">
+                    <img src="fire-svgrepo-com.svg" alt="" aria-hidden="true" />
+                    <span>5 dias</span>
+                </div>
+                <div class="status-chip">
+                    <img src="pedestal-podium-svgrepo-com.svg" alt="" aria-hidden="true" />
+                    <span>#2</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <article class="question-card">
+                <p class="question-statement">
+                    Em uma sala, a razão entre o número de meninas e o número de meninos é de 3 para 2. Sabendo que há 30 estudantes ao todo, quantas meninas há nessa turma?
+                </p>
+            </article>
+
+            <section class="alternatives" aria-label="Alternativas respondidas">
+                <div class="option-label option-label--wrong">
+                    <div class="radio-circle"></div>
+                    <div class="option-content">
+                        <span class="option-text">12 meninas</span>
+                        <p class="option-explanation">
+                            Aqui, o erro é considerar uma quantidade menor do que a indicada pela razão. Se o total foi dividido em 5 partes iguais, cada parte vale 6. Como o grupo das meninas corresponde a 3 partes, não pode ser 12, mas sim 18.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="option-label option-label--wrong-selected">
+                    <div class="radio-circle"></div>
+                    <div class="option-content">
+                        <span class="option-text">15 meninas</span>
+                        <p class="option-explanation">
+                            Se a razão entre meninas e meninos é 3 para 2, então o total de partes é 5. Dividindo 30 estudantes por 5, cada parte vale 6. Como o número de meninas corresponde a 3 partes, o correto seria multiplicar 3 × 6 = 18.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="option-label option-label--correct">
+                    <div class="radio-circle"></div>
+                    <div class="option-content">
+                        <span class="option-text">18 meninas</span>
+                        <p class="option-explanation">
+                            A razão 3:2 indica 5 partes no total. Como há 30 estudantes, cada parte vale 6. O grupo das meninas corresponde a 3 partes, então 3 × 6 = 18. Por isso, a turma tem 18 meninas.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="option-label option-label--wrong">
+                    <div class="radio-circle"></div>
+                    <div class="option-content">
+                        <span class="option-text">20 meninas</span>
+                        <p class="option-explanation">
+                            Esse valor ultrapassa o resultado correto. Pela razão 3:2, o número de meninas deve ocupar exatamente 3 das 5 partes do total. Como cada parte vale 6, o cálculo correto é 3 × 6 = 18.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="option-label option-label--wrong">
+                    <div class="radio-circle"></div>
+                    <div class="option-content">
+                        <span class="option-text">24 meninas</span>
+                        <p class="option-explanation">
+                            Essa alternativa considera meninas demais para a proporção dada. Se fossem 24 meninas, sobrariam apenas 6 meninos, e a razão seria 4:1, não 3:2. Por isso, 24 não atende ao enunciado.
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <div class="bottom-action">
+            <div class="bottom-action-row">
+                <div class="result-card result-card--wrong">Você errou</div>
+                <button type="button" class="btn-primary">Próxima questão</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
