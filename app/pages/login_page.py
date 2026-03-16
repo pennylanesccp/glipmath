@@ -32,3 +32,14 @@ def render_login_page(
     )
 
     st.markdown(login_html, unsafe_allow_html=True)
+
+
+def render_not_authorized_page(settings: AppSettings, email: str | None) -> None:
+    """Render a generic post-login access issue screen."""
+
+    st.markdown(render_theme_toggle_markup(), unsafe_allow_html=True)
+    st.title(settings.app_name)
+    render_access_message(email)
+    if st.button("Sair da conta", type="secondary", use_container_width=True):
+        trigger_logout()
+        st.stop()
