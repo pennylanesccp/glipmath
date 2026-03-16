@@ -8,7 +8,7 @@ from typing import Any
 
 import pandas as pd
 
-from modules.domain.models import DisplayAlternative, Question, QuestionAlternative
+from modules.domain.models import DisplayAlternative, Question, QuestionAlternative, QuestionIndexEntry
 from modules.storage.schema_validation import (
     ensure_unique_integer_values,
     prepare_dataframe,
@@ -83,6 +83,34 @@ def parse_question_id_dataframe(
         except ValueError as exc:
             issues.append(f"{QUESTION_RESOURCE_NAME} row {row_number}: {exc}")
     return question_ids, issues
+
+
+def parse_question_index_dataframe(
+    dataframe: pd.DataFrame,
+) -> tuple[list[QuestionIndexEntry], list[str]]:
+    """Parse a lightweight dataframe used for subject filtering and selection."""
+
+    prepared = prepare_dataframe(dataframe)
+    if prepared.empty and not list(prepared.columns):
+        return [], []
+
+    require_columns(prepared, ["id_question"], QUESTION_RESOURCE_NAME)
+    ensure_unique_integer_values(prepared, "id_question", QUESTION_RESOURCE_NAME)
+
+    entries: list[QuestionIndexEntry] = []
+    issues: list[str] = []
+    for index, row in prepared.iterrows():
+        row_number = worksheet_row_number(index)
+        try:
+            entries.append(
+                QuestionIndexEntry(
+                    id_question=_parse_required_int(row.get("id_question"), "id_question"),
+                    subject=clean_optional_text(row.get("subject")),
+                )
+            )
+        except ValueError as exc:
+            issues.append(f"{QUESTION_RESOURCE_NAME} row {row_number}: {exc}")
+    return entries, issues
 
 
 def parse_single_question_dataframe(
@@ -185,6 +213,35 @@ def select_next_question_id(
     pool = unseen_question_ids or available_question_ids
     chooser = randomizer or random.Random()
     return chooser.choice(pool)
+
+
+def build_subject_options(question_index: Sequence[QuestionIndexEntry]) -> list[str]:
+    """Build sorted subject filter options for the practice screen."""
+
+    subjects = sorted(
+        {
+            subject
+            for entry in question_index
+            for subject in [entry.subject]
+            if subject
+        },
+        key=str.casefold,
+    )
+    return ["Todas", *subjects]
+
+
+def filter_question_ids_by_subject(
+    question_index: Sequence[QuestionIndexEntry],
+    subject: str | None,
+) -> list[int]:
+    """Return active question IDs for the selected subject filter."""
+
+    selected_subject = clean_optional_text(subject)
+    return [
+        entry.id_question
+        for entry in question_index
+        if selected_subject is None or entry.subject == selected_subject
+    ]
 
 
 def find_question_by_id(

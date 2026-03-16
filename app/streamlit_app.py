@@ -6,6 +6,7 @@ from time import perf_counter
 
 import streamlit as st
 
+from app.components.header import PracticeHeaderMetrics
 from app.components.theme import apply_app_theme
 from app.pages.login_page import render_login_page, render_not_authorized_page
 from app.pages.main_page import render_main_page
@@ -17,6 +18,7 @@ from app.state.session_state import (
     get_current_question_id,
     get_invalid_question_ids,
     get_skipped_question_ids,
+    get_subject_filter,
     get_user_answer_history,
     get_user_answer_history_issues,
     has_loaded_user_answer_history,
@@ -28,14 +30,22 @@ from app.state.session_state import (
 from modules.auth.auth_service import get_authenticated_identity
 from modules.auth.authorization_service import AuthorizationService
 from modules.config.settings import AppSettings, load_settings
-from modules.domain.models import AnswerAttempt, DisplayAlternative, Question
+from modules.domain.models import AnswerAttempt, DisplayAlternative, LeaderboardEntry, Question, QuestionIndexEntry
 from modules.services.answer_service import AnswerService, parse_answers_dataframe
+from modules.services.leaderboard_service import (
+    find_user_position,
+    format_position,
+    parse_leaderboard_dataframe,
+)
 from modules.services.question_service import (
     build_display_alternatives,
-    parse_question_id_dataframe,
+    build_subject_options,
+    filter_question_ids_by_subject,
+    parse_question_index_dataframe,
     parse_single_question_dataframe,
     select_next_question_id,
 )
+from modules.services.streak_service import compute_day_streak, compute_question_streak
 from modules.storage.answer_repository import AnswerRepository
 from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
@@ -91,7 +101,7 @@ def main() -> None:
     try:
         context = build_runtime_context(settings)
         bind_authenticated_user(authorized_user.email)
-        question_ids, question_index_issues = load_active_question_ids(
+        question_index, question_index_issues = load_active_question_index(
             context.question_repository,
             settings.bigquery.question_bank_table_id(settings.gcp.project_id),
         )
@@ -100,10 +110,17 @@ def main() -> None:
             answers_table_id=settings.bigquery.answers_table_id(settings.gcp.project_id),
             user_email=authorized_user.email,
         )
+        leaderboard_entries, leaderboard_issues = load_leaderboard_snapshot(
+            context.answer_repository,
+            settings.bigquery.leaderboard_view_id(settings.gcp.project_id),
+        )
+        answer_history = get_user_answer_history(authorized_user.email)
+        selected_subject = get_subject_filter()
+        subject_options = build_subject_options(question_index)
         current_question, current_alternatives, question_lookup_issues = resolve_current_question(
             question_repository=context.question_repository,
             question_table_id=settings.bigquery.question_bank_table_id(settings.gcp.project_id),
-            active_question_ids=question_ids,
+            active_question_ids=filter_question_ids_by_subject(question_index, selected_subject),
             answered_question_ids=get_answered_question_ids(authorized_user.email),
         )
     except BigQueryError as exc:
@@ -119,7 +136,8 @@ def main() -> None:
         return
 
     question_issues = list(question_index_issues) + list(question_lookup_issues)
-    answer_issues = get_user_answer_history_issues(authorized_user.email)
+    answer_issues = get_user_answer_history_issues(authorized_user.email) + list(leaderboard_issues)
+    user_position = find_user_position(leaderboard_entries, authorized_user)
 
     _render_diagnostics(
         settings=settings,
@@ -132,6 +150,12 @@ def main() -> None:
         current_question=current_question,
         alternatives=current_alternatives,
         answer_service=context.answer_service,
+        subject_options=subject_options,
+        header_metrics=PracticeHeaderMetrics(
+            day_streak=compute_day_streak(answer_history, timezone_name=settings.timezone),
+            question_streak=compute_question_streak(answer_history),
+            leaderboard_position=format_position(user_position, len(leaderboard_entries)),
+        ),
     )
 
 
@@ -172,24 +196,24 @@ def build_runtime_context(settings: AppSettings) -> RuntimeContext:
 
 
 @st.cache_data(show_spinner=False, ttl=300)
-def load_active_question_ids(
+def load_active_question_index(
     _question_repository: QuestionRepository,
     question_table_id: str,
-) -> tuple[list[int], list[str]]:
-    """Load and cache the active question identifiers for the current table."""
+) -> tuple[list[QuestionIndexEntry], list[str]]:
+    """Load and cache the active-question index for the current table."""
 
     logger = get_logger(__name__)
     started_at = perf_counter()
-    question_id_frame = _question_repository.load_active_id_frame()
-    question_ids, issues = parse_question_id_dataframe(question_id_frame)
+    question_index_frame = _question_repository.load_active_index_frame()
+    question_index, issues = parse_question_index_dataframe(question_index_frame)
     logger.debug(
-        "Loaded active question IDs | table_id=%s | count=%s | issues=%s | elapsed_ms=%.2f",
+        "Loaded active question index | table_id=%s | count=%s | issues=%s | elapsed_ms=%.2f",
         question_table_id,
-        len(question_ids),
+        len(question_index),
         len(issues),
         (perf_counter() - started_at) * 1000,
     )
-    return question_ids, issues
+    return question_index, issues
 
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -238,6 +262,27 @@ def load_user_answer_history(
     return answers, issues
 
 
+@st.cache_data(show_spinner=False, ttl=120)
+def load_leaderboard_snapshot(
+    _answer_repository: AnswerRepository,
+    leaderboard_view_id: str,
+) -> tuple[list[LeaderboardEntry], list[str]]:
+    """Load and cache the leaderboard analytics view."""
+
+    logger = get_logger(__name__)
+    started_at = perf_counter()
+    leaderboard_frame = _answer_repository.load_leaderboard_frame()
+    entries, issues = parse_leaderboard_dataframe(leaderboard_frame)
+    logger.debug(
+        "Loaded leaderboard snapshot | view_id=%s | entries=%s | issues=%s | elapsed_ms=%.2f",
+        leaderboard_view_id,
+        len(entries),
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return entries, issues
+
+
 def _ensure_user_answer_history_loaded(
     *,
     answer_repository: AnswerRepository,
@@ -266,6 +311,11 @@ def resolve_current_question(
     issues: list[str] = []
     current_question_id = get_current_question_id()
     current_alternatives = get_current_alternatives()
+    if current_question_id is not None and current_question_id not in active_question_ids:
+        clear_current_question()
+        current_question_id = None
+        current_alternatives = []
+
     if current_question_id is not None and current_alternatives:
         current_question, current_issues = load_question_snapshot(
             question_repository,

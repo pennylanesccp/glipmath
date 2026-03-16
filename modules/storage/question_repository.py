@@ -51,6 +51,19 @@ class QuestionRepository:
         """
         return self._bigquery_client.query_to_dataframe(query)
 
+    def load_active_index_frame(self) -> pd.DataFrame:
+        """Load the active question index used for subject filtering."""
+
+        query = f"""
+            SELECT
+                id_question,
+                subject
+            FROM `{self._table_id}`
+            WHERE is_active = TRUE
+            ORDER BY id_question
+        """
+        return self._bigquery_client.query_to_dataframe(query)
+
     def load_question_frame_by_id(self, id_question: int) -> pd.DataFrame:
         """Load a single active question by identifier."""
 

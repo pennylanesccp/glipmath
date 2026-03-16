@@ -25,6 +25,7 @@ USER_ANSWER_HISTORY_ISSUES_KEY = "glipmath_user_answer_history_issues"
 USER_ANSWER_HISTORY_LOADED_KEY = "glipmath_user_answer_history_loaded"
 USER_ANSWERED_QUESTION_IDS_KEY = "glipmath_user_answered_question_ids"
 THEME_MODE_KEY = "glipmath_theme_mode"
+SUBJECT_FILTER_KEY = "glipmath_subject_filter"
 
 
 def initialize_session_state() -> None:
@@ -46,6 +47,7 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(USER_ANSWER_HISTORY_LOADED_KEY, False)
     st.session_state.setdefault(USER_ANSWERED_QUESTION_IDS_KEY, [])
     st.session_state.setdefault(THEME_MODE_KEY, "dark")
+    st.session_state.setdefault(SUBJECT_FILTER_KEY, "Todas")
 
 
 def get_session_id() -> str:
@@ -71,6 +73,7 @@ def bind_authenticated_user(user_email: str) -> None:
     st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY] = []
     st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = False
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
+    st.session_state[SUBJECT_FILTER_KEY] = "Todas"
     clear_current_question()
 
 
@@ -177,6 +180,24 @@ def get_current_alternatives() -> list[DisplayAlternative]:
     return alternatives
 
 
+def get_question_selection() -> str | None:
+    """Return the current in-session selected option ID."""
+
+    initialize_session_state()
+    value = st.session_state[QUESTION_SELECTION_KEY]
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def set_question_selection(option_id: str | None) -> None:
+    """Persist the selected option identifier for the active question."""
+
+    initialize_session_state()
+    st.session_state[QUESTION_SELECTION_KEY] = _string_or_none(option_id)
+
+
 def set_current_question(id_question: int, alternatives: list[DisplayAlternative]) -> None:
     """Store the active question and reset submission-specific state."""
 
@@ -266,6 +287,7 @@ def mark_question_answered(
         "feedback_message": evaluation.feedback_message,
         "correct_explanation": evaluation.correct_explanation,
         "selected_explanation": evaluation.selected_explanation,
+        "time_spent_seconds": evaluation.record.time_spent_seconds,
     }
 
 
@@ -335,6 +357,29 @@ def set_theme_mode(mode: str) -> None:
 
     initialize_session_state()
     st.session_state[THEME_MODE_KEY] = "light" if mode == "light" else "dark"
+
+
+def get_subject_filter() -> str | None:
+    """Return the selected subject filter, or None for all subjects."""
+
+    initialize_session_state()
+    value = _string_or_none(st.session_state[SUBJECT_FILTER_KEY])
+    if value is None or value == "Todas":
+        return None
+    return value
+
+
+def get_subject_filter_label() -> str:
+    """Return the display label for the selected subject filter."""
+
+    return get_subject_filter() or "Todas"
+
+
+def set_subject_filter(subject: str | None) -> None:
+    """Persist the selected subject filter."""
+
+    initialize_session_state()
+    st.session_state[SUBJECT_FILTER_KEY] = _string_or_none(subject) or "Todas"
 
 
 def _string_or_none(value: object) -> str | None:

@@ -3,12 +3,15 @@ import random
 import pandas as pd
 import pytest
 
-from modules.domain.models import Question, QuestionAlternative
+from modules.domain.models import Question, QuestionAlternative, QuestionIndexEntry
 from modules.services.question_service import (
+    build_subject_options,
     build_display_alternatives,
+    filter_question_ids_by_subject,
     find_valid_question_bank_row_indexes,
     parse_question_bank_dataframe,
     parse_question_id_dataframe,
+    parse_question_index_dataframe,
     parse_single_question_dataframe,
     select_next_question,
     select_next_question_id,
@@ -160,6 +163,36 @@ def test_parse_question_id_dataframe_reads_integer_ids() -> None:
 
     assert question_ids == [10, 22]
     assert issues == []
+
+
+def test_parse_question_index_dataframe_reads_subject_metadata() -> None:
+    frame = pd.DataFrame(
+        [
+            {"id_question": "10", "subject": "Matemática"},
+            {"id_question": 22, "subject": None},
+        ]
+    )
+
+    entries, issues = parse_question_index_dataframe(frame)
+
+    assert issues == []
+    assert entries == [
+        QuestionIndexEntry(id_question=10, subject="Matemática"),
+        QuestionIndexEntry(id_question=22, subject=None),
+    ]
+
+
+def test_subject_option_helpers_build_and_filter_active_ids() -> None:
+    question_index = [
+        QuestionIndexEntry(id_question=1, subject="Matemática"),
+        QuestionIndexEntry(id_question=2, subject="Português"),
+        QuestionIndexEntry(id_question=3, subject="Matemática"),
+        QuestionIndexEntry(id_question=4, subject=None),
+    ]
+
+    assert build_subject_options(question_index) == ["Todas", "Matemática", "Português"]
+    assert filter_question_ids_by_subject(question_index, None) == [1, 2, 3, 4]
+    assert filter_question_ids_by_subject(question_index, "Matemática") == [1, 3]
 
 
 def test_parse_single_question_dataframe_returns_single_question() -> None:

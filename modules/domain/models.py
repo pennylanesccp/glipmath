@@ -41,6 +41,14 @@ class Question:
 
 
 @dataclass(frozen=True, slots=True)
+class QuestionIndexEntry:
+    """Lightweight active-question metadata used for selection and filtering."""
+
+    id_question: int
+    subject: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class AuthIdentity:
     """Authenticated identity returned by Streamlit OIDC."""
 
