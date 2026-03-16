@@ -7,7 +7,7 @@ from time import perf_counter
 import streamlit as st
 
 from app.components.header import PracticeHeaderMetrics
-from app.components.theme import apply_app_theme
+from app.components.theme import apply_app_themea
 from app.pages.login_page import render_login_page, render_not_authorized_page
 from app.pages.main_page import render_main_page
 from app.state.session_state import (
