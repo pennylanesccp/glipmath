@@ -9,8 +9,7 @@ from modules.utils.normalization import clean_optional_text, normalize_email
 LEADERBOARD_RESOURCE_NAME = "v_leaderboard"
 LEADERBOARD_REQUIRED_COLUMNS = [
     "rank",
-    "id_user",
-    "email",
+    "user_email",
     "display_name",
     "total_correct",
     "total_answers",
@@ -18,51 +17,42 @@ LEADERBOARD_REQUIRED_COLUMNS = [
 
 
 def compute_leaderboard(
-    users: list[User],
     answers: list[AnswerAttempt],
 ) -> list[LeaderboardEntry]:
-    """Compute leaderboard entries for all active whitelisted users."""
+    """Compute leaderboard entries from append-only answer events."""
 
-    active_users = [user for user in users if user.is_active]
-    stats = {
-        user.id_user: {
-            "user": user,
-            "total_correct": 0,
-            "total_answers": 0,
-        }
-        for user in active_users
-    }
-
+    stats: dict[str, dict[str, int | str]] = {}
     for answer in answers:
-        if answer.id_user not in stats:
-            continue
-        stats[answer.id_user]["total_answers"] += 1
+        if answer.user_email not in stats:
+            stats[answer.user_email] = {
+                "user_email": answer.user_email,
+                "display_name": answer.user_email,
+                "total_correct": 0,
+                "total_answers": 0,
+            }
+        stats[answer.user_email]["total_answers"] += 1
         if answer.is_correct:
-            stats[answer.id_user]["total_correct"] += 1
+            stats[answer.user_email]["total_correct"] += 1
 
     ordered = sorted(
         stats.values(),
         key=lambda item: (
-            -item["total_correct"],
-            -item["total_answers"],
-            item["user"].email,
+            -int(item["total_correct"]),
+            -int(item["total_answers"]),
+            str(item["user_email"]),
         ),
     )
 
-    entries: list[LeaderboardEntry] = []
-    for index, item in enumerate(ordered, start=1):
-        user = item["user"]
-        entries.append(
-            LeaderboardEntry(
-                rank=index,
-                id_user=user.id_user,
-                email=user.email,
-                display_name=user.display_name,
-                total_correct=item["total_correct"],
-                total_answers=item["total_answers"],
-            )
+    return [
+        LeaderboardEntry(
+            rank=index,
+            user_email=str(item["user_email"]),
+            display_name=str(item["display_name"]),
+            total_correct=int(item["total_correct"]),
+            total_answers=int(item["total_answers"]),
         )
-    return entries
+        for index, item in enumerate(ordered, start=1)
+    ]
 
 
 def parse_leaderboard_dataframe(
@@ -81,16 +71,14 @@ def parse_leaderboard_dataframe(
     for index, row in prepared.iterrows():
         row_number = worksheet_row_number(index)
         try:
-            email = normalize_email(str(row.get("email", "")))
-            if not email:
-                raise ValueError("email cannot be blank.")
-            display_name = clean_optional_text(row.get("display_name")) or email
+            user_email = normalize_email(str(row.get("user_email", "")))
+            if not user_email:
+                raise ValueError("user_email cannot be blank.")
             entries.append(
                 LeaderboardEntry(
                     rank=_parse_required_int(row.get("rank"), "rank"),
-                    id_user=_parse_required_int(row.get("id_user"), "id_user"),
-                    email=email,
-                    display_name=display_name,
+                    user_email=user_email,
+                    display_name=clean_optional_text(row.get("display_name")) or user_email,
                     total_correct=_parse_required_int(row.get("total_correct"), "total_correct"),
                     total_answers=_parse_required_int(row.get("total_answers"), "total_answers"),
                 )
@@ -109,7 +97,7 @@ def find_user_position(
     """Find the leaderboard entry for the given user."""
 
     for entry in leaderboard:
-        if entry.id_user == user.id_user:
+        if entry.user_email == user.email:
             return entry
     return None
 
@@ -117,8 +105,10 @@ def find_user_position(
 def format_position(entry: LeaderboardEntry | None, total_users: int) -> str:
     """Format leaderboard position for UI metrics."""
 
-    if entry is None or total_users == 0:
+    if total_users == 0:
         return "#- / 0"
+    if entry is None:
+        return f"#- / {total_users}"
     return f"#{entry.rank} / {total_users}"
 
 

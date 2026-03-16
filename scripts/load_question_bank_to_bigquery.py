@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import pandas as pd
 import sys
 from pathlib import Path
 
@@ -11,36 +12,37 @@ if str(REPO_ROOT) not in sys.path:
 from modules.services.question_service import parse_question_bank_dataframe
 from scripts.bigquery_seed_utils import (
     build_bigquery_client,
-    coerce_rows_by_schema,
     load_rows_to_bigquery,
-    read_csv_as_dataframe,
-    read_csv_rows,
+    read_jsonl_rows,
 )
 
 
 def main() -> None:
-    """Load the curated question bank CSV into BigQuery."""
+    """Load the curated question bank JSONL file into BigQuery.
 
-    parser = argparse.ArgumentParser(description="Load the question bank CSV into BigQuery.")
+    The load job replaces the current contents of the target table.
+    """
+
+    parser = argparse.ArgumentParser(description="Load the question bank JSONL into BigQuery.")
     parser.add_argument("--project-id", default="ide-math-app")
     parser.add_argument("--dataset", default="glipmath_core")
     parser.add_argument("--table", default="question_bank")
     parser.add_argument("--location", default="southamerica-east1")
     parser.add_argument(
-        "--csv-path",
+        "--jsonl-path",
         type=Path,
-        default=Path("sql/seeds/question_bank_template.csv"),
+        default=Path("sql/seeds/question_bank_template.jsonl"),
     )
     args = parser.parse_args()
 
-    dataframe = read_csv_as_dataframe(args.csv_path)
+    rows = read_jsonl_rows(args.jsonl_path)
+    dataframe = pd.DataFrame(rows)
     _, issues = parse_question_bank_dataframe(dataframe)
     if issues:
         for issue in issues:
             print(f"[ERROR] {issue}")
         raise SystemExit(1)
 
-    rows = coerce_rows_by_schema(read_csv_rows(args.csv_path), schema_name="question_bank.json")
     client = build_bigquery_client(args.project_id, args.location)
     table_id = f"{args.project_id}.{args.dataset}.{args.table}"
     load_rows_to_bigquery(

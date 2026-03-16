@@ -1,4 +1,0 @@
-id_question,source,statement,choice_a,choice_b,choice_c,choice_d,choice_e,correct_choice,is_active,topic,difficulty,explanation,created_at_utc,updated_at_utc
-1,Banco inicial,"Quanto vale 2 + 2?",3,4,5,6,,B,true,Aritmetica,facil,"Some os dois pares.",2026-03-14T00:00:00+00:00,2026-03-14T00:00:00+00:00
-2,Banco inicial,"Qual fracao equivale a 50%?",1/4,1/3,1/2,3/4,,C,true,Fracoes,facil,"50% equivale a metade.",2026-03-14T00:00:00+00:00,2026-03-14T00:00:00+00:00
-3,Banco inicial,"Qual e o resultado de 3 x 7?",18,19,20,21,,D,true,Multiplicacao,facil,"Use a tabuada do 7.",2026-03-14T00:00:00+00:00,2026-03-14T00:00:00+00:00

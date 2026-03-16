@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 from google.cloud import bigquery
+from google.oauth2 import service_account
 
 
 class BigQueryError(RuntimeError):
@@ -14,10 +15,25 @@ class BigQueryError(RuntimeError):
 class BigQueryClient:
     """Small wrapper around the official BigQuery client."""
 
-    def __init__(self, *, project_id: str, location: str) -> None:
-        self._project_id = project_id
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        service_account_info: Mapping[str, Any] | None = None,
+    ) -> None:
+        credentials = None
+        if service_account_info:
+            credentials = service_account.Credentials.from_service_account_info(
+                dict(service_account_info)
+            )
+
         self._location = location
-        self._client = bigquery.Client(project=project_id, location=location)
+        self._client = bigquery.Client(
+            project=project_id,
+            location=location,
+            credentials=credentials,
+        )
 
     def query_to_dataframe(
         self,
@@ -29,7 +45,11 @@ class BigQueryClient:
 
         job_config = bigquery.QueryJobConfig(query_parameters=list(parameters or []))
         try:
-            result = self._client.query(sql, job_config=job_config, location=self._location).result()
+            result = self._client.query(
+                sql,
+                job_config=job_config,
+                location=self._location,
+            ).result()
         except Exception as exc:
             raise BigQueryError("BigQuery query failed.") from exc
         return pd.DataFrame([dict(row.items()) for row in result])

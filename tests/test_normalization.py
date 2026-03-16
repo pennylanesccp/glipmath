@@ -1,13 +1,8 @@
-from modules.utils.normalization import clean_optional_text, coerce_bool, normalize_choice, normalize_email
+from modules.utils.normalization import clean_optional_text, coerce_bool, normalize_email
 
 
 def test_normalize_email_trims_and_lowercases() -> None:
     assert normalize_email("  ANA@Example.COM ") == "ana@example.com"
-
-
-def test_normalize_choice_keeps_first_uppercase_letter() -> None:
-    assert normalize_choice(" b ") == "B"
-    assert normalize_choice("c") == "C"
 
 
 def test_coerce_bool_supports_common_spreadsheet_values() -> None:

@@ -12,13 +12,6 @@ def normalize_email(value: str | None) -> str:
     return (value or "").strip().lower()
 
 
-def normalize_choice(value: str | None) -> str:
-    """Normalize a multiple-choice label to a single uppercase letter."""
-
-    normalized = (value or "").strip().upper()
-    return normalized[:1] if normalized else ""
-
-
 def clean_optional_text(value: Any) -> str | None:
     """Return a stripped text value or None when blank."""
 

@@ -2,140 +2,106 @@
 
 ## Datasets
 
-GlipMath uses three datasets by default:
-
 - `glipmath_core`
 - `glipmath_events`
 - `glipmath_analytics`
 
-## Core Tables
-
-### `glipmath_core.question_bank`
-
-Purpose: curated source of active and inactive multiple-choice questions.
-
-Key columns:
+## `glipmath_core.question_bank`
 
 - `id_question INT64 REQUIRED`
-- `source STRING REQUIRED`
 - `statement STRING REQUIRED`
-- `choice_a STRING REQUIRED`
-- `choice_b STRING REQUIRED`
-- `choice_c STRING REQUIRED`
-- `choice_d STRING REQUIRED`
-- `choice_e STRING NULLABLE`
-- `correct_choice STRING REQUIRED`
-- `is_active BOOL REQUIRED`
+- `correct_answer RECORD REQUIRED`
+  - `alternative_text STRING REQUIRED`
+  - `explanation STRING NULLABLE`
+- `wrong_answers RECORD REPEATED`
+  - `alternative_text STRING REQUIRED`
+  - `explanation STRING NULLABLE`
 - `topic STRING NULLABLE`
 - `difficulty STRING NULLABLE`
-- `explanation STRING NULLABLE`
-- `created_at_utc TIMESTAMP NULLABLE`
-- `updated_at_utc TIMESTAMP NULLABLE`
-
-Business rules:
-
-- `id_question` must be unique
-- active rows must have valid choices
-- `correct_choice` must reference a populated choice
-- inactive rows remain stored but are ignored by the app
-
-### `glipmath_core.whitelist`
-
-Purpose: authorized users allowed to enter the app.
-
-Key columns:
-
-- `id_user INT64 REQUIRED`
-- `email STRING REQUIRED`
-- `name STRING NULLABLE`
+- `source STRING NULLABLE`
 - `is_active BOOL REQUIRED`
 - `created_at_utc TIMESTAMP NULLABLE`
 - `updated_at_utc TIMESTAMP NULLABLE`
 
-Business rules:
+Validation rules:
 
-- `id_user` must be unique
-- `email` is matched after lowercase + trim normalization
-- only active users are authorized
+- `id_question` must be unique
+- `statement` must be present
+- `correct_answer.alternative_text` must be present
+- `wrong_answers` must contain at least one item for app validation
+- alternative texts must be unique within a question
+- inactive questions are ignored by the app
 
-### `glipmath_events.answers`
+Why nested?
 
-Purpose: append-only answer event log.
+- BigQuery stores the canonical correct answer and wrong answers cleanly
+- the app can randomize answer order at runtime
+- explanations can live beside each alternative
 
-Key columns:
+## `glipmath_events.answers`
 
 - `id_answer STRING REQUIRED`
-- `id_user INT64 REQUIRED`
-- `email STRING REQUIRED`
 - `id_question INT64 REQUIRED`
-- `selected_choice STRING REQUIRED`
-- `correct_choice STRING REQUIRED`
+- `user_email STRING REQUIRED`
+- `selected_alternative_text STRING REQUIRED`
+- `correct_alternative_text STRING REQUIRED`
 - `is_correct BOOL REQUIRED`
 - `answered_at_utc TIMESTAMP REQUIRED`
 - `answered_at_local DATETIME REQUIRED`
 - `time_spent_seconds FLOAT64 REQUIRED`
 - `session_id STRING REQUIRED`
-- `source STRING NULLABLE`
 - `topic STRING NULLABLE`
+- `difficulty STRING NULLABLE`
+- `source STRING NULLABLE`
 - `app_version STRING NULLABLE`
 
-Design decisions:
+Usage notes:
 
-- `id_answer` is a UUID-like string to avoid write contention
-- `answered_at_utc` is the canonical event timestamp
-- `answered_at_local` stores the app-local wall clock in `America/Sao_Paulo` by default
-- rows are append-only and never updated
+- `answers` is append-only
+- every answer submission inserts one row
+- `answered_at_local` is stored as BigQuery `DATETIME`
+- user identity is the normalized email for the MVP
+
+The Terraform table definition partitions `answers` by `answered_at_utc` and clusters by `user_email` and `id_question`.
 
 ## Analytics Views
 
-### `glipmath_analytics.v_user_totals`
+- `glipmath_analytics.v_user_totals`
+- `glipmath_analytics.v_user_daily_activity`
+- `glipmath_analytics.v_leaderboard`
 
-Purpose:
+Definitions:
 
-- total answers per active user
-- total correct answers per active user
-- zero-filled rows for active users with no history
-
-### `glipmath_analytics.v_user_daily_activity`
-
-Purpose:
-
-- daily activity grain by user
-- supports streak-oriented analysis and future dashboards
-
-### `glipmath_analytics.v_leaderboard`
-
-Purpose:
-
-- global leaderboard ordered by `total_correct DESC`, `total_answers DESC`, `email ASC`
+- `v_user_totals`
+  - aggregates `total_answers` and `total_correct` by normalized `user_email`
+- `v_user_daily_activity`
+  - aggregates per-user daily answer counts from `answered_at_local`
+- `v_leaderboard`
+  - ranks by:
+    1. `total_correct DESC`
+    2. `total_answers DESC`
+    3. `user_email ASC`
 
 ## Metric Definitions
 
-### Day streak
+- Day streak
+  - consecutive calendar days with at least one answer
+  - the streak can continue from today or yesterday
+- Question streak
+  - consecutive correct answers when scanning the current user history in reverse chronological order
+- Leaderboard position
+  - rank in `v_leaderboard`
+  - users with zero answers do not yet appear in the leaderboard view
 
-Consecutive local calendar days with at least one answered question, ending on:
+## Seed Format
 
-- today, or
-- yesterday
+The question bank seed template is JSONL:
 
-If the last activity is older than yesterday, streak is `0`.
+- `sql/seeds/question_bank_template.jsonl`
 
-### Question streak
+Each line is one question object that already matches the nested BigQuery schema, which avoids awkward CSV-to-nested transformations for the MVP.
 
-Current consecutive correct-answer streak when reading the user's history in reverse chronological order.
+Version-controlled schema files:
 
-### Leaderboard position
-
-Rank within active whitelisted users using:
-
-1. `total_correct DESC`
-2. `total_answers DESC`
-3. `email ASC`
-
-## Source of Truth
-
-Schema JSON files live in:
-
-- [question_bank.json](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/infrastructure/terraform/schemas/question_bank.json)
-- [whitelist.json](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/infrastructure/terraform/schemas/whitelist.json)
-- [answers.json](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/infrastructure/terraform/schemas/answers.json)
+- `infrastructure/terraform/schemas/question_bank.json`
+- `infrastructure/terraform/schemas/answers.json`

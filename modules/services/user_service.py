@@ -1,83 +1,16 @@
 from __future__ import annotations
 
-import pandas as pd
-
 from modules.domain.models import User
-from modules.storage.schema_validation import (
-    ensure_unique_integer_values,
-    ensure_unique_normalized_values,
-    prepare_dataframe,
-    require_columns,
-    worksheet_row_number,
-)
-from modules.utils.datetime_utils import parse_timestamp
-from modules.utils.normalization import clean_optional_text, coerce_bool, normalize_email
-
-WHITELIST_RESOURCE_NAME = "whitelist"
-WHITELIST_REQUIRED_COLUMNS = ["id_user", "email", "is_active"]
+from modules.utils.normalization import clean_optional_text, normalize_email
 
 
-def parse_whitelist_dataframe(dataframe: pd.DataFrame) -> tuple[list[User], list[str]]:
-    """Parse and validate whitelist rows."""
-
-    prepared = prepare_dataframe(dataframe)
-    if prepared.empty and not list(prepared.columns):
-        return [], []
-
-    require_columns(prepared, WHITELIST_REQUIRED_COLUMNS, WHITELIST_RESOURCE_NAME)
-    ensure_unique_integer_values(prepared, "id_user", WHITELIST_RESOURCE_NAME)
-    ensure_unique_normalized_values(
-        prepared,
-        "email",
-        WHITELIST_RESOURCE_NAME,
-        normalize_email,
-    )
-
-    users: list[User] = []
-    issues: list[str] = []
-    for index, row in prepared.iterrows():
-        row_number = worksheet_row_number(index)
-        try:
-            id_user = _parse_required_int(row.get("id_user"), "id_user")
-            email = normalize_email(str(row.get("email", "")))
-            if not email:
-                raise ValueError("email cannot be blank.")
-            users.append(
-                User(
-                    id_user=id_user,
-                    email=email,
-                    name=clean_optional_text(row.get("name")),
-                    is_active=coerce_bool(row.get("is_active"), default=True),
-                    created_at_utc=parse_timestamp(row.get("created_at_utc")),
-                    updated_at_utc=parse_timestamp(row.get("updated_at_utc")),
-                )
-            )
-        except ValueError as exc:
-            issues.append(f"{WHITELIST_RESOURCE_NAME} row {row_number}: {exc}")
-
-    return users, issues
-
-
-def find_user_by_email(users: list[User], email: str | None) -> User | None:
-    """Find a whitelist user using normalized email matching."""
+def build_user(email: str | None, *, fallback_name: str | None = None) -> User | None:
+    """Build a normalized app user from the authenticated identity."""
 
     normalized_email = normalize_email(email)
     if not normalized_email:
         return None
-    for user in users:
-        if user.email == normalized_email:
-            return user
-    return None
-
-
-def list_active_users(users: list[User]) -> list[User]:
-    """Return active whitelist users only."""
-
-    return [user for user in users if user.is_active]
-
-
-def _parse_required_int(value: object, field_name: str) -> int:
-    try:
-        return int(str(value).strip())
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} must be a valid integer.") from exc
+    return User(
+        email=normalized_email,
+        name=clean_optional_text(fallback_name),
+    )

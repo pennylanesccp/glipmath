@@ -28,11 +28,6 @@ variable "question_bank_table_id" {
   type        = string
 }
 
-variable "whitelist_table_id" {
-  description = "Whitelist table ID."
-  type        = string
-}
-
 variable "answers_table_id" {
   description = "Answers table ID."
   type        = string
@@ -55,11 +50,6 @@ variable "user_daily_activity_view_id" {
 
 variable "question_bank_schema" {
   description = "JSON schema for the question bank table."
-  type        = string
-}
-
-variable "whitelist_schema" {
-  description = "JSON schema for the whitelist table."
   type        = string
 }
 

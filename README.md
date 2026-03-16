@@ -1,47 +1,25 @@
 # GlipMath
 
-GlipMath is a Streamlit-based math learning MVP with a light Duolingo-like loop:
+GlipMath is a Streamlit-based math learning MVP with a light gamification loop:
 
 - Google login
-- whitelist-based authorization
 - one question at a time
-- append-only answer logging
+- append-only answer logging in BigQuery
 - day streak
 - question streak
 - leaderboard position
 
-This repository is GCP-first from day one:
+The current deployment target is Streamlit Community Cloud. GCP is used for the data layer only.
 
-- Python 3.11+
-- Streamlit
-- BigQuery for persistence
-- Cloud Run for deployment
-- Secret Manager for auth/runtime secrets
-- Terraform for infrastructure
+## MVP Direction
 
-The UI is intentionally simple and user-facing text is in Portuguese-BR. Code, SQL, and docs stay in English.
+- App deployment: Streamlit Community Cloud
+- Primary data store: BigQuery
+- Infrastructure as code: Terraform for BigQuery, IAM, and the runtime service account
+- Runtime secrets: Streamlit secrets locally and in Streamlit Community Cloud
+- Beta access control: externalized through Google OAuth app configuration and test users
 
-## MVP Scope
-
-The MVP has only two logical screens:
-
-1. Login
-2. Main app
-
-The main page shows:
-
-- app title
-- logged-in user
-- logout button
-- day streak
-- question streak
-- leaderboard position
-- one question card
-- answer submission
-- result feedback
-- next question button
-
-More detail is in [docs/mvp_scope.md](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/docs/mvp_scope.md).
+There is no Docker, Cloud Run, Artifact Registry, Secret Manager runtime flow, or in-app whitelist table in the current MVP.
 
 ## Repository Map
 
@@ -55,23 +33,27 @@ glipmath/
 |- scripts/
 |- docs/
 |- tests/
-|- Dockerfile
 |- README.md
 |- requirements.txt
 |- pyproject.toml
+|- run_streamlit.ps1
 ```
 
 ## Architecture Summary
 
 - `app/` keeps Streamlit pages, components, and session state thin.
-- `modules/services/` owns deterministic business rules.
-- `modules/storage/` centralizes BigQuery access.
-- `modules/domain/` defines typed domain models.
-- `infrastructure/terraform/` provisions GCP resources with reusable modules.
-- `sql/views/` defines analytics views used by Terraform.
-- `scripts/` handles CSV validation and BigQuery seed flows.
+- `modules/services/` owns question selection, answer evaluation, streaks, and leaderboard logic.
+- `modules/storage/` is the only place that talks to BigQuery.
+- `modules/domain/` defines typed app models.
+- `infrastructure/terraform/` manages the GCP data layer only.
+- `sql/views/` contains the analytics SQL used by Terraform.
+- `scripts/` handles question validation, question loading, and optional local/dev answer backfill.
 
-See [docs/architecture.md](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/docs/architecture.md).
+More detail:
+
+- `docs/architecture.md`
+- `docs/data_model.md`
+- `docs/mvp_scope.md`
 
 ## BigQuery Data Model
 
@@ -81,10 +63,9 @@ Datasets:
 - `glipmath_events`
 - `glipmath_analytics`
 
-Main business tables:
+Primary tables:
 
 - `glipmath_core.question_bank`
-- `glipmath_core.whitelist`
 - `glipmath_events.answers`
 
 Analytics views:
@@ -93,7 +74,12 @@ Analytics views:
 - `glipmath_analytics.v_user_daily_activity`
 - `glipmath_analytics.v_leaderboard`
 
-See [docs/data_model.md](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/docs/data_model.md).
+`question_bank` uses a nested schema:
+
+- `correct_answer` is a struct with `alternative_text` and `explanation`
+- `wrong_answers` is a repeated struct array with the same shape
+
+The app combines the correct answer and wrong answers in memory, assigns stable runtime option IDs, randomizes display order, and persists both the selected alternative text and the canonical correct alternative text.
 
 ## Local Setup
 
@@ -110,72 +96,52 @@ See [docs/data_model.md](/c:/Users/Cliente/Documents/workspaces/personal/glipmat
    Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
    ```
 
-4. Fill the Google OIDC values in `.streamlit/secrets.toml`.
-5. Authenticate locally for BigQuery access:
+4. Fill these sections in `.streamlit/secrets.toml`:
+   - `[auth]` for Google OIDC
+   - `[gcp]` for project/location
+   - `[bigquery]` for dataset/table/view names
+   - `[gcp_service_account]` for the BigQuery runtime service account JSON fields
+5. Apply Terraform for the GCP data layer.
+6. Validate and load the question bank:
 
    ```powershell
-   gcloud auth application-default login
+   python scripts/validate_question_bank.py
+   python scripts/load_question_bank_to_bigquery.py
    ```
 
-6. Create the BigQuery datasets and tables with Terraform.
-7. Load seed CSVs into BigQuery with the scripts in `scripts/`.
-8. Run the app:
+7. Run the app:
 
    ```powershell
    .\run_streamlit.ps1
    ```
 
-## GCP Setup Summary
+## Streamlit Community Cloud Deployment
 
-- Project ID: `ide-math-app`
-- Recommended default region: `southamerica-east1`
-- Terraform provisions BigQuery, Secret Manager, Artifact Registry, Cloud Run, service accounts, and a GCS bucket.
-- OAuth consent and Google OIDC client creation still require manual setup.
-- Secret values must be inserted manually before the final Cloud Run apply.
+The production path is Streamlit Community Cloud.
 
-See:
+1. Push the repository to GitHub.
+2. Create the app in Streamlit Community Cloud.
+3. Set the entrypoint to `app/streamlit_app.py`.
+4. Paste the same secrets structure used locally into the Streamlit Cloud secrets editor.
+5. Ensure the OAuth redirect URI for the Streamlit Cloud hostname is registered in Google OAuth.
+6. Redeploy and test login, question loading, answer inserts, and leaderboard reads.
 
-- [docs/terraform_infra.md](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/docs/terraform_infra.md)
-- [docs/google_auth_setup.md](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/docs/google_auth_setup.md)
-- [docs/manual_bootstrap_steps.md](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/docs/manual_bootstrap_steps.md)
+See `docs/deployment_streamlit_cloud.md`.
 
-## Terraform Summary
-
-Terraform is organized as:
-
-- reusable modules under `infrastructure/terraform/modules/`
-- a `dev` environment under `infrastructure/terraform/environments/dev/`
-- version-controlled BigQuery schemas under `infrastructure/terraform/schemas/`
-
-The recommended flow is two-stage:
-
-1. Apply infra with `deploy_cloud_run = false`
-2. Populate Secret Manager values, build and push the image, then set `deploy_cloud_run = true`
-
-## Cloud Run Deployment Flow
-
-1. Build the Docker image.
-2. Push it to Artifact Registry.
-3. Ensure auth secrets exist and contain real values.
-4. Update `container_image` in `terraform.tfvars`.
-5. Apply Terraform with `deploy_cloud_run = true`.
-6. Verify `/oauth2callback` is registered in the Google OAuth client.
-
-See [docs/deployment_cloud_run.md](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/docs/deployment_cloud_run.md).
-
-## Auth Flow
+## Authentication and Access Control
 
 Runtime flow:
 
 1. `st.login()` starts Google OIDC.
 2. Streamlit exposes the authenticated identity in `st.user`.
-3. Email is normalized with lowercase and trim.
-4. Authorization checks BigQuery `whitelist`.
-5. Only active whitelisted users can access the main page.
-6. Non-whitelisted users see a friendly denial state.
-7. `st.logout()` ends the session.
+3. The app normalizes the email.
+4. A lightweight authorization abstraction converts the identity into the current app user.
+5. Beta access is controlled outside the app through Google OAuth configuration and test users.
+6. `st.logout()` ends the session.
 
-Cloud Run receives auth config through Secret Manager-backed environment variables. A bootstrap script writes `.streamlit/secrets.toml` inside the container so Streamlit auth can initialize normally.
+There is no BigQuery-backed whitelist in the MVP. The abstraction remains in place so internal authorization rules can be reintroduced later without rewriting the UI.
+
+See `docs/google_auth_setup.md`.
 
 ## Seed and Admin Flow
 
@@ -185,13 +151,29 @@ Use:
 
 - `python scripts/validate_question_bank.py`
 - `python scripts/load_question_bank_to_bigquery.py`
-- `python scripts/load_whitelist_to_bigquery.py`
-- `python scripts/backfill_local_dev_data.py`
+- `python scripts/backfill_local_dev_data.py --user-email ana@example.com`
 
-Source CSV templates live in:
+Question bank seed asset:
 
-- [sql/seeds/question_bank_template.csv](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/sql/seeds/question_bank_template.csv)
-- [sql/seeds/whitelist_template.csv](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/sql/seeds/whitelist_template.csv)
+- `sql/seeds/question_bank_template.jsonl`
+
+The question bank loader replaces the current contents of `glipmath_core.question_bank`.
+
+## Terraform Summary
+
+Terraform manages only the GCP resources still needed:
+
+- required Google APIs for BigQuery and IAM
+- one service account for Streamlit runtime access to BigQuery
+- BigQuery datasets
+- BigQuery tables
+- BigQuery analytics views
+- least-privilege IAM bindings
+
+See:
+
+- `docs/terraform_infra.md`
+- `docs/manual_bootstrap_steps.md`
 
 ## Testing
 
@@ -203,25 +185,27 @@ python -m pytest
 
 The test suite avoids real GCP calls and covers:
 
-- question validation
-- authorization by normalized email
+- nested question parsing and validation
+- alternative randomization
+- answer correctness evaluation
 - day streak
 - question streak
 - leaderboard ranking
-- normalization helpers
+- email normalization and authorization entry
 
 ## Known Limitations
 
-- Answer writes use BigQuery streaming inserts for simplicity.
-- Question streak is computed in Python from the current user history, not in SQL.
+- Answer writes use BigQuery streaming inserts for MVP simplicity.
+- Leaderboard membership is based on users who have at least one answer event.
+- Question streak is computed in Python from user history, not in SQL.
 - The app assumes a single global leaderboard.
-- There is no admin UI for editing questions or whitelist data.
-- Terraform creates Secret Manager placeholders, but secret values must still be added manually.
+- There is no admin UI for content management.
+- Service account keys are not created by Terraform because that would put sensitive material in state.
 
 ## Next Steps
 
+- Add richer explanation and remediation flows.
+- Add cohort/class filtering for the leaderboard.
 - Add a small admin workflow for question curation.
-- Add richer analytics beyond total-correct ranking.
-- Cache leaderboard/user history reads if traffic grows.
-- Add cohort or class segmentation.
-- Add richer explanation content and remediation flows.
+- Add CI for Terraform validation and tests.
+- Reintroduce in-app authorization only when beta access needs move beyond Google OAuth test users.

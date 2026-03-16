@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import pandas as pd
 import sys
 from pathlib import Path
 
@@ -9,22 +10,22 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from modules.services.question_service import parse_question_bank_dataframe
-from scripts.bigquery_seed_utils import read_csv_as_dataframe
+from scripts.bigquery_seed_utils import read_jsonl_rows
 
 
 def main() -> None:
-    """Validate a question bank CSV before loading it to BigQuery."""
+    """Validate a question bank JSONL file before loading it to BigQuery."""
 
-    parser = argparse.ArgumentParser(description="Validate a GlipMath question bank CSV.")
+    parser = argparse.ArgumentParser(description="Validate a GlipMath question bank JSONL file.")
     parser.add_argument(
-        "--csv-path",
+        "--jsonl-path",
         type=Path,
-        default=Path("sql/seeds/question_bank_template.csv"),
-        help="Path to the CSV file to validate.",
+        default=Path("sql/seeds/question_bank_template.jsonl"),
+        help="Path to the JSONL file to validate.",
     )
     args = parser.parse_args()
 
-    dataframe = read_csv_as_dataframe(args.csv_path)
+    dataframe = pd.DataFrame(read_jsonl_rows(args.jsonl_path))
     questions, issues = parse_question_bank_dataframe(dataframe)
 
     if issues:

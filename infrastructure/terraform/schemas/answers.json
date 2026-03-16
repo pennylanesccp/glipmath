@@ -6,27 +6,22 @@
     "description": "Append-only answer event identifier."
   },
   {
-    "name": "id_user",
-    "type": "INT64",
-    "mode": "REQUIRED"
-  },
-  {
-    "name": "email",
-    "type": "STRING",
-    "mode": "REQUIRED"
-  },
-  {
     "name": "id_question",
     "type": "INT64",
     "mode": "REQUIRED"
   },
   {
-    "name": "selected_choice",
+    "name": "user_email",
     "type": "STRING",
     "mode": "REQUIRED"
   },
   {
-    "name": "correct_choice",
+    "name": "selected_alternative_text",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "correct_alternative_text",
     "type": "STRING",
     "mode": "REQUIRED"
   },
@@ -56,12 +51,17 @@
     "mode": "REQUIRED"
   },
   {
-    "name": "source",
+    "name": "topic",
     "type": "STRING",
     "mode": "NULLABLE"
   },
   {
-    "name": "topic",
+    "name": "difficulty",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "source",
     "type": "STRING",
     "mode": "NULLABLE"
   },

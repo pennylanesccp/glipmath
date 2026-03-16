@@ -6,11 +6,11 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from modules.domain.models import AnswerAttempt, AnswerEvaluation, Question, User
+from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative, Question, User
 from modules.storage.schema_validation import prepare_dataframe, require_columns, worksheet_row_number
 from modules.utils.datetime_utils import parse_local_datetime, parse_timestamp, utc_now
 from modules.utils.id_utils import generate_answer_id
-from modules.utils.normalization import clean_optional_text, normalize_choice
+from modules.utils.normalization import clean_optional_text, normalize_email
 
 if TYPE_CHECKING:
     from modules.storage.answer_repository import AnswerRepository
@@ -18,11 +18,10 @@ if TYPE_CHECKING:
 ANSWERS_RESOURCE_NAME = "answers"
 ANSWERS_REQUIRED_COLUMNS = [
     "id_answer",
-    "id_user",
-    "email",
     "id_question",
-    "selected_choice",
-    "correct_choice",
+    "user_email",
+    "selected_alternative_text",
+    "correct_alternative_text",
     "is_correct",
     "answered_at_utc",
     "answered_at_local",
@@ -44,7 +43,7 @@ class AnswerService:
         *,
         user: User,
         question: Question,
-        selected_choice: str,
+        selected_alternative: DisplayAlternative,
         session_id: str,
         time_spent_seconds: float,
     ) -> AnswerEvaluation:
@@ -53,7 +52,7 @@ class AnswerService:
         evaluation = build_answer_evaluation(
             user=user,
             question=question,
-            selected_choice=selected_choice,
+            selected_alternative=selected_alternative,
             session_id=session_id,
             time_spent_seconds=time_spent_seconds,
             timezone_name=self.timezone_name,
@@ -83,22 +82,27 @@ def parse_answers_dataframe(dataframe: pd.DataFrame) -> tuple[list[AnswerAttempt
             answered_at_utc = parse_timestamp(row.get("answered_at_utc"))
             if answered_at_utc is None:
                 raise ValueError("answered_at_utc must be a valid timestamp.")
-            answered_at_local = parse_local_datetime(row.get("answered_at_local"))
             answers.append(
                 AnswerAttempt(
                     id_answer=_parse_required_text(row.get("id_answer"), "id_answer"),
-                    id_user=_parse_required_int(row.get("id_user"), "id_user"),
-                    email=_parse_required_text(row.get("email"), "email").lower(),
                     id_question=_parse_required_int(row.get("id_question"), "id_question"),
-                    selected_choice=normalize_choice(str(row.get("selected_choice", ""))),
-                    correct_choice=normalize_choice(str(row.get("correct_choice", ""))),
+                    user_email=normalize_email(_parse_required_text(row.get("user_email"), "user_email")),
+                    selected_alternative_text=_parse_required_text(
+                        row.get("selected_alternative_text"),
+                        "selected_alternative_text",
+                    ),
+                    correct_alternative_text=_parse_required_text(
+                        row.get("correct_alternative_text"),
+                        "correct_alternative_text",
+                    ),
                     is_correct=_parse_bool(row.get("is_correct")),
                     answered_at_utc=answered_at_utc,
-                    answered_at_local=answered_at_local,
+                    answered_at_local=parse_local_datetime(row.get("answered_at_local")),
                     time_spent_seconds=float(row.get("time_spent_seconds", 0) or 0),
                     session_id=_parse_required_text(row.get("session_id"), "session_id"),
-                    source=clean_optional_text(row.get("source")),
                     topic=clean_optional_text(row.get("topic")),
+                    difficulty=clean_optional_text(row.get("difficulty")),
+                    source=clean_optional_text(row.get("source")),
                     app_version=clean_optional_text(row.get("app_version")),
                 )
             )
@@ -112,7 +116,7 @@ def build_answer_evaluation(
     *,
     user: User,
     question: Question,
-    selected_choice: str,
+    selected_alternative: DisplayAlternative,
     session_id: str,
     time_spent_seconds: float,
     timezone_name: str,
@@ -120,48 +124,46 @@ def build_answer_evaluation(
 ) -> AnswerEvaluation:
     """Build a validated answer record and user-facing feedback message."""
 
-    normalized_choice = normalize_choice(selected_choice)
-    if normalized_choice not in question.choices:
-        raise ValueError("selected_choice must be one of the question alternatives.")
+    _ensure_selected_alternative_matches_question(question, selected_alternative)
 
     answered_at_utc = utc_now()
     answered_at_local = answered_at_utc.astimezone(ZoneInfo(timezone_name)).replace(tzinfo=None)
-    is_correct = normalized_choice == question.correct_choice
+    is_correct = selected_alternative.is_correct
 
     record = AnswerAttempt(
         id_answer=generate_answer_id(),
-        id_user=user.id_user,
-        email=user.email,
         id_question=question.id_question,
-        selected_choice=normalized_choice,
-        correct_choice=question.correct_choice,
+        user_email=user.email,
+        selected_alternative_text=selected_alternative.alternative_text,
+        correct_alternative_text=question.correct_answer.alternative_text,
         is_correct=is_correct,
         answered_at_utc=answered_at_utc,
         answered_at_local=answered_at_local,
         time_spent_seconds=max(float(time_spent_seconds), 0.0),
         session_id=session_id,
-        source=question.source,
         topic=question.topic,
+        difficulty=question.difficulty,
+        source=question.source,
         app_version=app_version,
     )
     return AnswerEvaluation(
         record=record,
-        feedback_message=_build_feedback_message(question, is_correct),
+        feedback_message="Resposta correta." if is_correct else "Resposta incorreta.",
+        correct_explanation=question.correct_answer.explanation,
+        selected_explanation=selected_alternative.explanation if not is_correct else None,
     )
 
 
-def answers_for_user(answers: list[AnswerAttempt], user: User) -> list[AnswerAttempt]:
-    """Return answers submitted by a specific user."""
-
-    return [answer for answer in answers if answer.id_user == user.id_user]
-
-
-def _build_feedback_message(question: Question, is_correct: bool) -> str:
-    if is_correct:
-        return "Resposta correta."
-    if question.explanation:
-        return f"Resposta incorreta. Dica: {question.explanation}"
-    return "Resposta incorreta."
+def _ensure_selected_alternative_matches_question(
+    question: Question,
+    selected_alternative: DisplayAlternative,
+) -> None:
+    valid_texts = {
+        question.correct_answer.alternative_text,
+        *(wrong_answer.alternative_text for wrong_answer in question.wrong_answers),
+    }
+    if selected_alternative.alternative_text not in valid_texts:
+        raise ValueError("selected alternative does not belong to the current question.")
 
 
 def _parse_required_int(value: object, field_name: str) -> int:

@@ -14,4 +14,4 @@ Future coding agents working in this repository should preserve these rules:
 - Preserve the architecture boundary between UI, domain, services, storage, and infrastructure.
 - Prefer deterministic pure functions for logic that can be tested without Streamlit or GCP.
 - Do not scatter SQL or BigQuery client calls across page code.
-- If you touch schema assumptions, update `docs/data_model.md`, `README.md`, Terraform schema files, and any affected CSV templates.
+- If you touch schema assumptions, update `docs/data_model.md`, `README.md`, Terraform schema files, and any affected seed templates.

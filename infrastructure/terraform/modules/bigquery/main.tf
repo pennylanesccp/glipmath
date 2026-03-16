@@ -31,15 +31,6 @@ resource "google_bigquery_table" "question_bank" {
   labels              = var.labels
 }
 
-resource "google_bigquery_table" "whitelist" {
-  project             = var.project_id
-  dataset_id          = google_bigquery_dataset.core.dataset_id
-  table_id            = var.whitelist_table_id
-  schema              = var.whitelist_schema
-  deletion_protection = false
-  labels              = var.labels
-}
-
 resource "google_bigquery_table" "answers" {
   project             = var.project_id
   dataset_id          = google_bigquery_dataset.events.dataset_id
@@ -47,6 +38,13 @@ resource "google_bigquery_table" "answers" {
   schema              = var.answers_schema
   deletion_protection = false
   labels              = var.labels
+
+  time_partitioning {
+    type  = "DAY"
+    field = "answered_at_utc"
+  }
+
+  clustering = ["user_email", "id_question"]
 }
 
 resource "google_bigquery_table" "user_totals_view" {
@@ -61,10 +59,7 @@ resource "google_bigquery_table" "user_totals_view" {
     use_legacy_sql = false
   }
 
-  depends_on = [
-    google_bigquery_table.whitelist,
-    google_bigquery_table.answers,
-  ]
+  depends_on = [google_bigquery_table.answers]
 }
 
 resource "google_bigquery_table" "user_daily_activity_view" {

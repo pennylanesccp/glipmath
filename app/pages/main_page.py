@@ -9,6 +9,7 @@ from app.components.question_card import render_question_card
 from app.state.session_state import (
     clear_current_question,
     finish_submission,
+    get_current_alternatives,
     get_current_question_id,
     get_last_answer_result,
     get_question_started_at,
@@ -22,10 +23,15 @@ from app.state.session_state import (
 )
 from modules.auth.auth_service import trigger_logout
 from modules.config.settings import AppSettings
-from modules.domain.models import AnswerAttempt, LeaderboardEntry, Question, User
+from modules.domain.models import AnswerAttempt, DisplayAlternative, LeaderboardEntry, Question, User
 from modules.services.answer_service import AnswerService
 from modules.services.leaderboard_service import find_user_position, format_position
-from modules.services.question_service import find_question_by_id, select_next_question
+from modules.services.question_service import (
+    build_display_alternatives,
+    find_display_alternative,
+    find_question_by_id,
+    select_next_question,
+)
 from modules.services.streak_service import compute_day_streak, compute_question_streak
 from modules.storage.bigquery_client import BigQueryError
 from modules.utils.datetime_utils import today_in_timezone, utc_now
@@ -64,24 +70,25 @@ def render_main_page(
         question_streak=compute_question_streak(answers),
         leaderboard_position=format_position(leaderboard_entry, len(leaderboard)),
     )
-    render_leaderboard(leaderboard, current_user_id=user.id_user)
+    render_leaderboard(leaderboard, current_user_email=user.email)
 
-    current_question = _ensure_current_question(questions, answers)
+    current_question, alternatives = _ensure_current_question(questions, answers)
     if current_question is None:
         st.info("Nao ha questoes ativas e validas disponiveis no momento.")
         return
 
     last_result = get_last_answer_result()
     question_answered = is_current_question_answered()
-    selected_choice = (
-        str(last_result.get("selected_choice"))
+    selected_option_id = (
+        str(last_result.get("selected_option_id"))
         if question_answered and last_result and last_result.get("id_question") == current_question.id_question
         else None
     )
-    chosen_choice = render_question_card(
+    chosen_option_id = render_question_card(
         current_question,
+        alternatives,
         disabled=question_answered,
-        selected_choice=selected_choice,
+        selected_option_id=selected_option_id,
     )
 
     if not question_answered:
@@ -92,7 +99,8 @@ def render_main_page(
             use_container_width=True,
             disabled=submit_disabled,
         ):
-            if not chosen_choice:
+            selected_alternative = find_display_alternative(alternatives, chosen_option_id)
+            if selected_alternative is None:
                 st.warning("Selecione uma alternativa antes de responder.")
                 return
 
@@ -103,7 +111,7 @@ def render_main_page(
                 evaluation = answer_service.submit_answer(
                     user=user,
                     question=current_question,
-                    selected_choice=chosen_choice,
+                    selected_alternative=selected_alternative,
                     session_id=get_session_id(),
                     time_spent_seconds=elapsed_seconds,
                 )
@@ -111,11 +119,11 @@ def render_main_page(
                 finish_submission()
                 st.error(f"Nao foi possivel registrar a resposta: {exc}")
                 return
-            mark_question_answered(evaluation)
+            mark_question_answered(evaluation, selected_option_id=selected_alternative.option_id)
             st.rerun()
         return
 
-    _render_answer_feedback(current_question, last_result)
+    _render_answer_feedback(last_result)
     if st.button("Proxima questao", type="primary", use_container_width=True):
         clear_current_question()
         st.rerun()
@@ -124,41 +132,48 @@ def render_main_page(
 def _ensure_current_question(
     questions: list[Question],
     answers: list[AnswerAttempt],
-) -> Question | None:
+) -> tuple[Question | None, list[DisplayAlternative]]:
     current_question = find_question_by_id(questions, get_current_question_id())
-    if current_question is not None:
-        return current_question
+    current_alternatives = get_current_alternatives()
+    if current_question is not None and current_alternatives:
+        return current_question, current_alternatives
 
     answered_question_ids = {answer.id_question for answer in answers}
     next_question = select_next_question(questions, answered_question_ids)
     if next_question is None:
-        return None
+        return None, []
 
-    set_current_question(next_question.id_question)
-    return next_question
+    alternatives = build_display_alternatives(next_question)
+    set_current_question(next_question.id_question, alternatives)
+    return next_question, alternatives
 
 
-def _render_answer_feedback(
-    question: Question,
-    last_result: dict[str, object] | None,
-) -> None:
+def _render_answer_feedback(last_result: dict[str, object] | None) -> None:
     if not last_result:
         return
 
     is_correct = bool(last_result.get("is_correct"))
-    correct_choice = str(last_result.get("correct_choice", ""))
-    feedback_message = str(last_result.get("feedback_message", ""))
-    correct_text = question.choices.get(correct_choice, "")
+    correct_alternative_text = str(last_result.get("correct_alternative_text", ""))
+    correct_explanation = _string_or_none(last_result.get("correct_explanation"))
+    selected_explanation = _string_or_none(last_result.get("selected_explanation"))
+    feedback_message = _string_or_none(last_result.get("feedback_message"))
 
     if is_correct:
         st.success("Voce acertou.")
     else:
         st.error("Voce errou.")
 
-    if correct_text:
-        st.write(f"Resposta correta: **{correct_choice}. {correct_text}**")
-    else:
-        st.write(f"Resposta correta: **{correct_choice}**")
-
+    st.write(f"Resposta correta: **{correct_alternative_text}**")
     if feedback_message:
         st.caption(feedback_message)
+    if correct_explanation:
+        st.write(f"Explicacao: {correct_explanation}")
+    if selected_explanation and not is_correct:
+        st.write(f"Explicacao da alternativa escolhida: {selected_explanation}")
+
+
+def _string_or_none(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None

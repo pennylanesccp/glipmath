@@ -9,7 +9,7 @@ from modules.domain.models import LeaderboardEntry
 def render_leaderboard(
     leaderboard: list[LeaderboardEntry],
     *,
-    current_user_id: int,
+    current_user_email: str,
     limit: int = 5,
 ) -> None:
     """Render a compact leaderboard table."""
@@ -22,7 +22,7 @@ def render_leaderboard(
     rows: list[dict[str, object]] = []
     for entry in leaderboard[:limit]:
         display_name = entry.display_name
-        if entry.id_user == current_user_id:
+        if entry.user_email == current_user_email:
             display_name = f"{display_name} (voce)"
         rows.append(
             {

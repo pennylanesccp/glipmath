@@ -1,75 +1,79 @@
-# Terraform Infrastructure
+# Terraform Infra
 
-## Scope
+Terraform now manages only the GCP resources still useful for the Streamlit Community Cloud + BigQuery MVP.
 
-Terraform provisions:
+## Managed Resources
 
-- required project APIs
-- service accounts
-- BigQuery datasets, tables, and views
-- GCS bucket
-- Secret Manager placeholders
-- Artifact Registry Docker repository
-- optional Cloud Run deployment
+- enabled project APIs
+- one runtime service account
+- BigQuery datasets
+- BigQuery tables
+- BigQuery views
+- IAM bindings for least-privilege BigQuery access
 
-## Module Layout
-
-Modules under `infrastructure/terraform/modules/`:
+## Modules
 
 - `project_services`
 - `service_accounts`
 - `bigquery`
-- `storage`
-- `secrets`
-- `artifact_registry`
-- `cloud_run`
 
-Environment root:
+## Required APIs
 
-- `infrastructure/terraform/environments/dev/`
+- `bigquery.googleapis.com`
+  - creates datasets, tables, and views
+- `iam.googleapis.com`
+  - creates the runtime service account
+- `cloudresourcemanager.googleapis.com`
+  - manages project-level IAM bindings
+- `serviceusage.googleapis.com`
+  - enables the required APIs
 
-## Enabled APIs
+## BigQuery Resources
 
-- `serviceusage.googleapis.com`: enables other APIs
-- `bigquery.googleapis.com`: BigQuery datasets, tables, queries
-- `run.googleapis.com`: Cloud Run service
-- `secretmanager.googleapis.com`: auth secret storage
-- `artifactregistry.googleapis.com`: Docker image repository
-- `iam.googleapis.com`: service accounts and IAM bindings
-- `cloudbuild.googleapis.com`: future CI/CD and image build alignment
+Datasets:
 
-## Runtime IAM
+- `glipmath_core`
+- `glipmath_events`
+- `glipmath_analytics`
 
-The Cloud Run runtime service account gets:
+Tables:
+
+- `glipmath_core.question_bank`
+- `glipmath_events.answers`
+
+Views:
+
+- `glipmath_analytics.v_user_totals`
+- `glipmath_analytics.v_user_daily_activity`
+- `glipmath_analytics.v_leaderboard`
+
+The `answers` table is day-partitioned by `answered_at_utc` and clustered by `user_email` and `id_question`.
+
+## IAM Model
+
+The Streamlit runtime service account gets:
 
 - `roles/bigquery.jobUser` on the project
 - `roles/bigquery.dataViewer` on `glipmath_core`
 - `roles/bigquery.dataEditor` on `glipmath_events`
 - `roles/bigquery.dataViewer` on `glipmath_analytics`
-- `roles/secretmanager.secretAccessor` on auth secrets
 
-This is enough for:
+These permissions cover:
 
 - reading questions
-- reading whitelist users
-- reading analytics views
-- appending answer events
-- reading Secret Manager-backed auth config
+- inserting answers
+- reading leaderboard analytics
 
-## Apply Order
+## Apply Flow
 
-Recommended order:
-
-1. `terraform init`
-2. `terraform plan`
-3. `terraform apply` with `deploy_cloud_run = false`
-4. populate Secret Manager secret versions manually
-5. build and push the Docker image
-6. set `deploy_cloud_run = true` and `container_image`
-7. `terraform apply` again
+1. copy `terraform.tfvars.example` to `terraform.tfvars`
+2. review project, region, location, and service account values
+3. run `terraform init`
+4. run `terraform apply`
+5. manually create a service account key for the created runtime service account
+6. place the key values in Streamlit secrets locally and in Streamlit Community Cloud
 
 ## Notes
 
-- Secret Manager values are intentionally not managed in Terraform state.
-- Cloud Run is optional on the first apply because the service expects real secret versions and a real container image.
-- BigQuery schemas are version-controlled JSON files, not inline ad hoc definitions.
+- Terraform does not create service account keys because that would place sensitive material in Terraform state.
+- There is no Cloud Run, Artifact Registry, Secret Manager, or GCS bucket in the current MVP infrastructure scope.

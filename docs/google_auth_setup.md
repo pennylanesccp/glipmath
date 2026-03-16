@@ -1,64 +1,49 @@
 # Google Auth Setup
 
-## What Terraform Does Not Fully Automate
+GlipMath uses Google OIDC through Streamlit auth.
 
-This repository does not attempt to fully automate Google OAuth consent and OIDC client configuration.
+## What Terraform Does Not Create
 
-You still need to configure:
+Terraform does not create the Google OAuth consent screen or OAuth client. Those still need to be configured manually in Google Cloud Console.
 
-- OAuth consent screen
-- OAuth client ID and secret
-- authorized redirect URIs
+## Recommended Setup
 
-## Recommended OAuth Client
-
-Create a Web application OAuth client in the same GCP project:
-
-- project: `ide-math-app`
+1. Configure the OAuth consent screen for the project.
+2. Create a Web application OAuth client.
+3. Add redirect URIs for each environment.
+4. Add beta users as OAuth test users if the app is still in testing mode.
 
 ## Redirect URIs
 
-Recommended URIs:
+- Local:
+  - `http://localhost:8501/oauth2callback`
+- Streamlit Community Cloud:
+  - `https://<your-streamlit-app-name>.streamlit.app/oauth2callback`
 
-- local: `http://localhost:8501/oauth2callback`
-- Cloud Run: `https://<your-cloud-run-url>/oauth2callback`
+If the Streamlit Cloud URL changes, update the OAuth client accordingly.
 
-If the Cloud Run URL changes, update the OAuth client and the corresponding Secret Manager value.
+## Streamlit Secrets Values
 
-## Required OIDC Values
+Put these values into `.streamlit/secrets.toml` locally and into the Streamlit Community Cloud secrets editor for deployment:
 
-The app expects:
+- `auth.redirect_uri`
+- `auth.cookie_secret`
+- `auth.client_id`
+- `auth.client_secret`
+- `auth.server_metadata_url`
 
-- `redirect_uri`
-- `cookie_secret`
-- `client_id`
-- `client_secret`
-- `server_metadata_url`
+Recommended metadata URL for Google:
 
-For Google, the metadata URL is:
+- `https://accounts.google.com/.well-known/openid-configuration`
 
-`https://accounts.google.com/.well-known/openid-configuration`
+## Beta Access Control
 
-## Where Values Go
+The MVP does not use an internal whitelist table.
 
-### Local development
+Current beta access is controlled externally by the Google OAuth app configuration:
 
-Put them in `.streamlit/secrets.toml` using `.streamlit/secrets.toml.example` as the template.
+- OAuth app publishing status
+- configured test users
+- any domain or consent-screen restrictions you choose to apply
 
-### Cloud Run
-
-Populate Secret Manager secrets created by Terraform:
-
-- `glipmath-auth-cookie-secret`
-- `glipmath-auth-client-id`
-- `glipmath-auth-client-secret`
-- `glipmath-auth-redirect-uri`
-- `glipmath-auth-server-metadata-url`
-
-Cloud Run injects them as env vars and the bootstrap script converts them into a Streamlit secrets file at container start.
-
-## Cookie Secret Guidance
-
-Use a long random value. Treat it as sensitive.
-
-Do not commit it to the repository.
+The app keeps a small authorization abstraction in code, but it currently accepts any authenticated email returned by the configured OAuth flow.

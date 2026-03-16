@@ -7,24 +7,36 @@ from modules.utils.datetime_utils import to_bigquery_datetime_string, to_iso_tim
 
 
 @dataclass(frozen=True, slots=True)
+class QuestionAlternative:
+    """Canonical answer alternative stored in the question bank."""
+
+    alternative_text: str
+    explanation: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DisplayAlternative:
+    """Alternative rendered to the learner after in-app randomization."""
+
+    option_id: str
+    alternative_text: str
+    explanation: str | None
+    is_correct: bool
+
+
+@dataclass(frozen=True, slots=True)
 class Question:
-    """A validated multiple-choice math question."""
+    """A validated math question loaded from BigQuery."""
 
     id_question: int
-    source: str
     statement: str
-    choices: dict[str, str]
-    correct_choice: str
+    correct_answer: QuestionAlternative
+    wrong_answers: tuple[QuestionAlternative, ...]
     topic: str | None = None
     difficulty: str | None = None
-    explanation: str | None = None
+    source: str | None = None
     created_at_utc: datetime | None = None
     updated_at_utc: datetime | None = None
-
-    def available_choices(self) -> list[tuple[str, str]]:
-        """Return ordered choices for rendering."""
-
-        return sorted(self.choices.items(), key=lambda item: item[0])
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,14 +49,10 @@ class AuthIdentity:
 
 @dataclass(frozen=True, slots=True)
 class User:
-    """User authorized to use the application."""
+    """Authenticated app user for the current MVP."""
 
-    id_user: int
     email: str
     name: str | None = None
-    is_active: bool = True
-    created_at_utc: datetime | None = None
-    updated_at_utc: datetime | None = None
 
     @property
     def display_name(self) -> str:
@@ -58,18 +66,18 @@ class AnswerAttempt:
     """Append-only answer event persisted in BigQuery."""
 
     id_answer: str
-    id_user: int
-    email: str
     id_question: int
-    selected_choice: str
-    correct_choice: str
+    user_email: str
+    selected_alternative_text: str
+    correct_alternative_text: str
     is_correct: bool
     answered_at_utc: datetime
     answered_at_local: datetime | None
     time_spent_seconds: float
     session_id: str
-    source: str | None = None
     topic: str | None = None
+    difficulty: str | None = None
+    source: str | None = None
     app_version: str | None = None
 
     def to_bigquery_row(self) -> dict[str, object]:
@@ -77,18 +85,18 @@ class AnswerAttempt:
 
         return {
             "id_answer": self.id_answer,
-            "id_user": self.id_user,
-            "email": self.email,
             "id_question": self.id_question,
-            "selected_choice": self.selected_choice,
-            "correct_choice": self.correct_choice,
+            "user_email": self.user_email,
+            "selected_alternative_text": self.selected_alternative_text,
+            "correct_alternative_text": self.correct_alternative_text,
             "is_correct": self.is_correct,
             "answered_at_utc": to_iso_timestamp(self.answered_at_utc),
             "answered_at_local": to_bigquery_datetime_string(self.answered_at_local),
             "time_spent_seconds": round(self.time_spent_seconds, 2),
             "session_id": self.session_id,
-            "source": self.source,
             "topic": self.topic,
+            "difficulty": self.difficulty,
+            "source": self.source,
             "app_version": self.app_version,
         }
 
@@ -99,6 +107,8 @@ class AnswerEvaluation:
 
     record: AnswerAttempt
     feedback_message: str
+    correct_explanation: str | None = None
+    selected_explanation: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,8 +116,7 @@ class LeaderboardEntry:
     """Aggregated user performance for leaderboard rendering."""
 
     rank: int
-    id_user: int
-    email: str
+    user_email: str
     display_name: str
     total_correct: int
     total_answers: int

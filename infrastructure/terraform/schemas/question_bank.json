@@ -6,51 +6,46 @@
     "description": "Unique question identifier."
   },
   {
-    "name": "source",
-    "type": "STRING",
-    "mode": "REQUIRED",
-    "description": "Question source label."
-  },
-  {
     "name": "statement",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "Question statement shown to the learner."
   },
   {
-    "name": "choice_a",
-    "type": "STRING",
-    "mode": "REQUIRED"
+    "name": "correct_answer",
+    "type": "RECORD",
+    "mode": "REQUIRED",
+    "description": "Canonical correct answer and explanation.",
+    "fields": [
+      {
+        "name": "alternative_text",
+        "type": "STRING",
+        "mode": "REQUIRED"
+      },
+      {
+        "name": "explanation",
+        "type": "STRING",
+        "mode": "NULLABLE"
+      }
+    ]
   },
   {
-    "name": "choice_b",
-    "type": "STRING",
-    "mode": "REQUIRED"
-  },
-  {
-    "name": "choice_c",
-    "type": "STRING",
-    "mode": "REQUIRED"
-  },
-  {
-    "name": "choice_d",
-    "type": "STRING",
-    "mode": "REQUIRED"
-  },
-  {
-    "name": "choice_e",
-    "type": "STRING",
-    "mode": "NULLABLE"
-  },
-  {
-    "name": "correct_choice",
-    "type": "STRING",
-    "mode": "REQUIRED"
-  },
-  {
-    "name": "is_active",
-    "type": "BOOL",
-    "mode": "REQUIRED"
+    "name": "wrong_answers",
+    "type": "RECORD",
+    "mode": "REPEATED",
+    "description": "Wrong answer alternatives available for runtime randomization.",
+    "fields": [
+      {
+        "name": "alternative_text",
+        "type": "STRING",
+        "mode": "REQUIRED"
+      },
+      {
+        "name": "explanation",
+        "type": "STRING",
+        "mode": "NULLABLE"
+      }
+    ]
   },
   {
     "name": "topic",
@@ -63,9 +58,14 @@
     "mode": "NULLABLE"
   },
   {
-    "name": "explanation",
+    "name": "source",
     "type": "STRING",
     "mode": "NULLABLE"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOL",
+    "mode": "REQUIRED"
   },
   {
     "name": "created_at_utc",

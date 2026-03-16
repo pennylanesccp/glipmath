@@ -8,16 +8,17 @@ def render_auth_setup_warning() -> None:
 
     st.warning(
         "A autenticacao Google ainda nao esta configurada. "
-        "Preencha `.streamlit/secrets.toml` no ambiente local ou injete as variaveis de auth via Secret Manager no Cloud Run."
+        "Preencha `.streamlit/secrets.toml` localmente ou configure os mesmos segredos no Streamlit Community Cloud."
     )
 
 
-def render_unauthorized_message(email: str | None) -> None:
-    """Render a friendly access-denied state."""
+def render_access_message(email: str | None) -> None:
+    """Render a generic access issue state."""
 
-    st.error("Acesso nao autorizado.")
+    st.error("Nao foi possivel concluir o acesso.")
     st.write(
-        "Sua conta Google foi autenticada, mas este email ainda nao esta liberado para usar o GlipMath."
+        "O beta usa a configuracao do Google OAuth para controlar quem pode entrar. "
+        "Se o login funcionou, mas o app nao conseguiu continuar, confirme se a conta devolveu um email valido."
     )
     if email:
         st.caption(f"Email detectado: {email}")

@@ -2,32 +2,34 @@
 
 ## In Scope
 
-- Streamlit web app
-- Google OIDC login
-- whitelist authorization from BigQuery
-- one-question-at-a-time experience
-- append-only answer logging to BigQuery
+- Streamlit app with two logical screens:
+  - login
+  - main app
+- Google login through Streamlit auth
+- BigQuery-backed question bank
+- append-only BigQuery answer logging
 - day streak
 - question streak
 - leaderboard position
-- Cloud Run deployment path
-- Terraform-managed GCP foundation
-- CSV-based question and whitelist admin flow
+- Terraform-managed GCP data layer
+- practical question bank ingestion through JSONL
+- deployment on Streamlit Community Cloud
+
+## Deliberately Simplified for MVP
+
+- beta access is controlled externally through Google OAuth app configuration and test users
+- one global leaderboard based on total correct answers
+- one question at a time
+- no local persistence
+- no admin UI
 
 ## Out of Scope
 
-- admin UI
-- teacher dashboards
-- adaptive sequencing
-- spaced repetition
-- class segmentation
-- real-time multiplayer features
-- content authoring inside the app
-
-## Intended Quality Bar
-
-- thin UI files
-- deterministic business logic
-- centralized BigQuery access
-- documented infrastructure
-- production-minded MVP, not a temporary prototype
+- Docker and Cloud Run deployment
+- Artifact Registry
+- Secret Manager runtime integration
+- in-app whitelist or role management
+- classroom management
+- spaced repetition engine
+- authoring questions inside the app
+- multi-tenant concerns

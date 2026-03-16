@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,7 +37,7 @@ class GcpSettings:
     """Google Cloud runtime settings."""
 
     project_id: str
-    region: str
+    location: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +48,6 @@ class BigQuerySettings:
     events_dataset: str
     analytics_dataset: str
     question_bank_table: str
-    whitelist_table: str
     answers_table: str
     leaderboard_view: str
     user_totals_view: str
@@ -57,11 +57,6 @@ class BigQuerySettings:
         """Return the fully qualified question bank table identifier."""
 
         return f"{project_id}.{self.core_dataset}.{self.question_bank_table}"
-
-    def whitelist_table_id(self, project_id: str) -> str:
-        """Return the fully qualified whitelist table identifier."""
-
-        return f"{project_id}.{self.core_dataset}.{self.whitelist_table}"
 
     def answers_table_id(self, project_id: str) -> str:
         """Return the fully qualified answers table identifier."""
@@ -92,11 +87,11 @@ class AppSettings:
     environment: str
     timezone: str
     app_version: str
-    cloud_run_service_name: str
     repository_root: Path
     gcp: GcpSettings
     bigquery: BigQuerySettings
     auth: AuthSettings
+    service_account_info: dict[str, Any] | None
 
 
 def load_settings(
@@ -113,12 +108,18 @@ def load_settings(
     gcp_section = _as_mapping(secrets_dict.get("gcp"))
     bigquery_section = _as_mapping(secrets_dict.get("bigquery"))
     auth_section = _as_mapping(secrets_dict.get("auth"))
-    cloud_run_section = _as_mapping(secrets_dict.get("cloud_run"))
+    service_account_section = _as_mapping(secrets_dict.get("gcp_service_account"))
+    service_account_json = _string_or_none(
+        os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+        or gcp_section.get("service_account_json")
+    )
+    service_account_info = service_account_section or _json_mapping_or_none(service_account_json)
 
     project_id = (
         _env_or_section("GLIPMATH_GCP_PROJECT_ID", gcp_section, "project_id")
         or _string_or_none(os.getenv("GOOGLE_CLOUD_PROJECT"))
         or _string_or_none(os.getenv("GCP_PROJECT"))
+        or _string_or_none((service_account_info or {}).get("project_id"))
         or "ide-math-app"
     )
 
@@ -127,14 +128,12 @@ def load_settings(
         environment=_env_or_section("GLIPMATH_ENVIRONMENT", app_section, "environment") or "local",
         timezone=_env_or_section("GLIPMATH_TIMEZONE", app_section, "timezone") or "America/Sao_Paulo",
         app_version=_env_or_section("GLIPMATH_APP_VERSION", app_section, "app_version") or "0.1.0",
-        cloud_run_service_name=(
-            _env_or_section("GLIPMATH_CLOUD_RUN_SERVICE", cloud_run_section, "service_name")
-            or "glipmath-app"
-        ),
         repository_root=resolved_base_dir,
         gcp=GcpSettings(
             project_id=project_id,
-            region=_env_or_section("GLIPMATH_REGION", gcp_section, "region") or "southamerica-east1",
+            location=_env_or_section("GLIPMATH_LOCATION", gcp_section, "location")
+            or _env_or_section("GLIPMATH_REGION", gcp_section, "region")
+            or "southamerica-east1",
         ),
         bigquery=BigQuerySettings(
             core_dataset=(
@@ -160,10 +159,6 @@ def load_settings(
                     "question_bank_table",
                 )
                 or "question_bank"
-            ),
-            whitelist_table=(
-                _env_or_section("GLIPMATH_WHITELIST_TABLE", bigquery_section, "whitelist_table")
-                or "whitelist"
             ),
             answers_table=(
                 _env_or_section("GLIPMATH_ANSWERS_TABLE", bigquery_section, "answers_table")
@@ -205,6 +200,7 @@ def load_settings(
                 "server_metadata_url",
             ),
         ),
+        service_account_info=service_account_info or None,
     )
 
 
@@ -223,6 +219,18 @@ def _env_or_section(env_name: str, section: Mapping[str, Any], key: str) -> str 
     """Return an environment variable value or fall back to a secrets section key."""
 
     return _string_or_none(os.getenv(env_name)) or _string_or_none(section.get(key))
+
+
+def _json_mapping_or_none(value: str | None) -> dict[str, Any] | None:
+    """Parse a JSON object string into a dictionary when present."""
+
+    if not value:
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    return _as_mapping(parsed) or None
 
 
 def _to_plain_dict(value: Any) -> Any:

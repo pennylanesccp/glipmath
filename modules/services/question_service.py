@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import random
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 import pandas as pd
 
-from modules.domain.models import Question
+from modules.domain.models import DisplayAlternative, Question, QuestionAlternative
 from modules.storage.schema_validation import (
     ensure_unique_integer_values,
     prepare_dataframe,
@@ -13,25 +15,21 @@ from modules.storage.schema_validation import (
     worksheet_row_number,
 )
 from modules.utils.datetime_utils import parse_timestamp
-from modules.utils.normalization import clean_optional_text, coerce_bool, normalize_choice
+from modules.utils.normalization import clean_optional_text, coerce_bool
 
 QUESTION_RESOURCE_NAME = "question_bank"
 QUESTION_REQUIRED_COLUMNS = [
     "id_question",
-    "source",
     "statement",
-    "choice_a",
-    "choice_b",
-    "choice_c",
-    "choice_d",
-    "correct_choice",
+    "correct_answer",
+    "wrong_answers",
 ]
 
 
 def parse_question_bank_dataframe(
     dataframe: pd.DataFrame,
 ) -> tuple[list[Question], list[str]]:
-    """Parse and validate question bank rows, skipping malformed inactive entries."""
+    """Parse and validate nested question bank rows."""
 
     prepared = prepare_dataframe(dataframe)
     if prepared.empty and not list(prepared.columns):
@@ -91,44 +89,128 @@ def find_question_by_id(
     return None
 
 
+def build_display_alternatives(
+    question: Question,
+    *,
+    randomizer: random.Random | None = None,
+) -> list[DisplayAlternative]:
+    """Build and randomize display alternatives for a question."""
+
+    alternatives = [
+        DisplayAlternative(
+            option_id="correct",
+            alternative_text=question.correct_answer.alternative_text,
+            explanation=question.correct_answer.explanation,
+            is_correct=True,
+        )
+    ]
+    for index, wrong_answer in enumerate(question.wrong_answers, start=1):
+        alternatives.append(
+            DisplayAlternative(
+                option_id=f"wrong_{index}",
+                alternative_text=wrong_answer.alternative_text,
+                explanation=wrong_answer.explanation,
+                is_correct=False,
+            )
+        )
+
+    chooser = randomizer or random.Random()
+    shuffled = list(alternatives)
+    chooser.shuffle(shuffled)
+    return shuffled
+
+
+def find_display_alternative(
+    alternatives: Sequence[DisplayAlternative],
+    option_id: str | None,
+) -> DisplayAlternative | None:
+    """Return the selected display alternative by option ID."""
+
+    if not option_id:
+        return None
+    for alternative in alternatives:
+        if alternative.option_id == option_id:
+            return alternative
+    return None
+
+
 def _parse_question_row(row: dict[str, object]) -> Question | None:
     id_question = _parse_required_int(row.get("id_question"), "id_question")
     is_active = coerce_bool(row.get("is_active"), default=True)
     if not is_active:
         return None
 
-    source = _parse_required_text(row.get("source"), "source")
     statement = _parse_required_text(row.get("statement"), "statement")
-    choices = _parse_choices(row)
-    correct_choice = normalize_choice(str(row.get("correct_choice", "")))
-    if correct_choice not in choices:
-        raise ValueError("correct_choice must reference one of the populated alternatives A-E.")
+    correct_answer = _parse_alternative(row.get("correct_answer"), field_name="correct_answer")
+    wrong_answers = _parse_wrong_answers(row.get("wrong_answers"))
+    _ensure_unique_alternative_texts(correct_answer, wrong_answers)
 
     return Question(
         id_question=id_question,
-        source=source,
         statement=statement,
-        choices=choices,
-        correct_choice=correct_choice,
+        correct_answer=correct_answer,
+        wrong_answers=wrong_answers,
         topic=clean_optional_text(row.get("topic")),
         difficulty=clean_optional_text(row.get("difficulty")),
-        explanation=clean_optional_text(row.get("explanation")),
+        source=clean_optional_text(row.get("source")),
         created_at_utc=parse_timestamp(row.get("created_at_utc")),
         updated_at_utc=parse_timestamp(row.get("updated_at_utc")),
     )
 
 
-def _parse_choices(row: dict[str, object]) -> dict[str, str]:
-    labels = ["A", "B", "C", "D", "E"]
-    choice_columns = ["choice_a", "choice_b", "choice_c", "choice_d", "choice_e"]
-    choices: dict[str, str] = {}
-    for label, column_name in zip(labels, choice_columns):
-        text = clean_optional_text(row.get(column_name))
-        if label in {"A", "B", "C", "D"} and not text:
-            raise ValueError(f"{column_name} is required for active questions.")
-        if text:
-            choices[label] = text
-    return choices
+def _parse_wrong_answers(value: object) -> tuple[QuestionAlternative, ...]:
+    parsed = _parse_jsonish_value(value, expected_type=list, field_name="wrong_answers")
+    wrong_answers = tuple(
+        _parse_alternative(item, field_name=f"wrong_answers[{index}]")
+        for index, item in enumerate(parsed)
+    )
+    if not wrong_answers:
+        raise ValueError("wrong_answers must contain at least one alternative.")
+    return wrong_answers
+
+
+def _parse_alternative(value: object, *, field_name: str) -> QuestionAlternative:
+    parsed = _parse_jsonish_value(value, expected_type=dict, field_name=field_name)
+    alternative_text = _parse_required_text(
+        parsed.get("alternative_text"),
+        f"{field_name}.alternative_text",
+    )
+    return QuestionAlternative(
+        alternative_text=alternative_text,
+        explanation=clean_optional_text(parsed.get("explanation")),
+    )
+
+
+def _parse_jsonish_value(value: object, *, expected_type: type, field_name: str) -> Any:
+    if isinstance(value, expected_type):
+        return value
+    if value is None:
+        raise ValueError(f"{field_name} cannot be blank.")
+
+    text = str(value).strip()
+    if not text:
+        raise ValueError(f"{field_name} cannot be blank.")
+
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{field_name} must be valid JSON-like data.") from exc
+
+    if not isinstance(parsed, expected_type):
+        raise ValueError(f"{field_name} has an invalid nested structure.")
+    return parsed
+
+
+def _ensure_unique_alternative_texts(
+    correct_answer: QuestionAlternative,
+    wrong_answers: Sequence[QuestionAlternative],
+) -> None:
+    seen: set[str] = set()
+    for alternative in (correct_answer, *wrong_answers):
+        normalized = alternative.alternative_text.strip().lower()
+        if normalized in seen:
+            raise ValueError("alternative_text values must be unique within a question.")
+        seen.add(normalized)
 
 
 def _parse_required_int(value: object, field_name: str) -> int:

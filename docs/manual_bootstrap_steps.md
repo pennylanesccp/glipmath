@@ -1,139 +1,115 @@
 # Manual Bootstrap Steps
 
-## 1. Create or Confirm the GCP Project
+## 1. Confirm the GCP Project
 
-- confirm the project exists: `ide-math-app`
-- confirm billing is enabled
-- confirm you have permission to enable APIs and create service accounts
+- project ID: `ide-math-app`
+- billing is enabled
+- you have permission to manage APIs, IAM, service accounts, and BigQuery
 
-## 2. Authenticate Terraform
-
-Example:
+## 2. Authenticate for Terraform
 
 ```powershell
 gcloud auth login
 gcloud auth application-default login
 ```
 
-Use a principal that can manage:
+## 3. Review Billing, Quotas, and Region
 
-- IAM
-- BigQuery
-- Cloud Run
-- Secret Manager
-- Artifact Registry
-- GCS
+- confirm BigQuery usage is allowed for the project
+- choose the BigQuery location you want to use
+- the repo defaults to `southamerica-east1`, but it is configurable in Terraform
 
-## 3. Review Quotas and Region
+## 4. Create or Confirm the Google OAuth App
 
-- default region in this repo: `southamerica-east1`
-- confirm BigQuery location is acceptable
-- confirm Cloud Run and Artifact Registry should live in the same region
+- configure the OAuth consent screen
+- create a Web application OAuth client
+- add redirect URIs:
+  - `http://localhost:8501/oauth2callback`
+  - `https://<your-streamlit-app-name>.streamlit.app/oauth2callback`
+- add beta testers as OAuth test users if the app is not publicly published
 
-## 4. Create Google OAuth Consent and Client
+## 5. Copy the Terraform Example Variables
 
-Follow [docs/google_auth_setup.md](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/docs/google_auth_setup.md).
+```powershell
+Copy-Item infrastructure/terraform/environments/dev/terraform.tfvars.example infrastructure/terraform/environments/dev/terraform.tfvars
+```
 
-Prepare:
+Review at least:
 
-- local redirect URI
-- Cloud Run redirect URI
-- client ID
-- client secret
-- cookie secret
+- `project_id`
+- `region`
+- `bigquery_location`
+- `runtime_service_account_id`
 
-## 5. Prepare Terraform Variables
+## 6. Apply Terraform
 
 ```powershell
 cd infrastructure/terraform/environments/dev
-Copy-Item terraform.tfvars.example terraform.tfvars
-```
-
-Fill any project-specific values.
-
-For the first infra apply, keep:
-
-- `deploy_cloud_run = false`
-
-## 6. Apply Base Infrastructure
-
-```powershell
 terraform init
-terraform plan
 terraform apply
 ```
 
-This creates:
+Expected resources:
 
-- APIs
-- service accounts
-- BigQuery datasets/tables/views
-- Secret Manager placeholders
-- Artifact Registry
-- GCS bucket
+- required APIs for BigQuery and IAM
+- one runtime service account
+- BigQuery datasets
+- BigQuery tables
+- BigQuery analytics views
+- IAM bindings for the runtime service account
 
-## 7. Populate Secret Manager Values
+## 7. Create the Runtime Service Account Key Manually
 
-Add real secret versions for:
+Terraform creates the service account, but not the private key.
 
-- OIDC client ID
-- OIDC client secret
-- redirect URI
-- metadata URL
-- cookie secret
+Create a JSON key manually for the runtime service account and handle it carefully. Do not commit it to the repository.
 
-## 8. Prepare CSV Seeds
+You can do this via the Google Cloud Console or `gcloud iam service-accounts keys create`.
 
-Use the templates:
+## 8. Configure Local Streamlit Secrets
 
-- [question_bank_template.csv](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/sql/seeds/question_bank_template.csv)
-- [whitelist_template.csv](/c:/Users/Cliente/Documents/workspaces/personal/glipmath/sql/seeds/whitelist_template.csv)
+```powershell
+Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
+```
 
-Validate:
+Populate:
+
+- Google OAuth values under `[auth]`
+- BigQuery config under `[gcp]` and `[bigquery]`
+- the service account JSON fields under `[gcp_service_account]`
+
+## 9. Prepare the Question Bank Seed
+
+Use:
+
+- `sql/seeds/question_bank_template.jsonl`
+
+Validate and load:
 
 ```powershell
 python scripts/validate_question_bank.py
-```
-
-Load:
-
-```powershell
 python scripts/load_question_bank_to_bigquery.py
-python scripts/load_whitelist_to_bigquery.py
 ```
 
-Optional demo data:
+The question bank load script replaces the current contents of the target table.
+
+Optional synthetic answer data for local/dev testing:
 
 ```powershell
-python scripts/backfill_local_dev_data.py
+python scripts/backfill_local_dev_data.py --user-email ana@example.com
 ```
 
-## 9. Build and Push the Container Image
+## 10. Configure Streamlit Community Cloud
 
-```powershell
-gcloud auth configure-docker southamerica-east1-docker.pkg.dev
-docker build -t southamerica-east1-docker.pkg.dev/ide-math-app/glipmath/glipmath:latest .
-docker push southamerica-east1-docker.pkg.dev/ide-math-app/glipmath/glipmath:latest
-```
+- connect the GitHub repository
+- set the app entrypoint to `app/streamlit_app.py`
+- paste the same secrets structure used locally into Streamlit Cloud secrets
 
-## 10. Enable Cloud Run Deployment in Terraform
+## 11. Deploy and Verify
 
-Update `terraform.tfvars`:
-
-- `deploy_cloud_run = true`
-- `container_image = "southamerica-east1-docker.pkg.dev/ide-math-app/glipmath/glipmath:latest"`
-
-Then apply again:
-
-```powershell
-terraform apply
-```
-
-## 11. Verify End to End
-
-- open the Cloud Run URL
-- confirm login works
-- confirm whitelist enforcement works
-- answer one question
-- verify a new row appears in `glipmath_events.answers`
-- verify leaderboard view reflects the new answer
+- deploy the Streamlit app
+- test Google login
+- answer at least one question
+- confirm answers land in BigQuery
+- confirm the leaderboard loads
+- confirm the question flow shows explanations correctly

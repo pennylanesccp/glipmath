@@ -4,10 +4,9 @@ WITH user_totals AS (
 )
 SELECT
     ROW_NUMBER() OVER (
-        ORDER BY total_correct DESC, total_answers DESC, email ASC
+        ORDER BY total_correct DESC, total_answers DESC, user_email ASC
     ) AS rank,
-    id_user,
-    email,
+    user_email,
     display_name,
     total_correct,
     total_answers

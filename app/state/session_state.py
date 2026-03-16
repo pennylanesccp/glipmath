@@ -5,11 +5,12 @@ from uuid import uuid4
 
 import streamlit as st
 
-from modules.domain.models import AnswerEvaluation
+from modules.domain.models import AnswerEvaluation, DisplayAlternative
 from modules.utils.datetime_utils import utc_now
 
 SESSION_ID_KEY = "glipmath_session_id"
 CURRENT_QUESTION_ID_KEY = "glipmath_current_question_id"
+CURRENT_ALTERNATIVES_KEY = "glipmath_current_alternatives"
 QUESTION_STARTED_AT_KEY = "glipmath_question_started_at"
 QUESTION_ANSWERED_KEY = "glipmath_question_answered"
 LAST_ANSWER_RESULT_KEY = "glipmath_last_answer_result"
@@ -22,6 +23,7 @@ def initialize_session_state() -> None:
 
     st.session_state.setdefault(SESSION_ID_KEY, uuid4().hex)
     st.session_state.setdefault(CURRENT_QUESTION_ID_KEY, None)
+    st.session_state.setdefault(CURRENT_ALTERNATIVES_KEY, [])
     st.session_state.setdefault(QUESTION_STARTED_AT_KEY, None)
     st.session_state.setdefault(QUESTION_ANSWERED_KEY, False)
     st.session_state.setdefault(LAST_ANSWER_RESULT_KEY, None)
@@ -44,11 +46,46 @@ def get_current_question_id() -> int | None:
     return int(value) if value is not None else None
 
 
-def set_current_question(id_question: int) -> None:
+def get_current_alternatives() -> list[DisplayAlternative]:
+    """Return the current randomized alternatives from session state."""
+
+    initialize_session_state()
+    raw_alternatives = st.session_state[CURRENT_ALTERNATIVES_KEY]
+    if not isinstance(raw_alternatives, list):
+        return []
+
+    alternatives: list[DisplayAlternative] = []
+    for item in raw_alternatives:
+        if not isinstance(item, dict):
+            continue
+        try:
+            alternatives.append(
+                DisplayAlternative(
+                    option_id=str(item["option_id"]),
+                    alternative_text=str(item["alternative_text"]),
+                    explanation=_string_or_none(item.get("explanation")),
+                    is_correct=bool(item["is_correct"]),
+                )
+            )
+        except KeyError:
+            continue
+    return alternatives
+
+
+def set_current_question(id_question: int, alternatives: list[DisplayAlternative]) -> None:
     """Store the active question and reset submission-specific state."""
 
     initialize_session_state()
     st.session_state[CURRENT_QUESTION_ID_KEY] = id_question
+    st.session_state[CURRENT_ALTERNATIVES_KEY] = [
+        {
+            "option_id": alternative.option_id,
+            "alternative_text": alternative.alternative_text,
+            "explanation": alternative.explanation,
+            "is_correct": alternative.is_correct,
+        }
+        for alternative in alternatives
+    ]
     st.session_state[QUESTION_STARTED_AT_KEY] = utc_now()
     st.session_state[QUESTION_ANSWERED_KEY] = False
     st.session_state[LAST_ANSWER_RESULT_KEY] = None
@@ -61,6 +98,7 @@ def clear_current_question() -> None:
 
     initialize_session_state()
     st.session_state[CURRENT_QUESTION_ID_KEY] = None
+    st.session_state[CURRENT_ALTERNATIVES_KEY] = []
     st.session_state[QUESTION_STARTED_AT_KEY] = None
     st.session_state[QUESTION_ANSWERED_KEY] = False
     st.session_state[LAST_ANSWER_RESULT_KEY] = None
@@ -104,7 +142,11 @@ def finish_submission() -> None:
     st.session_state[SUBMISSION_IN_PROGRESS_KEY] = False
 
 
-def mark_question_answered(evaluation: AnswerEvaluation) -> None:
+def mark_question_answered(
+    evaluation: AnswerEvaluation,
+    *,
+    selected_option_id: str,
+) -> None:
     """Persist the latest submission outcome in session state."""
 
     initialize_session_state()
@@ -112,10 +154,13 @@ def mark_question_answered(evaluation: AnswerEvaluation) -> None:
     st.session_state[SUBMISSION_IN_PROGRESS_KEY] = False
     st.session_state[LAST_ANSWER_RESULT_KEY] = {
         "id_question": evaluation.record.id_question,
-        "selected_choice": evaluation.record.selected_choice,
-        "correct_choice": evaluation.record.correct_choice,
+        "selected_option_id": selected_option_id,
+        "selected_alternative_text": evaluation.record.selected_alternative_text,
+        "correct_alternative_text": evaluation.record.correct_alternative_text,
         "is_correct": evaluation.record.is_correct,
         "feedback_message": evaluation.feedback_message,
+        "correct_explanation": evaluation.correct_explanation,
+        "selected_explanation": evaluation.selected_explanation,
     }
 
 
@@ -125,3 +170,10 @@ def get_last_answer_result() -> dict[str, object] | None:
     initialize_session_state()
     value = st.session_state[LAST_ANSWER_RESULT_KEY]
     return value if isinstance(value, dict) else None
+
+
+def _string_or_none(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None

@@ -1,110 +1,82 @@
 # Architecture
 
-## Overview
+GlipMath is a small but production-minded Streamlit application deployed on Streamlit Community Cloud and backed by BigQuery.
 
-GlipMath is a small but production-minded Streamlit application deployed on Cloud Run and backed by BigQuery.
+## Layers
 
-The architecture is intentionally split into five layers:
-
-- UI: `app/`
-- Domain models: `modules/domain/`
-- Business services: `modules/services/`
-- Storage adapters: `modules/storage/`
-- Infrastructure: `infrastructure/terraform/`
+- `app/`
+  - Streamlit entrypoint, pages, components, and session-state helpers
+  - Responsible for orchestration only
+- `modules/domain/`
+  - Typed app models
+- `modules/services/`
+  - Pure or mostly pure business logic
+  - Question parsing and selection
+  - Answer evaluation
+  - Streak calculations
+  - Leaderboard logic
+- `modules/storage/`
+  - BigQuery client wrapper
+  - Repositories for questions and answers
+- `infrastructure/terraform/`
+  - GCP data-layer resources only
 
 ## Runtime Flow
 
-1. The user opens the Streamlit app.
-2. Streamlit OIDC handles Google login.
-3. The app normalizes the email and checks BigQuery `whitelist`.
-4. Authorized users load active questions from `question_bank`.
-5. The app loads the current user's answer history from `answers`.
-6. The app loads leaderboard rows from `v_leaderboard`.
-7. On submission, the app evaluates the answer and appends one event row to `answers`.
+1. The user lands on the login page.
+2. `st.login()` starts Google OIDC.
+3. Streamlit exposes the authenticated identity in `st.user`.
+4. The app normalizes the email and creates a lightweight current user object.
+5. Repositories load:
+   - active questions from `glipmath_core.question_bank`
+   - current user answer history from `glipmath_events.answers`
+   - leaderboard rows from `glipmath_analytics.v_leaderboard`
+6. Services compute:
+   - the next question
+   - randomized display alternatives
+   - day streak
+   - question streak
+   - leaderboard position
+7. Submitting an answer appends one row to `glipmath_events.answers`.
 
-## Layer Responsibilities
+## Question Model
 
-### `app/`
+The question bank uses a nested BigQuery schema:
 
-- Page routing and orchestration
-- Session state
-- Streamlit components
-- Portuguese-BR user-facing text
+- `correct_answer` is a struct
+- `wrong_answers` is a repeated struct array
 
-No BigQuery SQL or business rules should live here.
+The app does not store `choice_a`-style columns anymore.
 
-### `modules/domain/`
+At runtime the app:
 
-- `Question`
-- `User`
-- `AnswerAttempt`
-- `LeaderboardEntry`
+1. combines one correct answer with all wrong answers
+2. randomizes the order in memory
+3. renders only `alternative_text`
+4. evaluates correctness from the runtime option structure and persists the canonical correct alternative text
 
-These are typed containers used across the app.
+This keeps the storage model simple while allowing per-render answer randomization.
 
-### `modules/services/`
+## Authentication and Authorization
 
-- Question validation and selection
-- Answer evaluation
-- Day streak and question streak rules
-- Leaderboard ranking logic
-- Whitelist parsing and normalization
+- Authentication is Google OIDC through Streamlit auth.
+- Authorization is intentionally lightweight in the MVP.
+- Beta access is controlled outside the app through Google OAuth app configuration and test users.
+- There is no BigQuery whitelist dependency in the current version.
 
-These modules are designed to stay deterministic and easy to test.
+The authorization service remains as a boundary so internal allowlists or role checks can be added later without pushing business rules into the page code.
 
-### `modules/storage/`
+## Data Access Rules
 
-- BigQuery client wrapper
-- Question repository
-- Whitelist repository
-- Answer repository
+- Page files do not execute BigQuery SQL directly.
+- Repositories own all BigQuery reads and writes.
+- Services operate on typed domain models instead of raw dataframes.
+- SQL used for analytics views lives under `sql/views/`.
 
-All BigQuery queries stay here so UI files remain thin.
+## Deployment Model
 
-### `infrastructure/terraform/`
+- App hosting: Streamlit Community Cloud
+- BigQuery access: service account JSON stored in Streamlit secrets
+- Infrastructure: Terraform for BigQuery, IAM, and the runtime service account
 
-- Project service enablement
-- Service accounts
-- BigQuery datasets, tables, and views
-- Secret Manager placeholders
-- Artifact Registry
-- GCS bucket
-- Cloud Run service
-
-## Data Access Pattern
-
-The app uses:
-
-- table reads for `question_bank`
-- table reads for `whitelist`
-- user-scoped reads for `answers`
-- streaming inserts for `answers`
-- analytics view reads for `v_leaderboard`
-
-This keeps the MVP simple while preserving a clean path to future optimization.
-
-## Auth Design
-
-Google OIDC is handled by Streamlit auth helpers:
-
-- local runs read `.streamlit/secrets.toml`
-- Cloud Run receives env vars from Secret Manager
-- `scripts/bootstrap_streamlit_secrets.py` writes a runtime secrets file inside the container
-
-Authorization is separate from authentication:
-
-- authentication: Google identity
-- authorization: active email match in BigQuery `whitelist`
-
-## Deployment Design
-
-- Local development: Streamlit + ADC + BigQuery
-- Production deployment: Docker image on Cloud Run
-- No local filesystem persistence
-- Runtime identity: Cloud Run service account
-
-## Design Tradeoffs
-
-- BigQuery streaming inserts were chosen for MVP simplicity over more advanced write APIs.
-- Current question streak is kept in Python because it is simpler and clearer than an MVP SQL implementation.
-- Leaderboard aggregation is provisioned as a BigQuery view so app reads stay small.
+There is no Docker, Cloud Run, Artifact Registry, or Secret Manager runtime dependency in the MVP.

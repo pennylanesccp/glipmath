@@ -6,7 +6,7 @@ from modules.storage.bigquery_client import BigQueryClient
 
 
 class QuestionRepository:
-    """Read-only access to the question bank table."""
+    """Read-only access to the nested question bank table."""
 
     def __init__(self, bigquery_client: BigQueryClient, table_id: str) -> None:
         self._bigquery_client = bigquery_client
@@ -18,18 +18,13 @@ class QuestionRepository:
         query = f"""
             SELECT
                 id_question,
-                source,
                 statement,
-                choice_a,
-                choice_b,
-                choice_c,
-                choice_d,
-                choice_e,
-                correct_choice,
-                is_active,
+                correct_answer,
+                wrong_answers,
                 topic,
                 difficulty,
-                explanation,
+                source,
+                is_active,
                 created_at_utc,
                 updated_at_utc
             FROM `{self._table_id}`
