@@ -6,6 +6,7 @@ from modules.services.question_bank_import_service import (
     generate_question_id,
     load_question_bank_import_rows,
     load_question_bank_rows,
+    reconcile_staged_question_files,
     write_question_import_failures_csv,
 )
 
@@ -208,3 +209,125 @@ def test_write_question_import_failures_csv_persists_raw_row_context(tmp_path) -
     assert rows[0]["row_number"] == "2"
     assert rows[0]["error"] == "statement cannot be blank."
     assert rows[0]["question_number"] == "2"
+
+
+def test_load_question_bank_rows_ignores_generated_failed_rows_reports(tmp_path) -> None:
+    csv_path = tmp_path / "vestibulinho_questions.csv"
+    with csv_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "question_number",
+                "statement",
+                "question_a",
+                "question_b",
+                "question_c",
+                "question_d",
+                "question_e",
+                "source",
+                "answer",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "question_number": "1",
+                "statement": "Quanto e 1 + 1?",
+                "question_a": "1",
+                "question_b": "2",
+                "question_c": "3",
+                "question_d": "4",
+                "question_e": "",
+                "source": "Vestibulinho 1SEM2025",
+                "answer": "B",
+            }
+        )
+
+    failed_report_path = tmp_path / "question_bank_failed_rows.csv"
+    failed_report_path.write_text(
+        "source_file,row_number,error\nvestibulinho_questions.csv,3,statement cannot be blank.\n",
+        encoding="utf-8",
+    )
+
+    rows = load_question_bank_rows(tmp_path)
+
+    assert len(rows) == 1
+    assert rows[0]["statement"] == "Quanto e 1 + 1?"
+
+
+def test_reconcile_staged_question_files_keeps_failures_in_new_and_moves_valid_rows(tmp_path) -> None:
+    new_root = tmp_path / "new"
+    processed_root = tmp_path / "processed"
+    new_root.mkdir()
+    processed_root.mkdir()
+
+    source_path = new_root / "vestibulinho_questions.csv"
+    with source_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "question_number",
+                "statement",
+                "question_a",
+                "question_b",
+                "question_c",
+                "question_d",
+                "question_e",
+                "source",
+                "answer",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "question_number": "1",
+                "statement": "Quanto e 1 + 1?",
+                "question_a": "1",
+                "question_b": "2",
+                "question_c": "3",
+                "question_d": "4",
+                "question_e": "",
+                "source": "Vestibulinho 1SEM2025",
+                "answer": "B",
+            }
+        )
+        writer.writerow(
+            {
+                "question_number": "2",
+                "statement": "",
+                "question_a": "1",
+                "question_b": "",
+                "question_c": "",
+                "question_d": "",
+                "question_e": "",
+                "source": "Vestibulinho 1SEM2025",
+                "answer": "A",
+            }
+        )
+
+    imported_rows, failures = load_question_bank_import_rows(source_path)
+
+    reconcile_staged_question_files(
+        processed_root=processed_root,
+        new_root=new_root,
+        imported_rows=imported_rows,
+        failures=failures,
+    )
+
+    with (processed_root / "vestibulinho_questions.csv").open(
+        "r",
+        encoding="utf-8",
+        newline="",
+    ) as handle:
+        processed_rows = list(csv.DictReader(handle))
+    with (new_root / "vestibulinho_questions.csv").open(
+        "r",
+        encoding="utf-8",
+        newline="",
+    ) as handle:
+        new_rows = list(csv.DictReader(handle))
+
+    assert len(processed_rows) == 1
+    assert processed_rows[0]["question_number"] == "1"
+    assert len(new_rows) == 1
+    assert new_rows[0]["question_number"] == "2"

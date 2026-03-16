@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ from modules.storage.schema_validation import prepare_dataframe, require_columns
 from modules.utils.normalization import clean_optional_text, coerce_bool
 
 SUPPORTED_QUESTION_FILE_SUFFIXES = {".csv", ".jsonl"}
+IGNORED_GENERATED_FILE_SUFFIXES = ("_failed_rows.csv",)
 RAW_VESTIBULINHO_REQUIRED_COLUMNS = [
     "question_number",
     "statement",
@@ -38,8 +40,10 @@ class ImportedQuestionRow:
 
     row: dict[str, Any]
     source_file: str
+    source_path: Path
     row_number: int | None = None
     raw_row: dict[str, Any] | None = None
+    raw_line: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,8 +52,10 @@ class QuestionImportFailure:
 
     source_file: str
     error: str
+    source_path: Path
     row_number: int | None = None
     raw_row: dict[str, Any] | None = None
+    raw_line: str | None = None
 
 
 def load_question_bank_rows(input_path: Path) -> list[dict[str, Any]]:
@@ -73,7 +79,7 @@ def load_question_bank_import_rows(
         files = sorted(
             path
             for path in input_path.rglob("*")
-            if path.is_file() and path.suffix.lower() in SUPPORTED_QUESTION_FILE_SUFFIXES
+            if path.is_file() and _is_supported_question_file(path)
         )
         if not files:
             raise ValueError(f"No supported question files found under '{input_path}'.")
@@ -131,6 +137,52 @@ def write_question_import_failures_csv(
             for column in raw_columns:
                 row[column] = _stringify_csv_value((failure.raw_row or {}).get(column, ""))
             writer.writerow(row)
+
+
+def reconcile_staged_question_files(
+    *,
+    processed_root: Path,
+    new_root: Path,
+    imported_rows: Sequence[ImportedQuestionRow],
+    failures: Sequence[QuestionImportFailure],
+) -> None:
+    """Rewrite staged raw files so valid rows live in processed and failures stay in new."""
+
+    processed_root.mkdir(parents=True, exist_ok=True)
+    new_root.mkdir(parents=True, exist_ok=True)
+
+    relative_paths = {
+        _resolve_relative_stage_path(item.source_path, processed_root, new_root)
+        for item in imported_rows
+    } | {
+        _resolve_relative_stage_path(failure.source_path, processed_root, new_root)
+        for failure in failures
+    }
+
+    for relative_path in sorted(relative_paths):
+        processed_rows = [
+            item
+            for item in imported_rows
+            if _resolve_relative_stage_path(item.source_path, processed_root, new_root)
+            == relative_path
+        ]
+        failed_rows = [
+            failure
+            for failure in failures
+            if _resolve_relative_stage_path(failure.source_path, processed_root, new_root)
+            == relative_path
+        ]
+
+        _write_source_records(
+            processed_root / relative_path,
+            suffix=relative_path.suffix.lower(),
+            rows=[_raw_record_from_imported_row(item) for item in processed_rows],
+        )
+        _write_source_records(
+            new_root / relative_path,
+            suffix=relative_path.suffix.lower(),
+            rows=[_raw_record_from_failure(failure) for failure in failed_rows],
+        )
 
 
 def build_question_row_from_vestibulinho_row(
@@ -204,6 +256,7 @@ def _load_vestibulinho_csv_rows(
                         default_source=csv_path.stem,
                     ),
                     source_file=csv_path.name,
+                    source_path=csv_path,
                     row_number=row_number,
                     raw_row=raw_row,
                 )
@@ -212,6 +265,7 @@ def _load_vestibulinho_csv_rows(
             failures.append(
                 QuestionImportFailure(
                     source_file=csv_path.name,
+                    source_path=csv_path,
                     row_number=row_number,
                     error=str(exc),
                     raw_row=raw_row,
@@ -237,9 +291,10 @@ def _read_jsonl_rows(
                 failures.append(
                     QuestionImportFailure(
                         source_file=jsonl_path.name,
+                        source_path=jsonl_path,
                         row_number=line_number,
                         error="invalid JSON object.",
-                        raw_row={"raw_line": raw_line.rstrip("\r\n")},
+                        raw_line=raw_line.rstrip("\r\n"),
                     )
                 )
                 continue
@@ -247,9 +302,10 @@ def _read_jsonl_rows(
                 failures.append(
                     QuestionImportFailure(
                         source_file=jsonl_path.name,
+                        source_path=jsonl_path,
                         row_number=line_number,
                         error="expected a JSON object.",
-                        raw_row={"raw_line": raw_line.rstrip("\r\n")},
+                        raw_line=raw_line.rstrip("\r\n"),
                     )
                 )
                 continue
@@ -257,8 +313,10 @@ def _read_jsonl_rows(
                 ImportedQuestionRow(
                     row=parsed,
                     source_file=jsonl_path.name,
+                    source_path=jsonl_path,
                     row_number=line_number,
                     raw_row=parsed,
+                    raw_line=raw_line.rstrip("\r\n"),
                 )
             )
     return rows, failures
@@ -312,3 +370,70 @@ def _stringify_csv_value(value: object) -> str:
     if isinstance(value, (dict, list)):
         return json.dumps(value, ensure_ascii=False)
     return str(value)
+
+
+def _is_supported_question_file(path: Path) -> bool:
+    return (
+        path.suffix.lower() in SUPPORTED_QUESTION_FILE_SUFFIXES
+        and not path.name.lower().endswith(IGNORED_GENERATED_FILE_SUFFIXES)
+    )
+
+
+def _resolve_relative_stage_path(source_path: Path, processed_root: Path, new_root: Path) -> Path:
+    try:
+        return source_path.relative_to(processed_root)
+    except ValueError:
+        return source_path.relative_to(new_root)
+
+
+def _raw_record_from_imported_row(item: ImportedQuestionRow) -> dict[str, Any] | str:
+    if item.source_path.suffix.lower() == ".jsonl":
+        return item.raw_line or json.dumps(item.raw_row or item.row, ensure_ascii=False)
+    return dict(item.raw_row or {})
+
+
+def _raw_record_from_failure(failure: QuestionImportFailure) -> dict[str, Any] | str:
+    if failure.source_path.suffix.lower() == ".jsonl":
+        if failure.raw_line is not None:
+            return failure.raw_line
+        return json.dumps(failure.raw_row or {}, ensure_ascii=False)
+    return dict(failure.raw_row or {})
+
+
+def _write_source_records(
+    output_path: Path,
+    *,
+    suffix: str,
+    rows: Sequence[dict[str, Any] | str],
+) -> None:
+    if not rows:
+        if output_path.exists():
+            output_path.unlink()
+        return
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if suffix == ".jsonl":
+        with output_path.open("w", encoding="utf-8") as handle:
+            for row in rows:
+                if isinstance(row, str):
+                    handle.write(f"{row}\n")
+                else:
+                    handle.write(f"{json.dumps(row, ensure_ascii=False)}\n")
+        return
+
+    csv_rows = [row for row in rows if isinstance(row, dict)]
+    fieldnames = _ordered_fieldnames(csv_rows)
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in csv_rows:
+            writer.writerow({key: row.get(key, "") for key in fieldnames})
+
+
+def _ordered_fieldnames(rows: Sequence[dict[str, Any]]) -> list[str]:
+    fieldnames: list[str] = []
+    for row in rows:
+        for key in row.keys():
+            if key not in fieldnames:
+                fieldnames.append(key)
+    return fieldnames
