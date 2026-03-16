@@ -1,4 +1,4 @@
-from app.components.timer_chip import format_elapsed_time
+from app.ui.question_session import format_elapsed_time
 
 
 def test_format_elapsed_time_formats_minutes_and_seconds() -> None:

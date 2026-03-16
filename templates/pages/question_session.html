@@ -420,11 +420,25 @@
         border-color: var(--gm-error-border);
     }
 
+    .gm-option--neutral {
+        background: var(--gm-surface);
+        border-color: var(--gm-border);
+    }
+
+    .gm-option--neutral .gm-option-radio {
+        border-color: var(--gm-border-strong);
+    }
+
     .gm-option--wrong .gm-option-text,
     .gm-option--wrong .gm-option-explanation,
     .gm-option--wrong-selected .gm-option-text,
     .gm-option--wrong-selected .gm-option-explanation {
         color: var(--gm-error);
+    }
+
+    .gm-option--neutral .gm-option-text,
+    .gm-option--neutral .gm-option-explanation {
+        color: var(--gm-text-secondary);
     }
 
     .gm-option--wrong .gm-option-text,

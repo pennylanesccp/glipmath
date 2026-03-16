@@ -3,12 +3,21 @@ from __future__ import annotations
 import base64
 import mimetypes
 
+from dataclasses import dataclass
 from html import escape
 from pathlib import Path
+from typing import Mapping
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 TEMPLATES_DIR = BASE_DIR / "templates"
+
+
+@dataclass(frozen=True, slots=True)
+class RawHtml:
+    """Wrapper for already-sanitized HTML fragments injected into templates."""
+
+    value: str
 
 
 def _read_text(path: Path) -> str:
@@ -28,9 +37,15 @@ def asset_to_data_uri(relative_path: str) -> str:
     return f"data:{mime_type};base64,{encoded}"
 
 
+def raw_html(value: str) -> RawHtml:
+    """Mark a string as safe pre-rendered HTML for template injection."""
+
+    return RawHtml(value)
+
+
 def render_template(
-    template_relative_path: str
-    , context: dict[str, str]
+    template_relative_path: str,
+    context: Mapping[str, str | RawHtml],
 ) -> str:
     template_path = TEMPLATES_DIR / template_relative_path
 
@@ -40,6 +55,7 @@ def render_template(
     html = _read_text(template_path)
 
     for key, value in context.items():
-        html = html.replace(f"{{{{{key}}}}}", escape(str(value), quote=True))
+        rendered_value = value.value if isinstance(value, RawHtml) else escape(str(value), quote=True)
+        html = html.replace(f"{{{{{key}}}}}", rendered_value)
 
     return html

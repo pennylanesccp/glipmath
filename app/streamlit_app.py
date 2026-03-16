@@ -6,8 +6,7 @@ from time import perf_counter
 
 import streamlit as st
 
-from app.components.header import PracticeHeaderMetrics
-from app.components.theme import apply_app_themea
+from app.components.theme import apply_app_theme
 from app.pages.login_page import render_login_page, render_not_authorized_page
 from app.pages.main_page import render_main_page
 from app.state.session_state import (
@@ -19,6 +18,7 @@ from app.state.session_state import (
     get_invalid_question_ids,
     get_skipped_question_ids,
     get_subject_filter,
+    get_subject_filter_label,
     get_user_answer_history,
     get_user_answer_history_issues,
     has_loaded_user_answer_history,
@@ -32,11 +32,7 @@ from modules.auth.authorization_service import AuthorizationService
 from modules.config.settings import AppSettings, load_settings
 from modules.domain.models import AnswerAttempt, DisplayAlternative, LeaderboardEntry, Question, QuestionIndexEntry
 from modules.services.answer_service import AnswerService, parse_answers_dataframe
-from modules.services.leaderboard_service import (
-    find_user_position,
-    format_position,
-    parse_leaderboard_dataframe,
-)
+from modules.services.leaderboard_service import find_user_position, parse_leaderboard_dataframe
 from modules.services.question_service import (
     build_display_alternatives,
     build_subject_options,
@@ -47,8 +43,9 @@ from modules.services.question_service import (
 )
 from modules.services.streak_service import compute_day_streak, compute_question_streak
 from modules.storage.answer_repository import AnswerRepository
-from modules.storage.bigquery_client import BigQueryClient, BigQueryError
+from modules.storage.bigquery_client import BigQueryError
 from modules.storage.question_repository import QuestionRepository
+from modules.storage.bigquery_client import BigQueryClient
 from modules.utils.logging_utils import configure_logging, get_logger
 
 
@@ -65,13 +62,13 @@ def main() -> None:
     """Streamlit entrypoint."""
 
     base_dir = Path(__file__).resolve().parents[1]
-
     st.set_page_config(
         page_title="GlipMath",
         layout="centered",
         initial_sidebar_state="collapsed",
     )
     initialize_session_state()
+
     settings = load_settings(base_dir=base_dir)
     logger = configure_logging(
         level="DEBUG" if settings.environment != "prod" else "INFO",
@@ -84,8 +81,8 @@ def main() -> None:
         settings.gcp.location,
     )
     apply_app_theme()
-    identity = get_authenticated_identity()
 
+    identity = get_authenticated_identity()
     if identity is None:
         render_login_page(settings)
         return
@@ -105,22 +102,25 @@ def main() -> None:
             context.question_repository,
             settings.bigquery.question_bank_table_id(settings.gcp.project_id),
         )
+        subject_options = build_subject_options(question_index)
+
         _ensure_user_answer_history_loaded(
             answer_repository=context.answer_repository,
             answers_table_id=settings.bigquery.answers_table_id(settings.gcp.project_id),
             user_email=authorized_user.email,
         )
+        answer_history = get_user_answer_history(authorized_user.email)
+
         leaderboard_entries, leaderboard_issues = load_leaderboard_snapshot(
             context.answer_repository,
             settings.bigquery.leaderboard_view_id(settings.gcp.project_id),
         )
-        answer_history = get_user_answer_history(authorized_user.email)
-        selected_subject = get_subject_filter()
-        subject_options = build_subject_options(question_index)
+        user_position = find_user_position(leaderboard_entries, authorized_user)
+
         current_question, current_alternatives, question_lookup_issues = resolve_current_question(
             question_repository=context.question_repository,
             question_table_id=settings.bigquery.question_bank_table_id(settings.gcp.project_id),
-            active_question_ids=filter_question_ids_by_subject(question_index, selected_subject),
+            active_question_ids=filter_question_ids_by_subject(question_index, get_subject_filter()),
             answered_question_ids=get_answered_question_ids(authorized_user.email),
         )
     except BigQueryError as exc:
@@ -137,25 +137,22 @@ def main() -> None:
 
     question_issues = list(question_index_issues) + list(question_lookup_issues)
     answer_issues = get_user_answer_history_issues(authorized_user.email) + list(leaderboard_issues)
-    user_position = find_user_position(leaderboard_entries, authorized_user)
-
     _render_diagnostics(
         settings=settings,
         question_issues=question_issues,
         answer_issues=answer_issues,
     )
+
     render_main_page(
-        settings=settings,
         user=authorized_user,
         current_question=current_question,
         alternatives=current_alternatives,
         answer_service=context.answer_service,
         subject_options=subject_options,
-        header_metrics=PracticeHeaderMetrics(
-            day_streak=compute_day_streak(answer_history, timezone_name=settings.timezone),
-            question_streak=compute_question_streak(answer_history),
-            leaderboard_position=format_position(user_position, len(leaderboard_entries)),
-        ),
+        selected_subject=get_subject_filter_label(),
+        day_streak=compute_day_streak(answer_history, timezone_name=settings.timezone),
+        question_streak=compute_question_streak(answer_history),
+        leaderboard_position=_resolve_leaderboard_position(user_position, len(leaderboard_entries)),
     )
 
 
@@ -311,6 +308,7 @@ def resolve_current_question(
     issues: list[str] = []
     current_question_id = get_current_question_id()
     current_alternatives = get_current_alternatives()
+
     if current_question_id is not None and current_question_id not in active_question_ids:
         clear_current_question()
         current_question_id = None
@@ -364,12 +362,18 @@ def _render_diagnostics(
     if not issues:
         return
     if settings.environment == "prod":
-        st.warning("Alguns registros invalidos foram ignorados.")
+        st.warning("Alguns registros inválidos foram ignorados.")
         return
 
-    with st.expander("Diagnostico dos dados", expanded=False):
+    with st.expander("Diagnóstico dos dados", expanded=False):
         for issue in issues:
             st.write(f"- {issue}")
+
+
+def _resolve_leaderboard_position(entry: LeaderboardEntry | None, total_users: int) -> str:
+    if entry is None or total_users <= 0:
+        return "#—"
+    return f"#{entry.rank} / {total_users}"
 
 
 if __name__ == "__main__":
