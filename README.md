@@ -43,6 +43,7 @@ glipmath/
 ## Architecture Summary
 
 - `app/` keeps Streamlit pages, components, and session state thin.
+- `modules/ai/` owns offline Gemini integration for question-bank enrichment only.
 - `modules/services/` owns question selection, answer evaluation, streaks, and leaderboard logic.
 - `modules/storage/` is the only place that talks to BigQuery.
 - `modules/domain/` defines typed app models.
@@ -102,6 +103,7 @@ The app combines the correct answer and wrong answers in memory, assigns stable 
    - `[auth]` for Google OIDC
    - `[gcp]` for project/location
    - `[bigquery]` for dataset/table/view names
+   - `[ai]` for optional Gemini enrichment scripts
    - `[gcp_service_account]` for the BigQuery runtime service account JSON fields
 5. Apply Terraform for the GCP data layer.
 6. Place supported raw question files under `data/`.
@@ -154,6 +156,7 @@ Use:
 
 - `python scripts/validate_question_bank.py --input-path data`
 - `python scripts/load_question_bank_to_bigquery.py --input-path data`
+- `python scripts/enrich_question_explanations.py --dry-run --limit 10`
 - `python scripts/backfill_local_dev_data.py --user-email ana@example.com`
 
 Supported question inputs:
@@ -168,6 +171,23 @@ For the current vestibulinho CSV pipeline, `id_question` is derived deterministi
 The load script skips invalid rows, writes them to `trash/question_bank_failed_rows.csv` by default, and still loads the valid subset into BigQuery. Use `--failed-rows-output` to override that path.
 
 The question bank loader replaces the current contents of `glipmath_core.question_bank`.
+
+## Gemini Enrichment
+
+Gemini is used only for offline/admin enrichment of question explanations.
+
+- The student-facing app reads explanations from BigQuery and does not call Gemini per answer.
+- Missing explanations do not block the learner flow.
+- Gemini credentials live in Streamlit secrets under `[ai]`, not in code.
+- The recommended workflow is to enrich only rows with missing explanations and run that as a manual backfill step.
+
+Useful command:
+
+```powershell
+python scripts/enrich_question_explanations.py --dry-run --limit 10
+```
+
+See `docs/gemini_enrichment.md`.
 
 ## Terraform Summary
 
@@ -197,6 +217,7 @@ The test suite avoids real GCP calls and covers:
 
 - raw question import from the `data/` pipeline
 - nested question parsing and validation
+- Gemini prompt building and explanation response parsing
 - alternative randomization
 - answer correctness evaluation
 - day streak
@@ -207,6 +228,7 @@ The test suite avoids real GCP calls and covers:
 ## Known Limitations
 
 - Answer writes use BigQuery streaming inserts for MVP simplicity.
+- Gemini enrichment is an offline/admin workflow, not part of the student answer path.
 - Leaderboard membership is based on users who have at least one answer event.
 - Question streak is computed in Python from user history, not in SQL.
 - The app assumes a single global leaderboard.

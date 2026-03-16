@@ -9,6 +9,9 @@ GlipMath is a small but production-minded Streamlit application deployed on Stre
   - Responsible for orchestration only
 - `modules/domain/`
   - Typed app models
+- `modules/ai/`
+  - Offline/admin Gemini integration
+  - Prompt building and structured explanation validation
 - `modules/services/`
   - Pure or mostly pure business logic
   - Question parsing and selection
@@ -38,6 +41,16 @@ GlipMath is a small but production-minded Streamlit application deployed on Stre
    - question streak
    - leaderboard position
 7. Submitting an answer appends one row to `glipmath_events.answers`.
+
+## Offline Enrichment Flow
+
+1. An admin script reads active questions missing explanations from `glipmath_core.question_bank`.
+2. `modules/ai/explanation_service.py` builds a structured prompt for Gemini.
+3. `modules/ai/gemini_client.py` calls Gemini with JSON output enabled.
+4. The response is validated against the expected alternatives.
+5. The script writes the enriched nested explanations back to BigQuery.
+
+This flow is intentionally separate from the student request path.
 
 ## Question Model
 
@@ -71,6 +84,7 @@ The authorization service remains as a boundary so internal allowlists or role c
 - Page files do not execute BigQuery SQL directly.
 - Repositories own all BigQuery reads and writes.
 - Services operate on typed domain models instead of raw dataframes.
+- Gemini access stays in `modules/ai/` and offline scripts, not in Streamlit page files.
 - SQL used for analytics views lives under `sql/views/`.
 
 ## Deployment Model

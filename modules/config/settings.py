@@ -80,6 +80,20 @@ class BigQuerySettings:
 
 
 @dataclass(frozen=True, slots=True)
+class GeminiSettings:
+    """Gemini API settings for offline/admin enrichment workflows."""
+
+    api_key: str | None
+    model: str
+
+    @property
+    def is_configured(self) -> bool:
+        """Return whether the Gemini enrichment settings are present."""
+
+        return bool(self.api_key and self.model)
+
+
+@dataclass(frozen=True, slots=True)
 class AppSettings:
     """Top-level application settings."""
 
@@ -91,6 +105,7 @@ class AppSettings:
     gcp: GcpSettings
     bigquery: BigQuerySettings
     auth: AuthSettings
+    gemini: GeminiSettings
     service_account_info: dict[str, Any] | None
 
 
@@ -108,6 +123,7 @@ def load_settings(
     gcp_section = _as_mapping(secrets_dict.get("gcp"))
     bigquery_section = _as_mapping(secrets_dict.get("bigquery"))
     auth_section = _as_mapping(secrets_dict.get("auth"))
+    ai_section = _as_mapping(secrets_dict.get("ai"))
     service_account_section = _as_mapping(secrets_dict.get("gcp_service_account"))
     service_account_json = _string_or_none(
         os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
@@ -198,6 +214,17 @@ def load_settings(
                 "STREAMLIT_AUTH_SERVER_METADATA_URL",
                 auth_section,
                 "server_metadata_url",
+            ),
+        ),
+        gemini=GeminiSettings(
+            api_key=(
+                _env_or_section("GEMINI_API_KEY", ai_section, "GEMINI_API_KEY")
+                or _env_or_section("GEMINI_API_KEY", ai_section, "api_key")
+            ),
+            model=(
+                _env_or_section("GEMINI_MODEL", ai_section, "GEMINI_MODEL")
+                or _env_or_section("GEMINI_MODEL", ai_section, "model")
+                or "gemini-2.5-flash-lite"
             ),
         ),
         service_account_info=service_account_info or None,

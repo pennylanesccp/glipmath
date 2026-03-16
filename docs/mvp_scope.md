@@ -11,6 +11,7 @@
 - day streak
 - question streak
 - leaderboard position
+- optional offline/admin Gemini enrichment for missing question explanations
 - Terraform-managed GCP data layer
 - practical question bank ingestion through JSONL
 - deployment on Streamlit Community Cloud
@@ -22,6 +23,7 @@
 - one question at a time
 - no local persistence
 - no admin UI
+- no live per-answer Gemini generation in the student flow
 
 ## Out of Scope
 
@@ -32,4 +34,5 @@
 - classroom management
 - spaced repetition engine
 - authoring questions inside the app
+- real-time AI tutoring on answer submission
 - multi-tenant concerns

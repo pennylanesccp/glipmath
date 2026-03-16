@@ -76,6 +76,7 @@ Populate:
 
 - Google OAuth values under `[auth]`
 - BigQuery config under `[gcp]` and `[bigquery]`
+- optional Gemini config under `[ai]` if you want to run explanation enrichment
 - the service account JSON fields under `[gcp_service_account]`
 
 ## 9. Prepare the Question Bank Input
@@ -104,6 +105,13 @@ Optional synthetic answer data for local/dev testing:
 python scripts/backfill_local_dev_data.py --user-email ana@example.com
 ```
 
+Optional offline Gemini enrichment:
+
+```powershell
+python scripts/enrich_question_explanations.py --dry-run --limit 10
+python scripts/enrich_question_explanations.py --limit 50
+```
+
 ## 10. Configure Streamlit Community Cloud
 
 - connect the GitHub repository
@@ -116,5 +124,6 @@ python scripts/backfill_local_dev_data.py --user-email ana@example.com
 - test Google login
 - answer at least one question
 - confirm answers land in BigQuery
+- if using Gemini enrichment, confirm explanation backfills land in `glipmath_core.question_bank`
 - confirm the leaderboard loads
 - confirm the question flow shows explanations correctly

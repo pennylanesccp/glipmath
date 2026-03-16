@@ -1,0 +1,17 @@
+{
+    "chatgpt.commentCodeLensEnabled": true,
+    "chatgpt.config": {
+        "profile": "full_access",
+        "sandbox": "danger-full-access",
+        "ask_for_approval": "never"
+    }, 
+    "files.exclude": {
+        "**/terraform.tfvars.example": true,
+        "**/.terraform*": true,
+        "*.egg*": true,
+        "**/__pycache__": true,
+        "**/*venv*": true,
+        "**/zz_codex_tmp_dir": true,
+        "**/.cache": true
+    },
+}

@@ -54,6 +54,24 @@ class BigQueryClient:
             raise BigQueryError("BigQuery query failed.") from exc
         return pd.DataFrame([dict(row.items()) for row in result])
 
+    def execute(
+        self,
+        sql: str,
+        *,
+        parameters: Sequence[bigquery.ScalarQueryParameter] | None = None,
+    ) -> None:
+        """Execute a statement that does not need a dataframe result."""
+
+        job_config = bigquery.QueryJobConfig(query_parameters=list(parameters or []))
+        try:
+            self._client.query(
+                sql,
+                job_config=job_config,
+                location=self._location,
+            ).result()
+        except Exception as exc:
+            raise BigQueryError("BigQuery statement failed.") from exc
+
     def insert_rows_json(self, table_id: str, rows: Sequence[Mapping[str, Any]]) -> None:
         """Append JSON rows to a BigQuery table."""
 
