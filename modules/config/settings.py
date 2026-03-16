@@ -129,7 +129,9 @@ def load_settings(
         os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
         or gcp_section.get("service_account_json")
     )
-    service_account_info = service_account_section or _json_mapping_or_none(service_account_json)
+    service_account_info = _service_account_info_or_none(
+        service_account_section or _json_mapping_or_none(service_account_json)
+    )
 
     project_id = (
         _env_or_section("GLIPMATH_GCP_PROJECT_ID", gcp_section, "project_id")
@@ -285,3 +287,34 @@ def _string_or_none(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _service_account_info_or_none(
+    value: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Return a usable service-account mapping or None for placeholders."""
+
+    mapping = _as_mapping(value)
+    if not mapping:
+        return None
+
+    required_values = [
+        _string_or_none(mapping.get("client_email")),
+        _string_or_none(mapping.get("private_key")),
+        _string_or_none(mapping.get("private_key_id")),
+    ]
+    if not all(required_values):
+        return None
+
+    if any(_looks_like_placeholder(item) for item in required_values):
+        return None
+
+    private_key = required_values[1]
+    if private_key is None or "BEGIN PRIVATE KEY" not in private_key:
+        return None
+
+    return mapping
+
+
+def _looks_like_placeholder(value: str) -> bool:
+    return "REPLACE_WITH_" in value or "YOUR_" in value

@@ -24,16 +24,27 @@ class BigQueryClient:
     ) -> None:
         credentials = None
         if service_account_info:
-            credentials = service_account.Credentials.from_service_account_info(
-                dict(service_account_info)
-            )
+            try:
+                credentials = service_account.Credentials.from_service_account_info(
+                    dict(service_account_info)
+                )
+            except Exception as exc:
+                raise BigQueryError(
+                    "Invalid BigQuery service-account credentials in Streamlit secrets."
+                ) from exc
 
         self._location = location
-        self._client = bigquery.Client(
-            project=project_id,
-            location=location,
-            credentials=credentials,
-        )
+        try:
+            self._client = bigquery.Client(
+                project=project_id,
+                location=location,
+                credentials=credentials,
+            )
+        except Exception as exc:
+            raise BigQueryError(
+                "BigQuery credentials are not configured. Add a valid [gcp_service_account] "
+                "block to Streamlit secrets or configure Application Default Credentials locally."
+            ) from exc
 
     def query_to_dataframe(
         self,
