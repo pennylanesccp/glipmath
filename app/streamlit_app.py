@@ -5,6 +5,7 @@ from pathlib import Path
 
 import streamlit as st
 
+from app.components.theme import apply_app_theme
 from app.pages.login_page import render_login_page, render_not_authorized_page
 from app.pages.main_page import render_main_page
 from app.state.session_state import initialize_session_state
@@ -12,7 +13,6 @@ from modules.auth.auth_service import get_authenticated_identity
 from modules.auth.authorization_service import AuthorizationService
 from modules.config.settings import AppSettings, load_settings
 from modules.services.answer_service import AnswerService, parse_answers_dataframe
-from modules.services.leaderboard_service import parse_leaderboard_dataframe
 from modules.services.question_service import parse_question_bank_dataframe
 from modules.storage.answer_repository import AnswerRepository
 from modules.storage.bigquery_client import BigQueryClient, BigQueryError
@@ -33,9 +33,11 @@ def main() -> None:
 
     st.set_page_config(
         page_title="GlipMath",
-        layout="wide",
+        layout="centered",
+        initial_sidebar_state="collapsed",
     )
     initialize_session_state()
+    apply_app_theme()
 
     base_dir = Path(__file__).resolve().parents[1]
     settings = load_settings(base_dir=base_dir)
@@ -57,7 +59,6 @@ def main() -> None:
         context = build_runtime_context(settings)
         question_frame = context.question_repository.load_frame()
         user_answer_frame = context.answer_repository.load_user_frame(authorized_user.email)
-        leaderboard_frame = context.answer_repository.load_leaderboard_frame()
     except BigQueryError as exc:
         st.title(settings.app_name)
         st.error(str(exc))
@@ -65,20 +66,17 @@ def main() -> None:
 
     questions, question_issues = parse_question_bank_dataframe(question_frame)
     answers, answer_issues = parse_answers_dataframe(user_answer_frame)
-    leaderboard, leaderboard_issues = parse_leaderboard_dataframe(leaderboard_frame)
 
     _render_diagnostics(
         settings=settings,
         question_issues=question_issues,
         answer_issues=answer_issues,
-        leaderboard_issues=leaderboard_issues,
     )
     render_main_page(
         settings=settings,
         user=authorized_user,
         questions=questions,
         answers=answers,
-        leaderboard=leaderboard,
         answer_service=context.answer_service,
     )
 
@@ -117,9 +115,8 @@ def _render_diagnostics(
     settings: AppSettings,
     question_issues: list[str],
     answer_issues: list[str],
-    leaderboard_issues: list[str],
 ) -> None:
-    issues = question_issues + answer_issues + leaderboard_issues
+    issues = question_issues + answer_issues
     if not issues:
         return
     if settings.environment == "prod":

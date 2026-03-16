@@ -16,6 +16,8 @@ QUESTION_ANSWERED_KEY = "glipmath_question_answered"
 LAST_ANSWER_RESULT_KEY = "glipmath_last_answer_result"
 QUESTION_SELECTION_KEY = "glipmath_question_selection"
 SUBMISSION_IN_PROGRESS_KEY = "glipmath_submission_in_progress"
+SKIPPED_QUESTION_IDS_KEY = "glipmath_skipped_question_ids"
+THEME_MODE_KEY = "glipmath_theme_mode"
 
 
 def initialize_session_state() -> None:
@@ -29,6 +31,8 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(LAST_ANSWER_RESULT_KEY, None)
     st.session_state.setdefault(QUESTION_SELECTION_KEY, None)
     st.session_state.setdefault(SUBMISSION_IN_PROGRESS_KEY, False)
+    st.session_state.setdefault(SKIPPED_QUESTION_IDS_KEY, [])
+    st.session_state.setdefault(THEME_MODE_KEY, "dark")
 
 
 def get_session_id() -> str:
@@ -170,6 +174,48 @@ def get_last_answer_result() -> dict[str, object] | None:
     initialize_session_state()
     value = st.session_state[LAST_ANSWER_RESULT_KEY]
     return value if isinstance(value, dict) else None
+
+
+def get_skipped_question_ids() -> set[int]:
+    """Return the questions skipped during the current browser session."""
+
+    initialize_session_state()
+    raw_ids = st.session_state[SKIPPED_QUESTION_IDS_KEY]
+    if not isinstance(raw_ids, list):
+        return set()
+    return {int(value) for value in raw_ids if value is not None}
+
+
+def mark_question_skipped(id_question: int) -> None:
+    """Remember a skipped question so the next selection prefers a different one."""
+
+    skipped_ids = get_skipped_question_ids()
+    skipped_ids.add(id_question)
+    st.session_state[SKIPPED_QUESTION_IDS_KEY] = sorted(skipped_ids)
+
+
+def clear_question_skip(id_question: int) -> None:
+    """Remove a question from the skipped pool after it is answered."""
+
+    skipped_ids = get_skipped_question_ids()
+    if id_question in skipped_ids:
+        skipped_ids.remove(id_question)
+        st.session_state[SKIPPED_QUESTION_IDS_KEY] = sorted(skipped_ids)
+
+
+def get_theme_mode() -> str:
+    """Return the current UI theme mode."""
+
+    initialize_session_state()
+    mode = str(st.session_state[THEME_MODE_KEY]).strip().lower()
+    return "light" if mode == "light" else "dark"
+
+
+def set_theme_mode(mode: str) -> None:
+    """Persist the selected UI theme mode."""
+
+    initialize_session_state()
+    st.session_state[THEME_MODE_KEY] = "light" if mode == "light" else "dark"
 
 
 def _string_or_none(value: object) -> str | None:
