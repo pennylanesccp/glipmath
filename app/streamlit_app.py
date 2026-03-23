@@ -14,6 +14,7 @@ from app.state.session_state import (
     clear_current_question,
     get_answered_question_ids,
     get_current_alternatives,
+    get_current_question,
     get_current_question_id,
     get_invalid_question_ids,
     get_skipped_question_ids,
@@ -306,14 +307,19 @@ def resolve_current_question(
 
     issues: list[str] = []
     current_question_id = get_current_question_id()
+    current_question = get_current_question()
     current_alternatives = get_current_alternatives()
 
     if current_question_id is not None and current_question_id not in active_question_ids:
         clear_current_question()
         current_question_id = None
+        current_question = None
         current_alternatives = []
 
     if current_question_id is not None and current_alternatives:
+        if current_question is not None and current_question.id_question == current_question_id:
+            return current_question, current_alternatives, []
+
         current_question, current_issues = load_question_snapshot(
             question_repository,
             question_table_id,
@@ -343,7 +349,7 @@ def resolve_current_question(
         )
         if next_question is not None and not current_issues:
             alternatives = build_display_alternatives(next_question)
-            set_current_question(next_question.id_question, alternatives)
+            set_current_question(next_question, alternatives)
             return next_question, alternatives, issues
 
         issues.extend(current_issues or [f"question_bank row for id_question {next_question_id} was not found."])

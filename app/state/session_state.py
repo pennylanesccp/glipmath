@@ -5,13 +5,14 @@ from uuid import uuid4
 
 import streamlit as st
 
-from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative
+from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative, Question, QuestionAlternative
 from modules.services.answer_service import append_answer_history, extract_answered_question_ids
 from modules.utils.datetime_utils import utc_now
 
 SESSION_ID_KEY = "glipmath_session_id"
 AUTHENTICATED_USER_EMAIL_KEY = "glipmath_authenticated_user_email"
 CURRENT_QUESTION_ID_KEY = "glipmath_current_question_id"
+CURRENT_QUESTION_KEY = "glipmath_current_question"
 CURRENT_ALTERNATIVES_KEY = "glipmath_current_alternatives"
 QUESTION_STARTED_AT_KEY = "glipmath_question_started_at"
 QUESTION_ANSWERED_KEY = "glipmath_question_answered"
@@ -33,6 +34,7 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(SESSION_ID_KEY, uuid4().hex)
     st.session_state.setdefault(AUTHENTICATED_USER_EMAIL_KEY, None)
     st.session_state.setdefault(CURRENT_QUESTION_ID_KEY, None)
+    st.session_state.setdefault(CURRENT_QUESTION_KEY, None)
     st.session_state.setdefault(CURRENT_ALTERNATIVES_KEY, [])
     st.session_state.setdefault(QUESTION_STARTED_AT_KEY, None)
     st.session_state.setdefault(QUESTION_ANSWERED_KEY, False)
@@ -152,6 +154,46 @@ def get_current_question_id() -> int | None:
     return int(value) if value is not None else None
 
 
+def get_current_question() -> Question | None:
+    """Return the current question snapshot from session state."""
+
+    initialize_session_state()
+    raw_question = st.session_state[CURRENT_QUESTION_KEY]
+    if not isinstance(raw_question, dict):
+        return None
+
+    try:
+        raw_correct = raw_question["correct_answer"]
+        raw_wrong_answers = raw_question["wrong_answers"]
+        if not isinstance(raw_correct, dict) or not isinstance(raw_wrong_answers, list):
+            return None
+
+        return Question(
+            id_question=int(raw_question["id_question"]),
+            statement=str(raw_question["statement"]),
+            correct_answer=QuestionAlternative(
+                alternative_text=str(raw_correct["alternative_text"]),
+                explanation=_string_or_none(raw_correct.get("explanation")),
+            ),
+            wrong_answers=tuple(
+                QuestionAlternative(
+                    alternative_text=str(item["alternative_text"]),
+                    explanation=_string_or_none(item.get("explanation")),
+                )
+                for item in raw_wrong_answers
+                if isinstance(item, dict) and "alternative_text" in item
+            ),
+            subject=_string_or_none(raw_question.get("subject")),
+            topic=_string_or_none(raw_question.get("topic")),
+            difficulty=_string_or_none(raw_question.get("difficulty")),
+            source=_string_or_none(raw_question.get("source")),
+            created_at_utc=raw_question.get("created_at_utc") if isinstance(raw_question.get("created_at_utc"), datetime) else None,
+            updated_at_utc=raw_question.get("updated_at_utc") if isinstance(raw_question.get("updated_at_utc"), datetime) else None,
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def get_current_alternatives() -> list[DisplayAlternative]:
     """Return the current randomized alternatives from session state."""
 
@@ -196,11 +238,32 @@ def set_question_selection(option_id: str | None) -> None:
     st.session_state[QUESTION_SELECTION_KEY] = _string_or_none(option_id)
 
 
-def set_current_question(id_question: int, alternatives: list[DisplayAlternative]) -> None:
+def set_current_question(question: Question, alternatives: list[DisplayAlternative]) -> None:
     """Store the active question and reset submission-specific state."""
 
     initialize_session_state()
-    st.session_state[CURRENT_QUESTION_ID_KEY] = id_question
+    st.session_state[CURRENT_QUESTION_ID_KEY] = question.id_question
+    st.session_state[CURRENT_QUESTION_KEY] = {
+        "id_question": question.id_question,
+        "statement": question.statement,
+        "correct_answer": {
+            "alternative_text": question.correct_answer.alternative_text,
+            "explanation": question.correct_answer.explanation,
+        },
+        "wrong_answers": [
+            {
+                "alternative_text": wrong_answer.alternative_text,
+                "explanation": wrong_answer.explanation,
+            }
+            for wrong_answer in question.wrong_answers
+        ],
+        "subject": question.subject,
+        "topic": question.topic,
+        "difficulty": question.difficulty,
+        "source": question.source,
+        "created_at_utc": question.created_at_utc,
+        "updated_at_utc": question.updated_at_utc,
+    }
     st.session_state[CURRENT_ALTERNATIVES_KEY] = [
         {
             "option_id": alternative.option_id,
@@ -222,6 +285,7 @@ def clear_current_question() -> None:
 
     initialize_session_state()
     st.session_state[CURRENT_QUESTION_ID_KEY] = None
+    st.session_state[CURRENT_QUESTION_KEY] = None
     st.session_state[CURRENT_ALTERNATIVES_KEY] = []
     st.session_state[QUESTION_STARTED_AT_KEY] = None
     st.session_state[QUESTION_ANSWERED_KEY] = False
