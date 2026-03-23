@@ -22,7 +22,7 @@ def render_login_page(settings: AppSettings) -> None:
             "GOOGLE_BUTTON_CLASS": "" if settings.auth.is_configured else " is-disabled",
         },
     )
-    st.markdown(login_html, unsafe_allow_html=True)
+    st.html(login_html)
     if not settings.auth.is_configured:
         render_auth_setup_warning()
 

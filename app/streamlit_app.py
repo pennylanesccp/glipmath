@@ -43,9 +43,8 @@ from modules.services.question_service import (
 )
 from modules.services.streak_service import compute_day_streak, compute_question_streak
 from modules.storage.answer_repository import AnswerRepository
-from modules.storage.bigquery_client import BigQueryError
+from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
-from modules.storage.bigquery_client import BigQueryClient
 from modules.utils.logging_utils import configure_logging, get_logger
 
 
@@ -372,7 +371,7 @@ def _render_diagnostics(
 
 def _resolve_leaderboard_position(entry: LeaderboardEntry | None, total_users: int) -> str:
     if entry is None or total_users <= 0:
-        return "#—"
+        return "#-"
     return f"#{entry.rank} / {total_users}"
 
 

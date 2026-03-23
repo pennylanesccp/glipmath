@@ -91,7 +91,7 @@ def render_main_page(
                 "</div>"
             ),
         )
-        st.markdown(page_html, unsafe_allow_html=True)
+        st.html(page_html)
         return
 
     page_html = render_question_session_template(
@@ -111,7 +111,7 @@ def render_main_page(
         question_answered=question_answered,
         answer_is_correct=answer_is_correct,
     )
-    st.markdown(page_html, unsafe_allow_html=True)
+    st.html(page_html)
 
 
 def _consume_page_actions(

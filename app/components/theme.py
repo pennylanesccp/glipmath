@@ -6,7 +6,7 @@ import streamlit as st
 def apply_app_theme() -> None:
     """Hide Streamlit chrome and keep the app shell compact."""
 
-    st.markdown(
+    st.html(
         """
         <style>
         [data-testid="stSidebar"],
@@ -22,6 +22,5 @@ def apply_app_theme() -> None:
             padding-bottom: 0.5rem;
         }
         </style>
-        """,
-        unsafe_allow_html=True,
+        """
     )
