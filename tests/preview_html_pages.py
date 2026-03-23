@@ -11,12 +11,12 @@ from app.ui.template_renderer import asset_to_data_uri, render_template
 from modules.domain.models import DisplayAlternative
 
 NOOP_TARGET = "#preview-static"
-SUBJECT_OPTIONS = ["Todas", "Matemática", "Português", "Ciências"]
+SUBJECT_OPTIONS = ["Todas", "Matematica", "Portugues", "Ciencias"]
 QUESTION_PREVIEW_LABELS = {
     "pending": "Resposta pendente",
     "correct": "Resposta correta",
     "wrong": "Resposta incorreta",
-    "empty": "Sem questões",
+    "empty": "Sem questoes",
 }
 PREVIEW_SHELL_STYLE = """
 <style>
@@ -61,14 +61,14 @@ def build_question_preview_html(
     if scenario == "empty":
         html = render_question_session_template(
             theme_mode=theme_mode,
-            selected_subject="Matemática",
+            selected_subject="Matematica",
             subject_options=SUBJECT_OPTIONS,
             streak_text="5d / 14x",
             rank_text="#7 / 38",
             timer_elapsed_seconds=0,
             timer_running=False,
             logout_href=NOOP_TARGET,
-            question_statement_html=text_to_html("Nenhuma questão disponível para esse filtro agora."),
+            question_statement_html=text_to_html("Nenhuma questao disponivel para esse filtro agora."),
             alternatives=[],
             selected_option_id=None,
             question_answered=False,
@@ -99,7 +99,7 @@ def build_question_preview_html(
 
     html = render_question_session_template(
         theme_mode=theme_mode,
-        selected_subject="Matemática",
+        selected_subject="Matematica",
         subject_options=SUBJECT_OPTIONS,
         streak_text="5d / 14x",
         rank_text="#7 / 38",
@@ -107,8 +107,8 @@ def build_question_preview_html(
         timer_running=not question_answered,
         logout_href=NOOP_TARGET,
         question_statement_html=text_to_html(
-            "Uma máquina produz 12 peças em 3 minutos.\n"
-            "Mantendo o mesmo ritmo, quantas peças ela produz em 8 minutos?"
+            "Uma maquina produz 12 pecas em 3 minutos.\n"
+            "Mantendo o mesmo ritmo, quantas pecas ela produz em 8 minutos?"
         ),
         alternatives=_build_question_alternatives(),
         selected_option_id=selected_option_id,
@@ -122,26 +122,26 @@ def _build_question_alternatives() -> list[DisplayAlternative]:
     return [
         DisplayAlternative(
             option_id="option_a",
-            alternative_text="24 peças",
+            alternative_text="24 pecas",
             explanation="Essa conta manteria o total original, sem ampliar o tempo.",
             is_correct=False,
         ),
         DisplayAlternative(
             option_id="option_b",
-            alternative_text="30 peças",
-            explanation="Você multiplicou por 2,5 em vez de usar a razão entre 8 e 3 minutos.",
+            alternative_text="30 pecas",
+            explanation="Voce multiplicou por 2,5 em vez de usar a razao entre 8 e 3 minutos.",
             is_correct=False,
         ),
         DisplayAlternative(
             option_id="option_c",
-            alternative_text="32 peças",
-            explanation="A taxa é de 4 peças por minuto, então em 8 minutos o total é 32.",
+            alternative_text="32 pecas",
+            explanation="A taxa e de 4 pecas por minuto, entao em 8 minutos o total e 32.",
             is_correct=True,
         ),
         DisplayAlternative(
             option_id="option_d",
-            alternative_text="36 peças",
-            explanation="Isso consideraria 4,5 peças por minuto, o que não bate com o enunciado.",
+            alternative_text="36 pecas",
+            explanation="Isso consideraria 4,5 pecas por minuto, o que nao bate com o enunciado.",
             is_correct=False,
         ),
     ]
@@ -175,13 +175,13 @@ def main() -> None:
         layout="centered",
         initial_sidebar_state="collapsed",
     )
-    st.title("Preview das páginas HTML")
-    st.caption("Os links, formulários e botões abaixo foram neutralizados de propósito.")
+    st.title("Preview das paginas HTML")
+    st.caption("Os links, formularios e botoes abaixo foram neutralizados de proposito.")
 
     preview_page = st.radio(
         "Tela",
         options=["login", "question"],
-        format_func=lambda value: "Login" if value == "login" else "Sessão de questão",
+        format_func=lambda value: "Login" if value == "login" else "Sessao de questao",
         horizontal=True,
     )
     theme_mode = st.radio(
@@ -192,14 +192,14 @@ def main() -> None:
     )
 
     if preview_page == "login":
-        button_disabled = st.checkbox("Mostrar botão do Google desabilitado", value=False)
+        button_disabled = st.checkbox("Mostrar botao do Google desabilitado", value=False)
         html = build_login_preview_html(
             theme_mode=theme_mode,
             button_disabled=button_disabled,
         )
     else:
         scenario = st.selectbox(
-            "Cenário",
+            "Cenario",
             options=list(QUESTION_PREVIEW_LABELS),
             format_func=QUESTION_PREVIEW_LABELS.get,
         )

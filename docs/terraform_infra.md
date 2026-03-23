@@ -68,10 +68,12 @@ These permissions cover:
 
 1. copy `terraform.tfvars.example` to `terraform.tfvars`
 2. review project, region, location, and service account values
-3. run `terraform init`
-4. run `terraform apply`
+3. run `.\run_terraform.ps1 -Command plan`
+4. run `.\run_terraform.ps1`
 5. manually create a service account key for the created runtime service account
 6. place the key values in Streamlit secrets locally and in Streamlit Community Cloud
+
+The script runs `terraform init` before the requested command inside `infrastructure/terraform/environments/dev`.
 
 ## Notes
 

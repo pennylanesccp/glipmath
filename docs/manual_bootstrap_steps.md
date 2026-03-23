@@ -44,9 +44,8 @@ Review at least:
 ## 6. Apply Terraform
 
 ```powershell
-cd infrastructure/terraform/environments/dev
-terraform init
-terraform apply
+.\run_terraform.ps1 -Command plan
+.\run_terraform.ps1
 ```
 
 Expected resources:

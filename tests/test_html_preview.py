@@ -1,4 +1,4 @@
-from preview_html_pages import build_login_preview_html, build_question_preview_html
+from tests.preview_html_pages import build_login_preview_html, build_question_preview_html
 
 
 def test_login_preview_is_static_and_uses_portuguese_copy() -> None:

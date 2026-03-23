@@ -37,6 +37,7 @@ glipmath/
 |- README.md
 |- requirements.txt
 |- pyproject.toml
+|- run_terraform.ps1
 |- run_streamlit.ps1
 ```
 
@@ -113,6 +114,13 @@ The app combines the correct answer and wrong answers in memory, assigns stable 
    - `[ai]` for optional Gemini enrichment scripts
    - `[gcp_service_account]` for the BigQuery runtime service account JSON fields
 5. Apply Terraform for the GCP data layer.
+   Recommended:
+
+   ```powershell
+   .\run_terraform.ps1 -Command plan
+   .\run_terraform.ps1
+   ```
+
 6. Place supported raw question files under `data/`.
 7. Validate and load the question bank:
 
@@ -220,6 +228,12 @@ Run unit tests with:
 ```powershell
 python -m pip install -e .[dev]
 python -m pytest
+```
+
+To preview the static HTML screens without live actions:
+
+```powershell
+.\venv\Scripts\streamlit.exe run .\tests\preview_html_pages.py
 ```
 
 The test suite avoids real GCP calls and covers:

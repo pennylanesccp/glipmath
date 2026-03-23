@@ -105,13 +105,34 @@ Manual setup still exists outside the repo for:
 
 ---
 
-## Commit message rule
+## Git and completion requirement (MANDATORY)
 
-- Always provide a commit message at the end of the work. This is mandatory.
-- Before drafting the commit message, inspect the current worktree so the message reflects the real repository state, not just the files the agent changed.
-- The commit message must include:
-  - what the agent changed
-  - relevant parallel user changes already present in the repo during the task
-- If the user added or modified files in parallel, mention that in the commit message when those changes are part of the current worktree context.
-- Example: if the agent updates app logic and the user added a file under `data/`, the commit message should mention both the app refactor and the added `data/` file.
-- Do not produce a commit message that only describes the agent diff when the repository also contains relevant concurrent user changes.
+When you finish any task, end your final message with a section titled exactly:
+
+Commit message:
+
+IMPORTANT formatting requirements:
+
+- The entire commit message output must be in one fenced code block.
+- That code block must be the last content in the final message.
+- Use `-` for bullets.
+
+Conventional Commits rules:
+
+- Subject format: `type(scope): short imperative summary`
+- Allowed types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `perf`
+- Suggested scopes for this repo: `app`, `scripts`, `modules`, `road`, `multimodal`, `fuel`, `costs`, `infra`, `db`, `data`, `deps`, `docs`
+
+Body format (required when files changed): 1 to 9 bullets summarizing changes
+
+Output format:
+
+If code/files changed, output inside a fenced block:
+
+```text
+{type}({scope}): {subject}
+
+- {change bullets}
+```
+
+If code/files did not change, no commit message block is needed.
