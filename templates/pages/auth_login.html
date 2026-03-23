@@ -1,33 +1,10 @@
 <style>
     :root {
-        --gm-bg: #020817;
-        --gm-surface: rgba(10, 18, 38, 0.92);
-        --gm-border: rgba(129, 140, 248, 0.18);
-        --gm-shadow-card: 0 24px 64px rgba(2, 8, 23, 0.45);
-        --gm-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.28);
-
-        --gm-toggle-track: rgba(79, 70, 229, 0.22);
-        --gm-toggle-thumb: #ffffff;
-        --gm-toggle-icon: #0f172a;
-
-        --gsi-bg: #131314;
-        --gsi-border: #8e918f;
-        --gsi-text: #e3e3e3;
-        --gsi-state-hover: rgba(255, 255, 255, 0.08);
-        --gsi-state-focus: rgba(255, 255, 255, 0.12);
-        --gsi-state-active: rgba(255, 255, 255, 0.16);
-    }
-
-    [data-theme="light"] {
         --gm-bg: #f8fafc;
         --gm-surface: rgba(255, 255, 255, 0.96);
         --gm-border: rgba(148, 163, 184, 0.22);
         --gm-shadow-card: 0 24px 64px rgba(15, 23, 42, 0.10);
         --gm-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.12);
-
-        --gm-toggle-track: #dbe4ff;
-        --gm-toggle-thumb: #4f46e5;
-        --gm-toggle-icon: #ffffff;
 
         --gsi-bg: #ffffff;
         --gsi-border: #747775;
@@ -47,7 +24,7 @@
 
     [data-testid="stAppViewContainer"] {
         background:
-            radial-gradient(circle at top, rgba(79, 70, 229, 0.18), transparent 28%),
+            radial-gradient(circle at top, rgba(79, 70, 229, 0.12), transparent 28%),
             linear-gradient(180deg, var(--gm-bg) 0%, var(--gm-bg) 100%);
     }
 
@@ -68,71 +45,6 @@
         flex-direction: column;
     }
 
-    .gm-login-topbar {
-        display: flex;
-        justify-content: flex-end;
-        margin-bottom: 18px;
-    }
-
-    .gm-theme-toggle,
-    .gm-theme-toggle:visited {
-        background: var(--gm-toggle-track);
-        border-radius: 999px;
-        box-shadow: var(--gm-shadow-soft);
-        display: inline-flex;
-        height: 40px;
-        position: relative;
-        text-decoration: none;
-        width: 72px;
-    }
-
-    .gm-theme-toggle-thumb {
-        align-items: center;
-        background: var(--gm-toggle-thumb);
-        border-radius: 50%;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
-        display: flex;
-        height: 32px;
-        justify-content: center;
-        left: 4px;
-        position: absolute;
-        top: 4px;
-        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-        width: 32px;
-    }
-
-    .gm-theme-toggle--dark .gm-theme-toggle-thumb {
-        transform: translateX(32px);
-    }
-
-    .gm-theme-icon {
-        color: var(--gm-toggle-icon);
-        height: 16px;
-        position: absolute;
-        width: 16px;
-        transition: opacity 0.2s ease, transform 0.28s ease;
-    }
-
-    .gm-theme-icon--sun {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-    .gm-theme-icon--moon {
-        opacity: 0;
-        transform: scale(0.6);
-    }
-
-    .gm-theme-toggle--dark .gm-theme-icon--sun {
-        opacity: 0;
-        transform: scale(0.6);
-    }
-
-    .gm-theme-toggle--dark .gm-theme-icon--moon {
-        opacity: 1;
-        transform: scale(1);
-    }
-
     .gm-login-card {
         background: var(--gm-surface);
         border: 1px solid var(--gm-border);
@@ -145,7 +57,7 @@
         justify-content: center;
         gap: 26px;
         backdrop-filter: blur(12px);
-        margin-top: 56px;
+        margin-top: 32px;
     }
 
     .gm-logo {
@@ -270,7 +182,7 @@
             border-radius: 24px;
             padding: 28px 18px 22px;
             gap: 22px;
-            margin-top: 40px;
+            margin-top: 24px;
         }
 
         .gm-logo {
@@ -279,27 +191,7 @@
     }
 </style>
 
-<section class="gm-login-shell" data-theme="{{THEME_NAME}}">
-    <div class="gm-login-topbar">
-        <a
-            href="{{THEME_TOGGLE_HREF}}"
-            class="gm-theme-toggle {{THEME_TOGGLE_CLASS}}"
-            target="_self"
-            rel="noopener noreferrer"
-            aria-label="Alternar entre modo claro e escuro"
-        >
-            <span class="gm-theme-toggle-thumb">
-                <svg class="gm-theme-icon gm-theme-icon--sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle cx="12" cy="12" r="4.2" fill="currentColor"></circle>
-                    <path d="M12 2.5V5.2M12 18.8V21.5M21.5 12H18.8M5.2 12H2.5M18.72 5.28L16.8 7.2M7.2 16.8L5.28 18.72M18.72 18.72L16.8 16.8M7.2 7.2L5.28 5.28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                </svg>
-                <svg class="gm-theme-icon gm-theme-icon--moon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M20.2 14.2A8.7 8.7 0 0 1 9.8 3.8 9.2 9.2 0 1 0 20.2 14.2Z"></path>
-                </svg>
-            </span>
-        </a>
-    </div>
-
+<section class="gm-login-shell">
     <div class="gm-login-card">
         <img
             class="gm-logo"

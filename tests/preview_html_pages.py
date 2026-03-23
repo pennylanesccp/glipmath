@@ -31,17 +31,12 @@ PREVIEW_SHELL_STYLE = """
 """.strip()
 
 
-def build_login_preview_html(*, theme_mode: str, button_disabled: bool) -> str:
+def build_login_preview_html(*, button_disabled: bool) -> str:
     """Render the login template as a static preview."""
 
     html = render_template(
         "pages/auth_login.html",
         {
-            "THEME_NAME": theme_mode,
-            "THEME_TOGGLE_HREF": NOOP_TARGET,
-            "THEME_TOGGLE_CLASS": (
-                "gm-theme-toggle--dark" if theme_mode == "dark" else "gm-theme-toggle--light"
-            ),
             "LOGO_DATA_URI": asset_to_data_uri("assets/brand/ide-logo.png"),
             "GOOGLE_BUTTON_HREF": NOOP_TARGET,
             "GOOGLE_BUTTON_CLASS": " is-disabled" if button_disabled else "",
@@ -52,7 +47,6 @@ def build_login_preview_html(*, theme_mode: str, button_disabled: bool) -> str:
 
 def build_question_preview_html(
     *,
-    theme_mode: str,
     scenario: Literal["pending", "correct", "wrong", "empty"],
     subject_menu_open: bool,
 ) -> str:
@@ -60,7 +54,6 @@ def build_question_preview_html(
 
     if scenario == "empty":
         html = render_question_session_template(
-            theme_mode=theme_mode,
             selected_subject="Matematica",
             subject_options=SUBJECT_OPTIONS,
             streak_text="5d / 14x",
@@ -98,7 +91,6 @@ def build_question_preview_html(
         raise ValueError(f"Unsupported preview scenario: {scenario}")
 
     html = render_question_session_template(
-        theme_mode=theme_mode,
         selected_subject="Matematica",
         subject_options=SUBJECT_OPTIONS,
         streak_text="5d / 14x",
@@ -163,10 +155,6 @@ def _make_static_preview(html: str) -> str:
     return f"{PREVIEW_SHELL_STYLE}\n<div class=\"gm-preview-shell\">{preview_html}</div>"
 
 
-def _theme_label(theme_mode: str) -> str:
-    return "Claro" if theme_mode == "light" else "Escuro"
-
-
 def main() -> None:
     """Run the static HTML preview app."""
 
@@ -184,17 +172,10 @@ def main() -> None:
         format_func=lambda value: "Login" if value == "login" else "Sessao de questao",
         horizontal=True,
     )
-    theme_mode = st.radio(
-        "Tema",
-        options=["dark", "light"],
-        format_func=_theme_label,
-        horizontal=True,
-    )
 
     if preview_page == "login":
         button_disabled = st.checkbox("Mostrar botao do Google desabilitado", value=False)
         html = build_login_preview_html(
-            theme_mode=theme_mode,
             button_disabled=button_disabled,
         )
     else:
@@ -205,7 +186,6 @@ def main() -> None:
         )
         subject_menu_open = st.checkbox("Abrir menu de disciplinas", value=False)
         html = build_question_preview_html(
-            theme_mode=theme_mode,
             scenario=scenario,
             subject_menu_open=subject_menu_open,
         )

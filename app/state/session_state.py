@@ -24,7 +24,6 @@ USER_ANSWER_HISTORY_KEY = "glipmath_user_answer_history"
 USER_ANSWER_HISTORY_ISSUES_KEY = "glipmath_user_answer_history_issues"
 USER_ANSWER_HISTORY_LOADED_KEY = "glipmath_user_answer_history_loaded"
 USER_ANSWERED_QUESTION_IDS_KEY = "glipmath_user_answered_question_ids"
-THEME_MODE_KEY = "glipmath_theme_mode"
 SUBJECT_FILTER_KEY = "glipmath_subject_filter"
 
 
@@ -46,7 +45,6 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(USER_ANSWER_HISTORY_ISSUES_KEY, [])
     st.session_state.setdefault(USER_ANSWER_HISTORY_LOADED_KEY, False)
     st.session_state.setdefault(USER_ANSWERED_QUESTION_IDS_KEY, [])
-    st.session_state.setdefault(THEME_MODE_KEY, "dark")
     st.session_state.setdefault(SUBJECT_FILTER_KEY, "Todas")
 
 
@@ -342,21 +340,6 @@ def clear_question_skip(id_question: int) -> None:
     if id_question in skipped_ids:
         skipped_ids.remove(id_question)
         st.session_state[SKIPPED_QUESTION_IDS_KEY] = sorted(skipped_ids)
-
-
-def get_theme_mode() -> str:
-    """Return the current UI theme mode."""
-
-    initialize_session_state()
-    mode = str(st.session_state[THEME_MODE_KEY]).strip().lower()
-    return "light" if mode == "light" else "dark"
-
-
-def set_theme_mode(mode: str) -> None:
-    """Persist the selected UI theme mode."""
-
-    initialize_session_state()
-    st.session_state[THEME_MODE_KEY] = "light" if mode == "light" else "dark"
 
 
 def get_subject_filter() -> str | None:

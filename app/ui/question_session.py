@@ -12,7 +12,6 @@ PODIUM_ICON_RELATIVE_PATH = "assets/icons/pedestal-podium-svgrepo-com.svg"
 
 def render_question_session_template(
     *,
-    theme_mode: str,
     selected_subject: str,
     subject_options: list[str],
     streak_text: str,
@@ -36,33 +35,22 @@ def render_question_session_template(
         question_answered=question_answered,
         answer_is_correct=answer_is_correct,
         subject_filter=subject_filter,
-        theme_mode=theme_mode,
     )
     bottom_action_html = "" if empty_state_html else _render_bottom_action_html(
         question_answered=question_answered,
         selected_option_id=selected_option_id,
         answer_is_correct=answer_is_correct,
         subject_filter=subject_filter,
-        theme_mode=theme_mode,
     )
 
     return render_template(
         "pages/question_session.html",
         {
-            "THEME_NAME": theme_mode,
-            "THEME_TOGGLE_HREF": build_page_href(
-                theme="light" if theme_mode == "dark" else "dark",
-                subject=subject_filter,
-            ),
-            "THEME_TOGGLE_CLASS": (
-                "gm-theme-toggle--dark" if theme_mode == "dark" else "gm-theme-toggle--light"
-            ),
             "CURRENT_SUBJECT_LABEL": subject_filter,
             "SUBJECT_OPTIONS_HTML": raw_html(
                 _render_subject_options_html(
                     subject_options=subject_options,
                     selected_subject=subject_filter,
-                    theme_mode=theme_mode,
                 )
             ),
             "FIRE_ICON_DATA_URI": _load_icon_or_fallback(FIRE_ICON_RELATIVE_PATH, "fire"),
@@ -71,7 +59,6 @@ def render_question_session_template(
             "RANK_TEXT": rank_text,
             "TIMER_IFRAME_SRCDOC": _build_timer_srcdoc(
                 elapsed_seconds=timer_elapsed_seconds,
-                theme_mode=theme_mode,
                 is_running=timer_running,
             ),
             "LOGOUT_HREF": logout_href,
@@ -84,7 +71,6 @@ def render_question_session_template(
 
 def build_page_href(
     *,
-    theme: str,
     subject: str,
     action: str | None = None,
     select: str | None = None,
@@ -92,7 +78,6 @@ def build_page_href(
     """Build in-app links preserving stable session-page state."""
 
     params: dict[str, str] = {
-        "theme": normalize_theme_mode(theme),
         "subject": normalize_subject_filter(subject),
     }
     if action:
@@ -100,12 +85,6 @@ def build_page_href(
     if select:
         params["select"] = select
     return f"?{urlencode(params)}"
-
-
-def normalize_theme_mode(mode: str | None) -> str:
-    """Normalize theme values to the supported template modes."""
-
-    return "light" if str(mode or "").strip().lower() == "light" else "dark"
 
 
 def normalize_subject_filter(subject: str | None) -> str:
@@ -138,7 +117,6 @@ def _render_subject_options_html(
     *,
     subject_options: list[str],
     selected_subject: str,
-    theme_mode: str,
 ) -> str:
     rows: list[str] = []
     for subject in subject_options:
@@ -147,7 +125,7 @@ def _render_subject_options_html(
             option_class += " is-active"
         rows.append(
             (
-                f'<a href="{escape(build_page_href(theme=theme_mode, subject=subject), quote=True)}" '
+                f'<a href="{escape(build_page_href(subject=subject), quote=True)}" '
                 f'class="{option_class}" target="_self" rel="noopener noreferrer">{escape(subject)}</a>'
             )
         )
@@ -161,7 +139,6 @@ def _render_alternatives_html(
     question_answered: bool,
     answer_is_correct: bool,
     subject_filter: str,
-    theme_mode: str,
 ) -> str:
     rows: list[str] = []
     for alternative in alternatives:
@@ -191,7 +168,7 @@ def _render_alternatives_html(
 
         rows.append(
             (
-                f'<a href="{escape(build_page_href(theme=theme_mode, subject=subject_filter, select=alternative.option_id), quote=True)}" '
+                f'<a href="{escape(build_page_href(subject=subject_filter, select=alternative.option_id), quote=True)}" '
                 f'class="{option_class}" target="_self" rel="noopener noreferrer">{option_body}</a>'
             )
         )
@@ -205,18 +182,17 @@ def _render_bottom_action_html(
     selected_option_id: str | None,
     answer_is_correct: bool,
     subject_filter: str,
-    theme_mode: str,
 ) -> str:
     if question_answered:
         result_class = "gm-result-card gm-result-card--correct" if answer_is_correct else "gm-result-card"
-        result_text = "Você acertou" if answer_is_correct else "Você errou"
+        result_text = "Voce acertou" if answer_is_correct else "Voce errou"
         return (
             '<div class="gm-bottom-action">'
             '<div class="gm-bottom-action-row">'
             f'<div class="{result_class}">{result_text}</div>'
-            f'<a href="{escape(build_page_href(theme=theme_mode, subject=subject_filter, action="next"), quote=True)}" '
+            f'<a href="{escape(build_page_href(subject=subject_filter, action="next"), quote=True)}" '
             'class="gm-link-button gm-link-button--primary" target="_self" rel="noopener noreferrer">'
-            "Próxima questão"
+            "Proxima questao"
             "</a>"
             "</div>"
             "</div>"
@@ -225,15 +201,15 @@ def _render_bottom_action_html(
     verify_href = "#"
     verify_class = "gm-link-button gm-link-button--primary is-disabled"
     if selected_option_id:
-        verify_href = build_page_href(theme=theme_mode, subject=subject_filter, action="submit")
+        verify_href = build_page_href(subject=subject_filter, action="submit")
         verify_class = "gm-link-button gm-link-button--primary"
 
     return (
         '<div class="gm-bottom-action">'
         '<div class="gm-bottom-action-row">'
-        f'<a href="{escape(build_page_href(theme=theme_mode, subject=subject_filter, action="skip"), quote=True)}" '
+        f'<a href="{escape(build_page_href(subject=subject_filter, action="skip"), quote=True)}" '
         'class="gm-link-button gm-link-button--skip" target="_self" rel="noopener noreferrer">'
-        "Pular questão"
+        "Pular questao"
         "</a>"
         f'<a href="{escape(verify_href, quote=True)}" class="{verify_class}" '
         'target="_self" rel="noopener noreferrer">'
@@ -263,12 +239,8 @@ def _resolve_option_class(
 def _build_timer_srcdoc(
     *,
     elapsed_seconds: int,
-    theme_mode: str,
     is_running: bool,
 ) -> str:
-    background = "#eff6ff" if theme_mode == "light" else "rgba(59,130,246,0.14)"
-    border = "#bfdbfe" if theme_mode == "light" else "rgba(96,165,250,0.30)"
-    text_color = "#2563eb" if theme_mode == "light" else "#93c5fd"
     initial_text = format_elapsed_time(elapsed_seconds)
     return f"""
     <!DOCTYPE html>
@@ -285,11 +257,11 @@ def _build_timer_srcdoc(
 
             .gm-timer-chip {{
                 align-items: center;
-                background: {background};
-                border: 1px solid {border};
+                background: #eff6ff;
+                border: 1px solid #bfdbfe;
                 border-radius: 999px;
                 box-sizing: border-box;
-                color: {text_color};
+                color: #2563eb;
                 display: inline-flex;
                 font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
                 font-size: 13px;

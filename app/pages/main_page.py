@@ -10,7 +10,6 @@ from app.state.session_state import (
     get_question_selection,
     get_question_started_at,
     get_session_id,
-    get_theme_mode,
     initialize_session_state,
     is_current_question_answered,
     is_submission_in_progress,
@@ -18,14 +17,12 @@ from app.state.session_state import (
     mark_question_skipped,
     set_question_selection,
     set_subject_filter,
-    set_theme_mode,
     start_submission,
     finish_submission,
 )
 from app.ui.question_session import (
     build_page_href,
     normalize_subject_filter,
-    normalize_theme_mode,
     render_question_session_template,
     text_to_html,
 )
@@ -73,7 +70,6 @@ def render_main_page(
 
     if current_question is None:
         page_html = render_question_session_template(
-            theme_mode=get_theme_mode(),
             selected_subject=normalized_subject,
             subject_options=subject_options,
             streak_text=_format_streak_text(day_streak, question_streak),
@@ -81,18 +77,17 @@ def render_main_page(
             timer_elapsed_seconds=0,
             timer_running=False,
             logout_href=build_page_href(
-                theme=get_theme_mode(),
                 subject=normalized_subject,
                 action="logout",
             ),
-            question_statement_html=text_to_html("Nenhuma questão disponível para esse filtro agora."),
+            question_statement_html=text_to_html("Nenhuma questao disponivel para esse filtro agora."),
             alternatives=[],
             selected_option_id=None,
             question_answered=False,
             answer_is_correct=False,
             empty_state_html=(
                 '<div class="gm-info-card">'
-                f"{text_to_html('Troque a disciplina acima ou carregue mais questões.')}"
+                f"{text_to_html('Troque a disciplina acima ou carregue mais questoes.')}"
                 "</div>"
             ),
         )
@@ -100,7 +95,6 @@ def render_main_page(
         return
 
     page_html = render_question_session_template(
-        theme_mode=get_theme_mode(),
         selected_subject=normalized_subject,
         subject_options=subject_options,
         streak_text=_format_streak_text(day_streak, question_streak),
@@ -108,7 +102,6 @@ def render_main_page(
         timer_elapsed_seconds=elapsed_seconds,
         timer_running=not question_answered,
         logout_href=build_page_href(
-            theme=get_theme_mode(),
             subject=normalized_subject,
             action="logout",
         ),
@@ -130,29 +123,18 @@ def _consume_page_actions(
     subject_options: list[str],
     selected_subject: str,
 ) -> None:
-    requested_theme = _get_query_value("theme")
-    if requested_theme is not None:
-        normalized_requested_theme = normalize_theme_mode(requested_theme)
-        if normalized_requested_theme != get_theme_mode():
-            set_theme_mode(normalized_requested_theme)
-            _reset_page_query_params(
-                theme=normalized_requested_theme,
-                subject=selected_subject,
-            )
-            st.rerun()
-
     requested_subject = _normalize_selected_subject(_get_query_value("subject"), subject_options)
     if requested_subject != selected_subject:
         set_subject_filter(None if requested_subject == "Todas" else requested_subject)
         clear_current_question()
-        _reset_page_query_params(theme=get_theme_mode(), subject=requested_subject)
+        _reset_page_query_params(subject=requested_subject)
         st.rerun()
 
     selected_option_id = _get_query_value("select")
     if selected_option_id and current_question is not None and not is_current_question_answered():
         if find_display_alternative(alternatives, selected_option_id) is not None:
             set_question_selection(selected_option_id)
-        _reset_page_query_params(theme=get_theme_mode(), subject=requested_subject)
+        _reset_page_query_params(subject=requested_subject)
         st.rerun()
 
     action = (_get_query_value("action") or "").strip().lower()
@@ -164,32 +146,32 @@ def _consume_page_actions(
         st.stop()
 
     if current_question is None:
-        _reset_page_query_params(theme=get_theme_mode(), subject=requested_subject)
+        _reset_page_query_params(subject=requested_subject)
         st.rerun()
 
     if action == "skip" and not is_current_question_answered():
         mark_question_skipped(current_question.id_question)
         clear_current_question()
-        _reset_page_query_params(theme=get_theme_mode(), subject=requested_subject)
+        _reset_page_query_params(subject=requested_subject)
         st.rerun()
 
     if action == "next" and is_current_question_answered():
         clear_current_question()
-        _reset_page_query_params(theme=get_theme_mode(), subject=requested_subject)
+        _reset_page_query_params(subject=requested_subject)
         st.rerun()
 
     if action != "submit" or is_current_question_answered():
-        _reset_page_query_params(theme=get_theme_mode(), subject=requested_subject)
+        _reset_page_query_params(subject=requested_subject)
         st.rerun()
 
     chosen_option_id = get_question_selection()
     selected_alternative = find_display_alternative(alternatives, chosen_option_id)
     if selected_alternative is None:
-        _reset_page_query_params(theme=get_theme_mode(), subject=requested_subject)
+        _reset_page_query_params(subject=requested_subject)
         st.rerun()
 
     if is_submission_in_progress():
-        _reset_page_query_params(theme=get_theme_mode(), subject=requested_subject)
+        _reset_page_query_params(subject=requested_subject)
         st.rerun()
 
     start_submission()
@@ -210,7 +192,7 @@ def _consume_page_actions(
     append_user_answer_attempt(user.email, evaluation.record)
     clear_question_skip(current_question.id_question)
     mark_question_answered(evaluation, selected_option_id=selected_alternative.option_id)
-    _reset_page_query_params(theme=get_theme_mode(), subject=requested_subject)
+    _reset_page_query_params(subject=requested_subject)
     st.rerun()
 
 
@@ -255,12 +237,11 @@ def _format_streak_text(day_streak: int, question_streak: int) -> str:
 
 def _format_rank_text(leaderboard_position: str) -> str:
     text = str(leaderboard_position or "").strip()
-    return text or "#—"
+    return text or "#-"
 
 
-def _reset_page_query_params(*, theme: str, subject: str) -> None:
+def _reset_page_query_params(*, subject: str) -> None:
     st.query_params.clear()
-    st.query_params["theme"] = normalize_theme_mode(theme)
     st.query_params["subject"] = normalize_subject_filter(subject)
 
 
