@@ -71,6 +71,12 @@
     "mode": "NULLABLE"
   },
   {
+    "name": "cohort_key",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Effective question cohort persisted at answer time."
+  },
+  {
     "name": "app_version",
     "type": "STRING",
     "mode": "NULLABLE"

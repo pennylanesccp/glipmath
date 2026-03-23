@@ -16,10 +16,18 @@ class QuestionRepository:
         self._bigquery_client = bigquery_client
         self._table_id = table_id
 
-    def load_frame(self, *, only_active: bool = True) -> pd.DataFrame:
+    def load_frame(self, *, only_active: bool = True, cohort_key: str | None = None) -> pd.DataFrame:
         """Load questions from BigQuery."""
 
-        where_clause = "WHERE is_active = TRUE" if only_active else ""
+        where_conditions: list[str] = []
+        parameters: list[bigquery.ScalarQueryParameter] = []
+        if only_active:
+            where_conditions.append("is_active = TRUE")
+        cohort_condition, cohort_parameters = self._build_cohort_filter(cohort_key)
+        if cohort_condition:
+            where_conditions.append(cohort_condition)
+            parameters.extend(cohort_parameters)
+        where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 
         query = f"""
             SELECT
@@ -31,6 +39,7 @@ class QuestionRepository:
                 topic,
                 difficulty,
                 source,
+                cohort_key,
                 is_active,
                 created_at_utc,
                 updated_at_utc
@@ -38,35 +47,46 @@ class QuestionRepository:
             {where_clause}
             ORDER BY id_question
         """
-        return self._bigquery_client.query_to_dataframe(query)
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters or None)
 
-    def load_active_id_frame(self) -> pd.DataFrame:
+    def load_active_id_frame(self, *, cohort_key: str | None = None) -> pd.DataFrame:
         """Load the active question identifiers only."""
 
+        cohort_condition, parameters = self._build_cohort_filter(cohort_key)
+        extra_filter = f"\n              AND {cohort_condition}" if cohort_condition else ""
         query = f"""
             SELECT
                 id_question
             FROM `{self._table_id}`
             WHERE is_active = TRUE
+              {extra_filter}
         """
-        return self._bigquery_client.query_to_dataframe(query)
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters or None)
 
-    def load_active_index_frame(self) -> pd.DataFrame:
+    def load_active_index_frame(self, *, cohort_key: str | None = None) -> pd.DataFrame:
         """Load the active question index used for subject filtering."""
 
+        cohort_condition, parameters = self._build_cohort_filter(cohort_key)
+        extra_filter = f"\n              AND {cohort_condition}" if cohort_condition else ""
         query = f"""
             SELECT
                 id_question,
-                subject
+                subject,
+                cohort_key
             FROM `{self._table_id}`
             WHERE is_active = TRUE
+              {extra_filter}
             ORDER BY id_question
         """
-        return self._bigquery_client.query_to_dataframe(query)
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters or None)
 
-    def load_question_frame_by_id(self, id_question: int) -> pd.DataFrame:
+    def load_question_frame_by_id(self, id_question: int, *, cohort_key: str | None = None) -> pd.DataFrame:
         """Load a single active question by identifier."""
 
+        parameters = [bigquery.ScalarQueryParameter("id_question", "INT64", id_question)]
+        cohort_condition, cohort_parameters = self._build_cohort_filter(cohort_key)
+        extra_filter = f"\n              AND {cohort_condition}" if cohort_condition else ""
+        parameters.extend(cohort_parameters)
         query = f"""
             SELECT
                 id_question,
@@ -77,16 +97,15 @@ class QuestionRepository:
                 topic,
                 difficulty,
                 source,
+                cohort_key,
                 is_active
             FROM `{self._table_id}`
             WHERE is_active = TRUE
               AND id_question = @id_question
+              {extra_filter}
             LIMIT 1
         """
-        return self._bigquery_client.query_to_dataframe(
-            query,
-            parameters=[bigquery.ScalarQueryParameter("id_question", "INT64", id_question)],
-        )
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
 
     def load_missing_explanations_frame(self, *, limit: int | None = None) -> pd.DataFrame:
         """Load active questions that still need one or more explanations."""
@@ -107,6 +126,7 @@ class QuestionRepository:
                 topic,
                 difficulty,
                 source,
+                cohort_key,
                 is_active,
                 created_at_utc,
                 updated_at_utc
@@ -181,3 +201,14 @@ class QuestionRepository:
             ),
         ]
         self._bigquery_client.execute(query, parameters=parameters)
+
+    def _build_cohort_filter(
+        self,
+        cohort_key: str | None,
+    ) -> tuple[str | None, list[bigquery.ScalarQueryParameter]]:
+        if cohort_key is None:
+            return None, []
+        return (
+            "LOWER(TRIM(cohort_key)) = @cohort_key",
+            [bigquery.ScalarQueryParameter("cohort_key", "STRING", cohort_key.lower())],
+        )

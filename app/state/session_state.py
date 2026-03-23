@@ -5,12 +5,13 @@ from uuid import uuid4
 
 import streamlit as st
 
-from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative, Question, QuestionAlternative
+from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative, Question, QuestionAlternative, User
 from modules.services.answer_service import append_answer_history, extract_answered_question_ids
 from modules.utils.datetime_utils import utc_now
 
 SESSION_ID_KEY = "glipmath_session_id"
 AUTHENTICATED_USER_EMAIL_KEY = "glipmath_authenticated_user_email"
+AUTHENTICATED_USER_SCOPE_KEY = "glipmath_authenticated_user_scope"
 CURRENT_QUESTION_ID_KEY = "glipmath_current_question_id"
 CURRENT_QUESTION_KEY = "glipmath_current_question"
 CURRENT_ALTERNATIVES_KEY = "glipmath_current_alternatives"
@@ -33,6 +34,7 @@ def initialize_session_state() -> None:
 
     st.session_state.setdefault(SESSION_ID_KEY, uuid4().hex)
     st.session_state.setdefault(AUTHENTICATED_USER_EMAIL_KEY, None)
+    st.session_state.setdefault(AUTHENTICATED_USER_SCOPE_KEY, None)
     st.session_state.setdefault(CURRENT_QUESTION_ID_KEY, None)
     st.session_state.setdefault(CURRENT_QUESTION_KEY, None)
     st.session_state.setdefault(CURRENT_ALTERNATIVES_KEY, [])
@@ -57,15 +59,18 @@ def get_session_id() -> str:
     return str(st.session_state[SESSION_ID_KEY])
 
 
-def bind_authenticated_user(user_email: str) -> None:
+def bind_authenticated_user(user: User) -> None:
     """Reset user-scoped session state when the authenticated user changes."""
 
     initialize_session_state()
+    user_scope = f"{user.email}|{user.role}|{user.cohort_key}"
     current_email = st.session_state[AUTHENTICATED_USER_EMAIL_KEY]
-    if current_email == user_email:
+    current_scope = st.session_state[AUTHENTICATED_USER_SCOPE_KEY]
+    if current_email == user.email and current_scope == user_scope:
         return
 
-    st.session_state[AUTHENTICATED_USER_EMAIL_KEY] = user_email
+    st.session_state[AUTHENTICATED_USER_EMAIL_KEY] = user.email
+    st.session_state[AUTHENTICATED_USER_SCOPE_KEY] = user_scope
     st.session_state[SESSION_ID_KEY] = uuid4().hex
     st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
     st.session_state[INVALID_QUESTION_IDS_KEY] = []
@@ -95,7 +100,7 @@ def set_user_answer_history(
 ) -> None:
     """Persist the current user's parsed answer history in session state."""
 
-    bind_authenticated_user(user_email)
+    _bind_authenticated_user_email(user_email)
     st.session_state[USER_ANSWER_HISTORY_KEY] = list(answers)
     st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY] = list(issues or [])
     st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = True
@@ -127,7 +132,7 @@ def get_user_answer_history_issues(user_email: str) -> list[str]:
 def append_user_answer_attempt(user_email: str, answer: AnswerAttempt) -> None:
     """Append one new answer attempt to the current user's in-session history."""
 
-    bind_authenticated_user(user_email)
+    _bind_authenticated_user_email(user_email)
     updated_answers = append_answer_history(get_user_answer_history(user_email), answer)
     st.session_state[USER_ANSWER_HISTORY_KEY] = updated_answers
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = sorted(extract_answered_question_ids(updated_answers))
@@ -187,6 +192,7 @@ def get_current_question() -> Question | None:
             topic=_string_or_none(raw_question.get("topic")),
             difficulty=_string_or_none(raw_question.get("difficulty")),
             source=_string_or_none(raw_question.get("source")),
+            cohort_key=_string_or_none(raw_question.get("cohort_key")),
             created_at_utc=raw_question.get("created_at_utc") if isinstance(raw_question.get("created_at_utc"), datetime) else None,
             updated_at_utc=raw_question.get("updated_at_utc") if isinstance(raw_question.get("updated_at_utc"), datetime) else None,
         )
@@ -261,6 +267,7 @@ def set_current_question(question: Question, alternatives: list[DisplayAlternati
         "topic": question.topic,
         "difficulty": question.difficulty,
         "source": question.source,
+        "cohort_key": question.cohort_key,
         "created_at_utc": question.created_at_utc,
         "updated_at_utc": question.updated_at_utc,
     }
@@ -427,6 +434,25 @@ def set_subject_filter(subject: str | None) -> None:
 
     initialize_session_state()
     st.session_state[SUBJECT_FILTER_KEY] = _string_or_none(subject) or "Todas"
+
+
+def _bind_authenticated_user_email(user_email: str) -> None:
+    initialize_session_state()
+    current_email = st.session_state[AUTHENTICATED_USER_EMAIL_KEY]
+    if current_email == user_email:
+        return
+
+    st.session_state[AUTHENTICATED_USER_EMAIL_KEY] = user_email
+    st.session_state[AUTHENTICATED_USER_SCOPE_KEY] = None
+    st.session_state[SESSION_ID_KEY] = uuid4().hex
+    st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
+    st.session_state[INVALID_QUESTION_IDS_KEY] = []
+    st.session_state[USER_ANSWER_HISTORY_KEY] = []
+    st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY] = []
+    st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = False
+    st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
+    st.session_state[SUBJECT_FILTER_KEY] = "Todas"
+    clear_current_question()
 
 
 def _string_or_none(value: object) -> str | None:

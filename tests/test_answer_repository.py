@@ -7,6 +7,7 @@ class FakeBigQueryClient:
     def __init__(self, columns: tuple[str, ...]) -> None:
         self.columns = columns
         self.queries: list[str] = []
+        self.parameters: list[object] = []
         self.insert_calls: list[tuple[str, list[dict[str, object]]]] = []
 
     def get_table_column_names(self, table_id: str) -> tuple[str, ...]:
@@ -14,6 +15,7 @@ class FakeBigQueryClient:
 
     def query_to_dataframe(self, sql: str, *, parameters=None) -> pd.DataFrame:
         self.queries.append(sql)
+        self.parameters.append(parameters)
         return pd.DataFrame()
 
     def insert_rows_json(self, table_id: str, rows: list[dict[str, object]]) -> None:
@@ -42,13 +44,14 @@ def test_load_user_frame_falls_back_for_missing_optional_columns() -> None:
     repository = AnswerRepository(
         fake_client,
         answers_table_id="project.dataset.answers",
-        leaderboard_view_id="project.dataset.v_leaderboard",
+        user_access_table_id="project.dataset.user_access",
     )
 
     repository.load_user_frame("ana@example.com")
 
     assert fake_client.queries
     assert "CAST(NULL AS STRING) AS subject" in fake_client.queries[0]
+    assert "CAST(NULL AS STRING) AS cohort_key" in fake_client.queries[0]
     assert "\n                topic" in fake_client.queries[0]
 
 
@@ -70,7 +73,7 @@ def test_append_answer_row_filters_unknown_columns_for_older_table_schema() -> N
     repository = AnswerRepository(
         fake_client,
         answers_table_id="project.dataset.answers",
-        leaderboard_view_id="project.dataset.v_leaderboard",
+        user_access_table_id="project.dataset.user_access",
     )
 
     repository.append_answer_row(
@@ -86,6 +89,7 @@ def test_append_answer_row_filters_unknown_columns_for_older_table_schema() -> N
             "time_spent_seconds": 4.0,
             "session_id": "session-1",
             "subject": "matematica",
+            "cohort_key": "ano_1",
         }
     )
 
@@ -104,3 +108,36 @@ def test_append_answer_row_filters_unknown_columns_for_older_table_schema() -> N
             "session_id": "session-1",
         }
     ]
+
+
+def test_load_leaderboard_frame_scopes_students_to_one_cohort() -> None:
+    fake_client = FakeBigQueryClient(tuple())
+    repository = AnswerRepository(
+        fake_client,
+        answers_table_id="project.dataset.answers",
+        user_access_table_id="project.dataset.user_access",
+    )
+
+    repository.load_leaderboard_frame(role="student", cohort_key="ano_2")
+
+    assert "FROM `project.dataset.user_access`" in fake_client.queries[0]
+    assert "LOWER(TRIM(answers.cohort_key)) = @cohort_key" in fake_client.queries[0]
+    assert "access.role = 'student'" in fake_client.queries[0]
+    parameters = fake_client.parameters[0]
+    assert parameters is not None
+    assert parameters[0].name == "cohort_key"
+    assert parameters[0].to_api_repr()["parameterValue"]["value"] == "ano_2"
+
+
+def test_load_leaderboard_frame_keeps_teacher_view_global() -> None:
+    fake_client = FakeBigQueryClient(tuple())
+    repository = AnswerRepository(
+        fake_client,
+        answers_table_id="project.dataset.answers",
+        user_access_table_id="project.dataset.user_access",
+    )
+
+    repository.load_leaderboard_frame(role="teacher")
+
+    assert "LOWER(TRIM(answers.cohort_key)) = @cohort_key" not in fake_client.queries[0]
+    assert fake_client.parameters[0] is None

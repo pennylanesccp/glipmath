@@ -2,6 +2,8 @@ import csv
 import json
 
 from modules.services.question_bank_import_service import (
+    ImportedQuestionRow,
+    apply_cohort_key_override,
     build_question_row_from_vestibulinho_row,
     generate_question_id,
     load_question_bank_import_rows,
@@ -33,17 +35,96 @@ def test_build_question_row_from_vestibulinho_row_maps_correct_and_wrong_answers
     assert [item["alternative_text"] for item in row["wrong_answers"]] == ["3", "5", "6"]
     assert row["subject"] == "matematica"
     assert row["source"] == "Vestibulinho 1SEM2026"
+    assert row["cohort_key"] is None
     assert row["is_active"] is True
 
 
-def test_generate_question_id_is_stable_for_source_and_number() -> None:
-    first = generate_question_id(source="Vestibulinho 1SEM2026", question_number=7)
-    second = generate_question_id(source="Vestibulinho 1SEM2026", question_number=7)
-    third = generate_question_id(source="Vestibulinho 2SEM2026", question_number=7)
+def test_build_question_row_from_vestibulinho_row_accepts_optional_cohort_key() -> None:
+    row = build_question_row_from_vestibulinho_row(
+        {
+            "question_number": "8",
+            "statement": "Quanto e 3 + 3?",
+            "question_a": "5",
+            "question_b": "6",
+            "question_c": "7",
+            "question_d": "8",
+            "source": "Vestibulinho 1SEM2026",
+            "answer": "B",
+            "cohort_key": "Ano_2",
+        }
+    )
+
+    assert row["cohort_key"] == "ano_2"
+    assert row["id_question"] == generate_question_id(
+        source="Vestibulinho 1SEM2026",
+        question_number=8,
+        cohort_key="ano_2",
+    )
+
+
+def test_generate_question_id_is_stable_for_source_number_and_cohort_scope() -> None:
+    first = generate_question_id(
+        source="Vestibulinho 1SEM2026",
+        question_number=7,
+        cohort_key="ano_1",
+    )
+    second = generate_question_id(
+        source="Vestibulinho 1SEM2026",
+        question_number=7,
+        cohort_key="ano_1",
+    )
+    third = generate_question_id(
+        source="Vestibulinho 1SEM2026",
+        question_number=7,
+        cohort_key="ano_2",
+    )
 
     assert first == second
     assert first != third
     assert first > 0
+
+
+def test_apply_cohort_key_override_updates_rows_and_regenerates_csv_ids(tmp_path) -> None:
+    imported_row = ImportedQuestionRow(
+        row=build_question_row_from_vestibulinho_row(
+            {
+                "question_number": "7",
+                "statement": "Quanto e 2 + 2?",
+                "question_a": "3",
+                "question_b": "4",
+                "question_c": "5",
+                "question_d": "6",
+                "source": "Vestibulinho 1SEM2026",
+                "answer": "B",
+            }
+        ),
+        source_file="questions.csv",
+        source_path=tmp_path / "questions.csv",
+        row_number=2,
+        raw_row={
+            "question_number": "7",
+            "statement": "Quanto e 2 + 2?",
+            "question_a": "3",
+            "question_b": "4",
+            "question_c": "5",
+            "question_d": "6",
+            "source": "Vestibulinho 1SEM2026",
+            "answer": "B",
+        },
+    )
+
+    overridden_rows = apply_cohort_key_override([imported_row], "ano_2")
+
+    assert len(overridden_rows) == 1
+    overridden = overridden_rows[0]
+    assert overridden.row["cohort_key"] == "ano_2"
+    assert overridden.raw_row is not None
+    assert overridden.raw_row["cohort_key"] == "ano_2"
+    assert overridden.row["id_question"] == generate_question_id(
+        source="Vestibulinho 1SEM2026",
+        question_number=7,
+        cohort_key="ano_2",
+    )
 
 
 def test_load_question_bank_rows_from_directory_supports_csv_and_jsonl(tmp_path) -> None:
@@ -92,6 +173,7 @@ def test_load_question_bank_rows_from_directory_supports_csv_and_jsonl(tmp_path)
                 "topic": None,
                 "difficulty": None,
                 "source": "jsonl",
+                "cohort_key": "ano_3",
                 "is_active": True,
                 "created_at_utc": None,
                 "updated_at_utc": None,
@@ -108,7 +190,12 @@ def test_load_question_bank_rows_from_directory_supports_csv_and_jsonl(tmp_path)
         row["statement"] == "Quanto e 1 + 1?" and row["subject"] == "matematica"
         for row in rows
     )
-    assert any(row["id_question"] == 999 and row["subject"] == "ciencias" for row in rows)
+    assert any(
+        row["id_question"] == 999
+        and row["subject"] == "ciencias"
+        and row["cohort_key"] == "ano_3"
+        for row in rows
+    )
 
 
 def test_load_question_bank_import_rows_collects_invalid_csv_rows(tmp_path) -> None:

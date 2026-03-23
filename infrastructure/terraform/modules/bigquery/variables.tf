@@ -28,6 +28,11 @@ variable "question_bank_table_id" {
   type        = string
 }
 
+variable "user_access_table_id" {
+  description = "User access table ID."
+  type        = string
+}
+
 variable "answers_table_id" {
   description = "Answers table ID."
   type        = string
@@ -50,6 +55,11 @@ variable "user_daily_activity_view_id" {
 
 variable "question_bank_schema" {
   description = "JSON schema for the question bank table."
+  type        = string
+}
+
+variable "user_access_schema" {
+  description = "JSON schema for the user access table."
   type        = string
 }
 

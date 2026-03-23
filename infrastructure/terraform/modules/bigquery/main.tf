@@ -31,6 +31,15 @@ resource "google_bigquery_table" "question_bank" {
   labels              = var.labels
 }
 
+resource "google_bigquery_table" "user_access" {
+  project             = var.project_id
+  dataset_id          = google_bigquery_dataset.core.dataset_id
+  table_id            = var.user_access_table_id
+  schema              = var.user_access_schema
+  deletion_protection = false
+  labels              = var.labels
+}
+
 resource "google_bigquery_table" "answers" {
   project             = var.project_id
   dataset_id          = google_bigquery_dataset.events.dataset_id

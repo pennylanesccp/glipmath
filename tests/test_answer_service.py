@@ -22,6 +22,7 @@ def test_build_answer_evaluation_marks_correct_answer() -> None:
         topic="aritmetica",
         difficulty="facil",
         source="seed",
+        cohort_key="ano_1",
     )
 
     evaluation = build_answer_evaluation(
@@ -43,6 +44,7 @@ def test_build_answer_evaluation_marks_correct_answer() -> None:
     assert evaluation.record.is_correct is True
     assert evaluation.record.correct_alternative_text == "4"
     assert evaluation.record.subject == "matematica"
+    assert evaluation.record.cohort_key == "ano_1"
     assert evaluation.correct_explanation == "Explicacao correta."
     assert evaluation.selected_explanation is None
 
@@ -90,6 +92,7 @@ def test_parse_answers_dataframe_reads_new_answer_schema() -> None:
                 "topic": "aritmetica",
                 "difficulty": "facil",
                 "source": "seed",
+                "cohort_key": "ano_1",
                 "app_version": "0.1.0",
             }
         ]
@@ -101,6 +104,7 @@ def test_parse_answers_dataframe_reads_new_answer_schema() -> None:
     assert answers[0].user_email == "ana@example.com"
     assert answers[0].selected_alternative_text == "3"
     assert answers[0].subject == "matematica"
+    assert answers[0].cohort_key == "ano_1"
 
 
 def test_append_answer_history_prepends_and_deduplicates() -> None:

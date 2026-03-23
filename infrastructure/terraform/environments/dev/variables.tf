@@ -52,6 +52,12 @@ variable "question_bank_table_id" {
   default     = "question_bank"
 }
 
+variable "user_access_table_id" {
+  description = "User access table ID."
+  type        = string
+  default     = "user_access"
+}
+
 variable "answers_table_id" {
   description = "Answers table ID."
   type        = string

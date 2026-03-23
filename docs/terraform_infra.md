@@ -39,6 +39,7 @@ Datasets:
 Tables:
 
 - `glipmath_core.question_bank`
+- `glipmath_core.user_access`
 - `glipmath_events.answers`
 
 Views:
@@ -61,6 +62,7 @@ The Streamlit runtime service account gets:
 These permissions cover:
 
 - reading questions
+- reading `user_access`
 - inserting answers
 - reading leaderboard analytics
 

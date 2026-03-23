@@ -48,6 +48,7 @@ class BigQuerySettings:
     events_dataset: str
     analytics_dataset: str
     question_bank_table: str
+    user_access_table: str
     answers_table: str
     leaderboard_view: str
     user_totals_view: str
@@ -62,6 +63,11 @@ class BigQuerySettings:
         """Return the fully qualified answers table identifier."""
 
         return f"{project_id}.{self.events_dataset}.{self.answers_table}"
+
+    def user_access_table_id(self, project_id: str) -> str:
+        """Return the fully qualified user-access table identifier."""
+
+        return f"{project_id}.{self.core_dataset}.{self.user_access_table}"
 
     def leaderboard_view_id(self, project_id: str) -> str:
         """Return the fully qualified leaderboard view identifier."""
@@ -177,6 +183,14 @@ def load_settings(
                     "question_bank_table",
                 )
                 or "question_bank"
+            ),
+            user_access_table=(
+                _env_or_section(
+                    "GLIPMATH_USER_ACCESS_TABLE",
+                    bigquery_section,
+                    "user_access_table",
+                )
+                or "user_access"
             ),
             answers_table=(
                 _env_or_section("GLIPMATH_ANSWERS_TABLE", bigquery_section, "answers_table")

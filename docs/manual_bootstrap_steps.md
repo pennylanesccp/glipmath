@@ -78,7 +78,18 @@ Populate:
 - optional Gemini config under `[ai]` if you want to run explanation enrichment
 - the service account JSON fields under `[gcp_service_account]`
 
-## 9. Prepare the Question Bank Input
+## 9. Populate User Access
+
+Insert one active row per authorized email into `glipmath_core.user_access`.
+
+Required shape:
+
+- students: `role = student` and one specific `cohort_key`
+- teachers: `role = teacher` and `cohort_key = all`
+
+The app resolves access from authenticated email to this table. Users do not choose cohort in the UI.
+
+## 10. Prepare the Question Bank Input
 
 Use:
 
@@ -88,11 +99,11 @@ Use:
 Validate and load:
 
 ```powershell
-python scripts/validate_question_bank.py --input-path data
-python scripts/load_question_bank_to_bigquery.py --input-path data
+python scripts/validate_question_bank.py --input-path data --cohort-key ano_1
+python scripts/load_question_bank_to_bigquery.py --input-path data --cohort-key ano_1
 ```
 
-The current raw CSV pipeline supports the vestibulinho flat-question format and converts it into the nested `question_bank` schema before load.
+The current raw CSV pipeline supports the vestibulinho flat-question format and converts it into the nested `question_bank` schema before load. Raw CSV rows and canonical JSONL rows may include optional `cohort_key`, and the CLI can stamp a full batch with `--cohort-key`.
 
 The load script skips invalid rows and writes a CSV report to `trash/question_bank_failed_rows.csv` by default. Override the report path with `--failed-rows-output` if needed.
 
@@ -111,13 +122,13 @@ python scripts/enrich_question_explanations.py --dry-run --limit 10
 python scripts/enrich_question_explanations.py --limit 50
 ```
 
-## 10. Configure Streamlit Community Cloud
+## 11. Configure Streamlit Community Cloud
 
 - connect the GitHub repository
 - set the app entrypoint to `app/streamlit_app.py`
 - paste the same secrets structure used locally into Streamlit Cloud secrets
 
-## 11. Deploy and Verify
+## 12. Deploy and Verify
 
 - deploy the Streamlit app
 - test Google login

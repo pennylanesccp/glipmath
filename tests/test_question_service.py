@@ -3,10 +3,10 @@ import random
 import pandas as pd
 import pytest
 
-from modules.domain.models import Question, QuestionAlternative, QuestionIndexEntry
+from modules.domain.models import Question, QuestionAlternative, QuestionIndexEntry, User
 from modules.services.question_service import (
-    build_subject_options,
     build_display_alternatives,
+    build_subject_options,
     filter_question_ids_by_subject,
     find_valid_question_bank_row_indexes,
     parse_question_bank_dataframe,
@@ -16,6 +16,7 @@ from modules.services.question_service import (
     select_next_question,
     select_next_question_id,
 )
+from modules.services.user_service import resolve_question_scope_for_user
 from modules.storage.schema_validation import WorksheetValidationError
 
 
@@ -67,6 +68,7 @@ def test_parse_question_bank_accepts_json_strings_for_nested_fields() -> None:
                 "correct_answer": '{"alternative_text": "3", "explanation": "5 menos 2 e 3."}',
                 "wrong_answers": '[{"alternative_text": "2", "explanation": "Subtraiu demais."}]',
                 "subject": "matematica",
+                "cohort_key": "Ano_1",
                 "is_active": "true",
             }
         ]
@@ -78,6 +80,7 @@ def test_parse_question_bank_accepts_json_strings_for_nested_fields() -> None:
     assert questions[0].correct_answer.alternative_text == "3"
     assert questions[0].wrong_answers[0].alternative_text == "2"
     assert questions[0].subject == "matematica"
+    assert questions[0].cohort_key == "ano_1"
 
 
 def test_parse_question_bank_raises_for_duplicate_ids() -> None:
@@ -168,8 +171,8 @@ def test_parse_question_id_dataframe_reads_integer_ids() -> None:
 def test_parse_question_index_dataframe_reads_subject_metadata() -> None:
     frame = pd.DataFrame(
         [
-            {"id_question": "10", "subject": "Matemática"},
-            {"id_question": 22, "subject": None},
+            {"id_question": "10", "subject": "Matematica", "cohort_key": "Ano_1"},
+            {"id_question": 22, "subject": None, "cohort_key": None},
         ]
     )
 
@@ -177,22 +180,44 @@ def test_parse_question_index_dataframe_reads_subject_metadata() -> None:
 
     assert issues == []
     assert entries == [
-        QuestionIndexEntry(id_question=10, subject="Matemática"),
-        QuestionIndexEntry(id_question=22, subject=None),
+        QuestionIndexEntry(id_question=10, subject="Matematica", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=22, subject=None, cohort_key=None),
     ]
 
 
 def test_subject_option_helpers_build_and_filter_active_ids() -> None:
     question_index = [
-        QuestionIndexEntry(id_question=1, subject="Matemática"),
-        QuestionIndexEntry(id_question=2, subject="Português"),
-        QuestionIndexEntry(id_question=3, subject="Matemática"),
-        QuestionIndexEntry(id_question=4, subject=None),
+        QuestionIndexEntry(id_question=1, subject="Matematica", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=2, subject="Portugues", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=3, subject="Matematica", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=4, subject=None, cohort_key="ano_1"),
     ]
 
-    assert build_subject_options(question_index) == ["Todas", "Matemática", "Português"]
+    assert build_subject_options(question_index) == ["Todas", "Matematica", "Portugues"]
     assert filter_question_ids_by_subject(question_index, None) == [1, 2, 3, 4]
-    assert filter_question_ids_by_subject(question_index, "Matemática") == [1, 3]
+    assert filter_question_ids_by_subject(question_index, "Matematica") == [1, 3]
+
+
+def test_subject_filter_still_works_after_cohort_scoping() -> None:
+    scoped_question_index = [
+        QuestionIndexEntry(id_question=11, subject="Matematica", cohort_key="ano_2"),
+        QuestionIndexEntry(id_question=12, subject="Portugues", cohort_key="ano_2"),
+        QuestionIndexEntry(id_question=13, subject="Matematica", cohort_key="ano_2"),
+    ]
+
+    assert filter_question_ids_by_subject(scoped_question_index, "Matematica") == [11, 13]
+
+
+def test_resolve_question_scope_for_student_returns_specific_cohort() -> None:
+    user = User(email="ana@example.com", role="student", cohort_key="ano_3")
+
+    assert resolve_question_scope_for_user(user) == "ano_3"
+
+
+def test_resolve_question_scope_for_teacher_returns_global_scope() -> None:
+    user = User(email="prof@example.com", role="teacher", cohort_key="all")
+
+    assert resolve_question_scope_for_user(user) is None
 
 
 def test_parse_single_question_dataframe_returns_single_question() -> None:
@@ -203,6 +228,7 @@ def test_parse_single_question_dataframe_returns_single_question() -> None:
                 "statement": "Quanto e 2 + 2?",
                 "correct_answer": {"alternative_text": "4", "explanation": None},
                 "wrong_answers": [{"alternative_text": "3", "explanation": None}],
+                "cohort_key": "ano_1",
                 "is_active": True,
             }
         ]
@@ -213,6 +239,7 @@ def test_parse_single_question_dataframe_returns_single_question() -> None:
     assert not issues
     assert question is not None
     assert question.id_question == 1
+    assert question.cohort_key == "ano_1"
 
 
 def test_find_valid_question_bank_row_indexes_skips_duplicate_and_malformed_rows() -> None:

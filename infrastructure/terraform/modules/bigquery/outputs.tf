@@ -18,6 +18,11 @@ output "question_bank_table_id" {
   value       = google_bigquery_table.question_bank.table_id
 }
 
+output "user_access_table_id" {
+  description = "User access table ID."
+  value       = google_bigquery_table.user_access.table_id
+}
+
 output "answers_table_id" {
   description = "Answers table ID."
   value       = google_bigquery_table.answers.table_id

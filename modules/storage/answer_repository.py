@@ -28,6 +28,7 @@ class AnswerRepository:
         "topic",
         "difficulty",
         "source",
+        "cohort_key",
         "app_version",
     )
 
@@ -36,11 +37,11 @@ class AnswerRepository:
         bigquery_client: BigQueryClient,
         *,
         answers_table_id: str,
-        leaderboard_view_id: str,
+        user_access_table_id: str,
     ) -> None:
         self._bigquery_client = bigquery_client
         self._answers_table_id = answers_table_id
-        self._leaderboard_view_id = leaderboard_view_id
+        self._user_access_table_id = user_access_table_id
 
     def load_user_frame(self, user_email: str) -> pd.DataFrame:
         """Load answer history for a single user email."""
@@ -66,20 +67,68 @@ class AnswerRepository:
             [self._filter_row_for_table_schema(row)],
         )
 
-    def load_leaderboard_frame(self) -> pd.DataFrame:
-        """Load the leaderboard view."""
+    def load_leaderboard_frame(self, *, role: str, cohort_key: str | None = None) -> pd.DataFrame:
+        """Load a global or cohort-scoped leaderboard directly from BigQuery."""
+
+        parameters: list[bigquery.ScalarQueryParameter] = []
+        cohort_filter = ""
+        if role == "student":
+            if not cohort_key:
+                raise ValueError("student leaderboard queries require cohort_key.")
+            parameters.append(
+                bigquery.ScalarQueryParameter("cohort_key", "STRING", cohort_key.lower())
+            )
+            cohort_filter = """
+              AND LOWER(TRIM(answers.cohort_key)) = @cohort_key
+              AND access.role = 'student'
+              AND access.cohort_key = @cohort_key
+            """
 
         query = f"""
+            WITH active_access AS (
+                SELECT
+                    LOWER(TRIM(user_email)) AS user_email,
+                    LOWER(TRIM(role)) AS role,
+                    LOWER(TRIM(cohort_key)) AS cohort_key,
+                    COALESCE(NULLIF(TRIM(display_name), ''), LOWER(TRIM(user_email))) AS display_name
+                FROM `{self._user_access_table_id}`
+                WHERE is_active = TRUE
+                  AND user_email IS NOT NULL
+                  AND TRIM(user_email) != ''
+                QUALIFY ROW_NUMBER() OVER (
+                    PARTITION BY LOWER(TRIM(user_email))
+                    ORDER BY updated_at_utc DESC NULLS LAST, created_at_utc DESC NULLS LAST
+                ) = 1
+            ),
+            aggregated_answers AS (
+                SELECT
+                    LOWER(TRIM(answers.user_email)) AS user_email,
+                    COUNT(*) AS total_answers,
+                    COUNTIF(answers.is_correct) AS total_correct
+                FROM `{self._answers_table_id}` AS answers
+                INNER JOIN active_access AS access
+                    ON access.user_email = LOWER(TRIM(answers.user_email))
+                WHERE answers.user_email IS NOT NULL
+                  AND TRIM(answers.user_email) != ''
+                  {cohort_filter}
+                GROUP BY LOWER(TRIM(answers.user_email))
+            )
             SELECT
-                rank,
-                user_email,
-                display_name,
-                total_correct,
-                total_answers
-            FROM `{self._leaderboard_view_id}`
+                ROW_NUMBER() OVER (
+                    ORDER BY aggregated_answers.total_correct DESC,
+                             aggregated_answers.total_answers DESC,
+                             aggregated_answers.user_email ASC
+                ) AS rank,
+                aggregated_answers.user_email,
+                access.display_name,
+                aggregated_answers.total_correct,
+                aggregated_answers.total_answers
+            FROM aggregated_answers
+            INNER JOIN active_access AS access
+                ON access.user_email = aggregated_answers.user_email
             ORDER BY rank
         """
-        return self._bigquery_client.query_to_dataframe(query)
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters or None)
 
     def _build_answers_select_columns(self) -> list[str]:
         available_columns = set(self._bigquery_client.get_table_column_names(self._answers_table_id))

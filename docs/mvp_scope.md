@@ -18,8 +18,8 @@
 
 ## Deliberately Simplified for MVP
 
-- beta access is controlled externally through Google OAuth app configuration and test users
-- one global leaderboard based on total correct answers
+- Google OAuth controls authentication and BigQuery `user_access` controls authorization
+- students get one cohort-scoped leaderboard and teachers keep the global leaderboard
 - one question at a time
 - no local persistence
 - no admin UI
@@ -30,7 +30,7 @@
 - Docker and Cloud Run deployment
 - Artifact Registry
 - Secret Manager runtime integration
-- in-app whitelist or role management
+- admin UI for managing `user_access` rows
 - classroom management
 - spaced repetition engine
 - authoring questions inside the app

@@ -38,12 +38,16 @@ Recommended metadata URL for Google:
 
 ## Beta Access Control
 
-The MVP does not use an internal whitelist table.
+The MVP now resolves authorization from BigQuery `glipmath_core.user_access`.
 
-Current beta access is controlled externally by the Google OAuth app configuration:
+The Google OAuth app still controls who can authenticate at all:
 
 - OAuth app publishing status
 - configured test users
 - any domain or consent-screen restrictions you choose to apply
 
-The app keeps a small authorization abstraction in code, but it currently accepts any authenticated email returned by the configured OAuth flow.
+After authentication, the app normalizes the email and looks up one active `user_access` row:
+
+- students need `role = student` and one specific `cohort_key`
+- teachers need `role = teacher` and `cohort_key = all`
+- if there is no active row, the app shows the not-authorized screen

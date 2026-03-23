@@ -23,6 +23,11 @@ output "question_bank_table_id" {
   value       = module.bigquery.question_bank_table_id
 }
 
+output "user_access_table_id" {
+  description = "User access table ID."
+  value       = module.bigquery.user_access_table_id
+}
+
 output "answers_table_id" {
   description = "Answers table ID."
   value       = module.bigquery.answers_table_id

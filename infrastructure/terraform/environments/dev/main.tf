@@ -42,11 +42,13 @@ module "bigquery" {
   events_dataset_id           = var.events_dataset_id
   analytics_dataset_id        = var.analytics_dataset_id
   question_bank_table_id      = var.question_bank_table_id
+  user_access_table_id        = var.user_access_table_id
   answers_table_id            = var.answers_table_id
   leaderboard_view_id         = var.leaderboard_view_id
   user_totals_view_id         = var.user_totals_view_id
   user_daily_activity_view_id = var.user_daily_activity_view_id
   question_bank_schema        = file("${path.module}/../../schemas/question_bank.json")
+  user_access_schema          = file("${path.module}/../../schemas/user_access.json")
   answers_schema              = file("${path.module}/../../schemas/answers.json")
   leaderboard_view_query = templatefile(
     "${path.module}/../../../../sql/views/v_leaderboard.sql",
@@ -58,8 +60,9 @@ module "bigquery" {
   user_totals_view_query = templatefile(
     "${path.module}/../../../../sql/views/v_user_totals.sql",
     {
-      project_id     = var.project_id
-      events_dataset = var.events_dataset_id
+      project_id      = var.project_id
+      core_dataset    = var.core_dataset_id
+      events_dataset  = var.events_dataset_id
     }
   )
   user_daily_activity_view_query = templatefile(

@@ -43,9 +43,11 @@ from modules.services.question_service import (
     select_next_question_id,
 )
 from modules.services.streak_service import compute_day_streak, compute_question_streak
+from modules.services.user_service import resolve_question_scope_for_user
 from modules.storage.answer_repository import AnswerRepository
 from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
+from modules.storage.user_access_repository import UserAccessRepository
 from modules.utils.logging_utils import configure_logging, get_logger
 
 
@@ -54,8 +56,10 @@ class RuntimeContext:
     """Runtime dependencies for the app entrypoint."""
 
     question_repository: QuestionRepository
+    user_access_repository: UserAccessRepository
     answer_repository: AnswerRepository
     answer_service: AnswerService
+    authorization_service: AuthorizationService
 
 
 def main() -> None:
@@ -87,20 +91,22 @@ def main() -> None:
         render_login_page(settings)
         return
 
-    authorized_user = AuthorizationService().authorize(
-        identity.email,
-        fallback_name=identity.name,
-    )
-    if authorized_user is None:
-        render_not_authorized_page(settings, identity.email)
-        return
-
     try:
         context = build_runtime_context(settings)
-        bind_authenticated_user(authorized_user.email)
+        authorized_user = context.authorization_service.authorize(
+            identity.email,
+            fallback_name=identity.name,
+        )
+        if authorized_user is None:
+            render_not_authorized_page(settings, identity.email)
+            return
+
+        bind_authenticated_user(authorized_user)
+        question_scope = resolve_question_scope_for_user(authorized_user)
         question_index, question_index_issues = load_active_question_index(
             context.question_repository,
             settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+            question_scope,
         )
         subject_options = build_subject_options(question_index)
 
@@ -113,20 +119,24 @@ def main() -> None:
 
         leaderboard_entries, leaderboard_issues = load_leaderboard_snapshot(
             context.answer_repository,
-            settings.bigquery.leaderboard_view_id(settings.gcp.project_id),
+            settings.bigquery.answers_table_id(settings.gcp.project_id),
+            settings.bigquery.user_access_table_id(settings.gcp.project_id),
+            role=authorized_user.role,
+            cohort_key=authorized_user.cohort_key if not authorized_user.is_teacher else None,
         )
         user_position = find_user_position(leaderboard_entries, authorized_user)
 
         current_question, current_alternatives, question_lookup_issues = resolve_current_question(
             question_repository=context.question_repository,
             question_table_id=settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+            cohort_key=question_scope,
             active_question_ids=filter_question_ids_by_subject(question_index, get_subject_filter()),
             answered_question_ids=get_answered_question_ids(authorized_user.email),
         )
     except BigQueryError as exc:
         logger.exception(
             "BigQuery-backed app startup failed for user_email=%s",
-            authorized_user.email,
+            identity.email,
         )
         st.title(settings.app_name)
         st.error(str(exc))
@@ -162,9 +172,10 @@ def build_runtime_context(settings: AppSettings) -> RuntimeContext:
 
     logger = get_logger(__name__)
     logger.debug(
-        "Building runtime context | project_id=%s | question_table=%s | answers_table=%s",
+        "Building runtime context | project_id=%s | question_table=%s | user_access_table=%s | answers_table=%s",
         settings.gcp.project_id,
         settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+        settings.bigquery.user_access_table_id(settings.gcp.project_id),
         settings.bigquery.answers_table_id(settings.gcp.project_id),
     )
     bigquery_client = BigQueryClient(
@@ -176,19 +187,25 @@ def build_runtime_context(settings: AppSettings) -> RuntimeContext:
         bigquery_client,
         settings.bigquery.question_bank_table_id(settings.gcp.project_id),
     )
+    user_access_repository = UserAccessRepository(
+        bigquery_client,
+        settings.bigquery.user_access_table_id(settings.gcp.project_id),
+    )
     answer_repository = AnswerRepository(
         bigquery_client,
         answers_table_id=settings.bigquery.answers_table_id(settings.gcp.project_id),
-        leaderboard_view_id=settings.bigquery.leaderboard_view_id(settings.gcp.project_id),
+        user_access_table_id=settings.bigquery.user_access_table_id(settings.gcp.project_id),
     )
     return RuntimeContext(
         question_repository=question_repository,
+        user_access_repository=user_access_repository,
         answer_repository=answer_repository,
         answer_service=AnswerService(
             answer_repository=answer_repository,
             timezone_name=settings.timezone,
             app_version=settings.app_version,
         ),
+        authorization_service=AuthorizationService(user_access_repository=user_access_repository),
     )
 
 
@@ -196,16 +213,18 @@ def build_runtime_context(settings: AppSettings) -> RuntimeContext:
 def load_active_question_index(
     _question_repository: QuestionRepository,
     question_table_id: str,
+    cohort_key: str | None,
 ) -> tuple[list[QuestionIndexEntry], list[str]]:
     """Load and cache the active-question index for the current table."""
 
     logger = get_logger(__name__)
     started_at = perf_counter()
-    question_index_frame = _question_repository.load_active_index_frame()
+    question_index_frame = _question_repository.load_active_index_frame(cohort_key=cohort_key)
     question_index, issues = parse_question_index_dataframe(question_index_frame)
     logger.debug(
-        "Loaded active question index | table_id=%s | count=%s | issues=%s | elapsed_ms=%.2f",
+        "Loaded active question index | table_id=%s | cohort_key=%s | count=%s | issues=%s | elapsed_ms=%.2f",
         question_table_id,
+        cohort_key,
         len(question_index),
         len(issues),
         (perf_counter() - started_at) * 1000,
@@ -218,17 +237,22 @@ def load_question_snapshot(
     _question_repository: QuestionRepository,
     question_table_id: str,
     id_question: int,
+    cohort_key: str | None,
 ) -> tuple[Question | None, list[str]]:
     """Load and cache one fully parsed question for display."""
 
     logger = get_logger(__name__)
     started_at = perf_counter()
-    question_frame = _question_repository.load_question_frame_by_id(id_question)
+    question_frame = _question_repository.load_question_frame_by_id(
+        id_question,
+        cohort_key=cohort_key,
+    )
     question, issues = parse_single_question_dataframe(question_frame)
     logger.debug(
-        "Loaded question snapshot | table_id=%s | id_question=%s | found=%s | issues=%s | elapsed_ms=%.2f",
+        "Loaded question snapshot | table_id=%s | id_question=%s | cohort_key=%s | found=%s | issues=%s | elapsed_ms=%.2f",
         question_table_id,
         id_question,
+        cohort_key,
         question is not None,
         len(issues),
         (perf_counter() - started_at) * 1000,
@@ -262,17 +286,24 @@ def load_user_answer_history(
 @st.cache_data(show_spinner=False, ttl=120)
 def load_leaderboard_snapshot(
     _answer_repository: AnswerRepository,
-    leaderboard_view_id: str,
+    answers_table_id: str,
+    user_access_table_id: str,
+    *,
+    role: str,
+    cohort_key: str | None,
 ) -> tuple[list[LeaderboardEntry], list[str]]:
-    """Load and cache the leaderboard analytics view."""
+    """Load and cache the effective leaderboard for the current user scope."""
 
     logger = get_logger(__name__)
     started_at = perf_counter()
-    leaderboard_frame = _answer_repository.load_leaderboard_frame()
+    leaderboard_frame = _answer_repository.load_leaderboard_frame(role=role, cohort_key=cohort_key)
     entries, issues = parse_leaderboard_dataframe(leaderboard_frame)
     logger.debug(
-        "Loaded leaderboard snapshot | view_id=%s | entries=%s | issues=%s | elapsed_ms=%.2f",
-        leaderboard_view_id,
+        "Loaded leaderboard snapshot | answers_table_id=%s | user_access_table_id=%s | role=%s | cohort_key=%s | entries=%s | issues=%s | elapsed_ms=%.2f",
+        answers_table_id,
+        user_access_table_id,
+        role,
+        cohort_key,
         len(entries),
         len(issues),
         (perf_counter() - started_at) * 1000,
@@ -300,6 +331,7 @@ def resolve_current_question(
     *,
     question_repository: QuestionRepository,
     question_table_id: str,
+    cohort_key: str | None,
     active_question_ids: list[int],
     answered_question_ids: set[int],
 ) -> tuple[Question | None, list[DisplayAlternative], list[str]]:
@@ -324,6 +356,7 @@ def resolve_current_question(
             question_repository,
             question_table_id,
             current_question_id,
+            cohort_key,
         )
         if current_question is not None and not current_issues:
             return current_question, current_alternatives, []
@@ -346,6 +379,7 @@ def resolve_current_question(
             question_repository,
             question_table_id,
             next_question_id,
+            cohort_key,
         )
         if next_question is not None and not current_issues:
             alternatives = build_display_alternatives(next_question)

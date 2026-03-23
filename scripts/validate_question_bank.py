@@ -10,6 +10,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from modules.services.question_bank_import_service import (
     QuestionImportFailure,
+    apply_cohort_key_override,
     format_question_import_failure,
     is_staged_question_root,
     load_question_bank_import_rows,
@@ -28,6 +29,11 @@ def main() -> None:
         default=Path("data"),
         help="Path to a question CSV, canonical JSONL, a plain directory, or a staged data root.",
     )
+    parser.add_argument(
+        "--cohort-key",
+        default=None,
+        help="Optional cohort_key applied to every imported question row before validation.",
+    )
     args = parser.parse_args()
 
     try:
@@ -39,17 +45,18 @@ def main() -> None:
         print(f"[ERROR] {exc}")
         raise SystemExit(1) from exc
 
+    scoped_imported_rows = apply_cohort_key_override(imported_rows, args.cohort_key)
     valid_indexes, validation_issues = find_valid_question_bank_row_indexes(
-        [item.row for item in imported_rows]
+        [item.row for item in scoped_imported_rows]
     )
     validation_failures = [
         QuestionImportFailure(
-            source_file=imported_rows[issue.row_index].source_file,
-            source_path=imported_rows[issue.row_index].source_path,
-            row_number=imported_rows[issue.row_index].row_number,
+            source_file=scoped_imported_rows[issue.row_index].source_file,
+            source_path=scoped_imported_rows[issue.row_index].source_path,
+            row_number=scoped_imported_rows[issue.row_index].row_number,
             error=issue.message,
-            raw_row=imported_rows[issue.row_index].raw_row or imported_rows[issue.row_index].row,
-            raw_line=imported_rows[issue.row_index].raw_line,
+            raw_row=scoped_imported_rows[issue.row_index].raw_row or scoped_imported_rows[issue.row_index].row,
+            raw_line=scoped_imported_rows[issue.row_index].raw_line,
         )
         for issue in validation_issues
     ]

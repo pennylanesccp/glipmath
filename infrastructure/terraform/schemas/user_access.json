@@ -1,0 +1,41 @@
+[
+  {
+    "name": "user_email",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Normalized authenticated email used for access lookup."
+  },
+  {
+    "name": "role",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "student or teacher."
+  },
+  {
+    "name": "cohort_key",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Single cohort for students or all for teachers."
+  },
+  {
+    "name": "is_active",
+    "type": "BOOL",
+    "mode": "REQUIRED",
+    "description": "Whether the access row currently authorizes login."
+  },
+  {
+    "name": "display_name",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "created_at_utc",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "updated_at_utc",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  }
+]

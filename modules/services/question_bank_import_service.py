@@ -4,7 +4,7 @@ import csv
 import hashlib
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -227,6 +227,7 @@ def build_question_row_from_vestibulinho_row(
     row: dict[str, object],
     *,
     default_source: str | None = None,
+    default_cohort_key: str | None = None,
 ) -> dict[str, Any]:
     """Convert one vestibulinho CSV row into the canonical nested BigQuery row shape."""
 
@@ -235,6 +236,9 @@ def build_question_row_from_vestibulinho_row(
     source = clean_optional_text(row.get("source")) or clean_optional_text(default_source)
     if not source:
         raise ValueError("source cannot be blank.")
+    cohort_key = _normalize_optional_cohort_key(row.get("cohort_key")) or _normalize_optional_cohort_key(
+        default_cohort_key
+    )
 
     answer_label = _parse_answer_label(row.get("answer"))
     alternatives = _extract_alternatives(row)
@@ -251,7 +255,11 @@ def build_question_row_from_vestibulinho_row(
     ]
 
     return {
-        "id_question": generate_question_id(source=source, question_number=question_number),
+        "id_question": generate_question_id(
+            source=source,
+            question_number=question_number,
+            cohort_key=cohort_key,
+        ),
         "statement": statement,
         "correct_answer": correct_alternative,
         "wrong_answers": wrong_alternatives,
@@ -259,19 +267,65 @@ def build_question_row_from_vestibulinho_row(
         "topic": clean_optional_text(row.get("topic")),
         "difficulty": clean_optional_text(row.get("difficulty")),
         "source": source,
+        "cohort_key": cohort_key,
         "is_active": coerce_bool(row.get("is_active"), default=True),
         "created_at_utc": clean_optional_text(row.get("created_at_utc")),
         "updated_at_utc": clean_optional_text(row.get("updated_at_utc")),
     }
 
 
-def generate_question_id(*, source: str, question_number: int) -> int:
+def generate_question_id(
+    *,
+    source: str,
+    question_number: int,
+    cohort_key: str | None = None,
+) -> int:
     """Generate a stable positive INT64-compatible question ID."""
 
     normalized_source = " ".join(source.strip().lower().split())
+    normalized_cohort_key = _normalize_optional_cohort_key(cohort_key)
     payload = f"{normalized_source}:{question_number}"
+    if normalized_cohort_key:
+        payload = f"{payload}:{normalized_cohort_key}"
     digest = hashlib.sha1(payload.encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big") & 0x7FFFFFFFFFFFFFFF
+
+
+def apply_cohort_key_override(
+    imported_rows: Sequence[ImportedQuestionRow],
+    cohort_key: str | None,
+) -> list[ImportedQuestionRow]:
+    """Apply one cohort key to every imported row, regenerating CSV-derived IDs when possible."""
+
+    normalized_cohort_key = _normalize_optional_cohort_key(cohort_key)
+    if normalized_cohort_key is None:
+        return list(imported_rows)
+
+    overridden_rows: list[ImportedQuestionRow] = []
+    for item in imported_rows:
+        row = dict(item.row)
+        row["cohort_key"] = normalized_cohort_key
+
+        question_number = _optional_positive_int((item.raw_row or {}).get("question_number"))
+        source = clean_optional_text(row.get("source"))
+        if question_number is not None and source:
+            row["id_question"] = generate_question_id(
+                source=source,
+                question_number=question_number,
+                cohort_key=normalized_cohort_key,
+            )
+
+        raw_row = dict(item.raw_row) if isinstance(item.raw_row, dict) else item.raw_row
+        raw_line = item.raw_line
+        if isinstance(raw_row, dict):
+            raw_row["cohort_key"] = normalized_cohort_key
+            if question_number is not None and source and "id_question" in raw_row:
+                raw_row["id_question"] = row["id_question"]
+            if item.source_path.suffix.lower() == ".jsonl":
+                raw_line = json.dumps(raw_row, ensure_ascii=False)
+
+        overridden_rows.append(replace(item, row=row, raw_row=raw_row, raw_line=raw_line))
+    return overridden_rows
 
 
 def _load_vestibulinho_csv_rows(
@@ -400,6 +454,21 @@ def _parse_answer_label(value: object) -> str:
     if normalized not in ALTERNATIVE_COLUMN_BY_LABEL:
         raise ValueError("answer must be one of A, B, C, D, or E.")
     return normalized
+
+
+def _normalize_optional_cohort_key(value: object) -> str | None:
+    cohort_key = clean_optional_text(value)
+    if not cohort_key:
+        return None
+    return cohort_key.lower()
+
+
+def _optional_positive_int(value: object) -> int | None:
+    text = clean_optional_text(value)
+    if not text:
+        return None
+    parsed = _parse_positive_int(text, "question_number")
+    return parsed
 
 
 def _stringify_csv_value(value: object) -> str:

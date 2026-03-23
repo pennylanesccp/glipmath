@@ -11,6 +11,7 @@ if str(REPO_ROOT) not in sys.path:
 from modules.services.question_bank_import_service import (
     QuestionImportFailure,
     StagedQuestionRoots,
+    apply_cohort_key_override,
     format_question_import_failure,
     load_question_bank_import_rows,
     load_staged_question_bank_import_rows,
@@ -52,6 +53,11 @@ def main() -> None:
             "trash/<input>_failed_rows.csv otherwise."
         ),
     )
+    parser.add_argument(
+        "--cohort-key",
+        default=None,
+        help="Optional cohort_key applied to every imported question row before validation/load.",
+    )
     args = parser.parse_args()
 
     try:
@@ -66,22 +72,23 @@ def main() -> None:
         print(f"[ERROR] {exc}")
         raise SystemExit(1) from exc
 
+    scoped_imported_rows = apply_cohort_key_override(imported_rows, args.cohort_key)
     valid_indexes, validation_issues = find_valid_question_bank_row_indexes(
-        [item.row for item in imported_rows]
+        [item.row for item in scoped_imported_rows]
     )
     validation_failures = [
         QuestionImportFailure(
-            source_file=imported_rows[issue.row_index].source_file,
-            source_path=imported_rows[issue.row_index].source_path,
-            row_number=imported_rows[issue.row_index].row_number,
+            source_file=scoped_imported_rows[issue.row_index].source_file,
+            source_path=scoped_imported_rows[issue.row_index].source_path,
+            row_number=scoped_imported_rows[issue.row_index].row_number,
             error=issue.message,
-            raw_row=imported_rows[issue.row_index].raw_row or imported_rows[issue.row_index].row,
-            raw_line=imported_rows[issue.row_index].raw_line,
+            raw_row=scoped_imported_rows[issue.row_index].raw_row or scoped_imported_rows[issue.row_index].row,
+            raw_line=scoped_imported_rows[issue.row_index].raw_line,
         )
         for issue in validation_issues
     ]
     failures = [*import_failures, *validation_failures]
-    valid_imported_rows = [imported_rows[index] for index in valid_indexes]
+    valid_imported_rows = [scoped_imported_rows[index] for index in valid_indexes]
     if failures:
         for failure in failures:
             print(f"[WARN] {format_question_import_failure(failure)}")

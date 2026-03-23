@@ -122,6 +122,7 @@ def parse_answers_dataframe(dataframe: pd.DataFrame) -> tuple[list[AnswerAttempt
                     topic=clean_optional_text(row.get("topic")),
                     difficulty=clean_optional_text(row.get("difficulty")),
                     source=clean_optional_text(row.get("source")),
+                    cohort_key=clean_optional_text(row.get("cohort_key")),
                     app_version=clean_optional_text(row.get("app_version")),
                 )
             )
@@ -164,6 +165,7 @@ def build_answer_evaluation(
         topic=question.topic,
         difficulty=question.difficulty,
         source=question.source,
+        cohort_key=question.cohort_key,
         app_version=app_version,
     )
     return AnswerEvaluation(

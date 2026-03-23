@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from app.state import session_state
-from modules.domain.models import DisplayAlternative, Question, QuestionAlternative
+from modules.domain.models import DisplayAlternative, Question, QuestionAlternative, User
 
 
 def test_current_question_snapshot_round_trips_through_session_state(monkeypatch) -> None:
@@ -56,3 +56,18 @@ def test_clear_current_question_clears_question_snapshot(monkeypatch) -> None:
 
     assert session_state.get_current_question() is None
     assert session_state.get_current_alternatives() == []
+
+
+def test_bind_authenticated_user_resets_when_scope_changes(monkeypatch) -> None:
+    monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
+
+    first_user = User(email="ana@example.com", role="student", cohort_key="ano_1")
+    second_user = User(email="ana@example.com", role="student", cohort_key="ano_2")
+
+    session_state.bind_authenticated_user(first_user)
+    session_state.set_subject_filter("Matematica")
+
+    session_state.bind_authenticated_user(second_user)
+
+    assert session_state.get_subject_filter_label() == "Todas"
+    assert session_state.get_current_question() is None

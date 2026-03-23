@@ -133,6 +133,7 @@ def test_resolve_current_question_reuses_loaded_snapshot(monkeypatch) -> None:
             )
         ),
         question_table_id="project.dataset.question_bank",
+        cohort_key="ano_1",
         active_question_ids=[7],
         answered_question_ids=set(),
     )

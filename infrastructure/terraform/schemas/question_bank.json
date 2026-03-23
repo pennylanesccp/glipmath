@@ -68,6 +68,12 @@
     "mode": "NULLABLE"
   },
   {
+    "name": "cohort_key",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Project or cohort that owns the question."
+  },
+  {
     "name": "is_active",
     "type": "BOOL",
     "mode": "REQUIRED"

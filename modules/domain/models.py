@@ -36,6 +36,7 @@ class Question:
     topic: str | None = None
     difficulty: str | None = None
     source: str | None = None
+    cohort_key: str | None = None
     created_at_utc: datetime | None = None
     updated_at_utc: datetime | None = None
 
@@ -46,6 +47,7 @@ class QuestionIndexEntry:
 
     id_question: int
     subject: str | None = None
+    cohort_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,16 +60,37 @@ class AuthIdentity:
 
 @dataclass(frozen=True, slots=True)
 class User:
-    """Authenticated app user for the current MVP."""
+    """Authenticated app user resolved from BigQuery access policy."""
 
     email: str
     name: str | None = None
+    role: str = "student"
+    cohort_key: str = "all"
 
     @property
     def display_name(self) -> str:
         """Return the preferred display name for the UI."""
 
         return self.name or self.email
+
+    @property
+    def is_teacher(self) -> bool:
+        """Return whether the current user can access all cohorts."""
+
+        return self.role == "teacher"
+
+
+@dataclass(frozen=True, slots=True)
+class UserAccessEntry:
+    """Active access-scope row loaded from BigQuery."""
+
+    user_email: str
+    role: str
+    cohort_key: str
+    is_active: bool
+    display_name: str | None = None
+    created_at_utc: datetime | None = None
+    updated_at_utc: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +111,7 @@ class AnswerAttempt:
     topic: str | None = None
     difficulty: str | None = None
     source: str | None = None
+    cohort_key: str | None = None
     app_version: str | None = None
 
     def to_bigquery_row(self) -> dict[str, object]:
@@ -108,6 +132,7 @@ class AnswerAttempt:
             "topic": self.topic,
             "difficulty": self.difficulty,
             "source": self.source,
+            "cohort_key": self.cohort_key,
             "app_version": self.app_version,
         }
 

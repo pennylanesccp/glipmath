@@ -106,6 +106,7 @@ def parse_question_index_dataframe(
                 QuestionIndexEntry(
                     id_question=_parse_required_int(row.get("id_question"), "id_question"),
                     subject=clean_optional_text(row.get("subject")),
+                    cohort_key=_parse_optional_cohort_key(row.get("cohort_key")),
                 )
             )
         except ValueError as exc:
@@ -323,6 +324,7 @@ def _parse_question_row(row: dict[str, object]) -> Question | None:
         topic=clean_optional_text(row.get("topic")),
         difficulty=clean_optional_text(row.get("difficulty")),
         source=clean_optional_text(row.get("source")),
+        cohort_key=_parse_optional_cohort_key(row.get("cohort_key")),
         created_at_utc=parse_timestamp(row.get("created_at_utc")),
         updated_at_utc=parse_timestamp(row.get("updated_at_utc")),
     )
@@ -395,6 +397,13 @@ def _parse_required_text(value: object, field_name: str) -> str:
     if not text:
         raise ValueError(f"{field_name} cannot be blank.")
     return text
+
+
+def _parse_optional_cohort_key(value: object) -> str | None:
+    cohort_key = clean_optional_text(value)
+    if not cohort_key:
+        return None
+    return cohort_key.lower()
 
 
 def _find_duplicate_id_by_index(dataframe: pd.DataFrame) -> dict[int, int]:

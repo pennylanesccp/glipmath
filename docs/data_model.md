@@ -20,6 +20,7 @@
 - `topic STRING NULLABLE`
 - `difficulty STRING NULLABLE`
 - `source STRING NULLABLE`
+- `cohort_key STRING NULLABLE`
 - `is_active BOOL REQUIRED`
 - `created_at_utc TIMESTAMP NULLABLE`
 - `updated_at_utc TIMESTAMP NULLABLE`
@@ -39,6 +40,34 @@ Why nested?
 - the app can randomize answer order at runtime
 - explanations can live beside each alternative
 - `subject` lets the same bank hold math and non-math content cleanly
+- `cohort_key` lets the repository enforce project/class/year access before subject filtering
+
+`cohort_key` examples:
+
+- `etec`
+- `enem`
+- `ano_1`
+- `ano_2`
+- `ano_3`
+
+## `glipmath_core.user_access`
+
+- `user_email STRING REQUIRED`
+- `role STRING REQUIRED`
+- `cohort_key STRING REQUIRED`
+- `is_active BOOL REQUIRED`
+- `display_name STRING NULLABLE`
+- `created_at_utc TIMESTAMP NULLABLE`
+- `updated_at_utc TIMESTAMP NULLABLE`
+
+Rules:
+
+- `user_email` is the normalized identity key used by the app
+- `role` is explicit and must be `student` or `teacher`
+- students must have exactly one cohort, for example `ano_2`
+- teachers must use `cohort_key = all`
+- if there is no active row for the authenticated email, the user is not authorized
+- the learner never chooses cohort manually in the UI
 
 ## `glipmath_events.answers`
 
@@ -56,6 +85,7 @@ Why nested?
 - `topic STRING NULLABLE`
 - `difficulty STRING NULLABLE`
 - `source STRING NULLABLE`
+- `cohort_key STRING NULLABLE`
 - `app_version STRING NULLABLE`
 
 Usage notes:
@@ -64,6 +94,7 @@ Usage notes:
 - every answer submission inserts one row
 - `answered_at_local` is stored as BigQuery `DATETIME`
 - user identity is the normalized email for the MVP
+- `cohort_key` stores the effective question cohort at submission time for future analytics and ranking
 
 The Terraform table definition partitions `answers` by `answered_at_utc` and clusters by `user_email` and `id_question`.
 
@@ -77,10 +108,11 @@ Definitions:
 
 - `v_user_totals`
   - aggregates `total_answers` and `total_correct` by normalized `user_email`
+  - projects display name and access metadata from `user_access` when available
 - `v_user_daily_activity`
   - aggregates per-user daily answer counts from `answered_at_local`
 - `v_leaderboard`
-  - ranks by:
+  - remains a global leaderboard view and ranks by:
     1. `total_correct DESC`
     2. `total_answers DESC`
     3. `user_email ASC`
@@ -93,8 +125,9 @@ Definitions:
 - Question streak
   - consecutive correct answers when scanning the current user history in reverse chronological order
 - Leaderboard position
-  - rank in `v_leaderboard`
-  - users with zero answers do not yet appear in the leaderboard view
+  - students see repository-query ranking only against active students in the same `cohort_key`
+  - teachers see the global ranking
+  - users with zero answers do not yet appear in the leaderboard result
 
 ## Input Formats
 
@@ -109,14 +142,16 @@ Supported raw import input:
   - `statement`
   - `question_a` to `question_e`
   - `subject` optional
+  - `cohort_key` optional
   - `source`
   - `answer`
 
 The import pipeline converts the raw CSV rows into the nested BigQuery schema before validation and load.
 
-For this raw CSV path, `id_question` is generated deterministically from `source` plus `question_number`.
+For this raw CSV path, `id_question` is generated deterministically from `source`, `question_number`, and `cohort_key` when cohort scope is present. The loader CLI also accepts `--cohort-key` to stamp a whole batch without editing every row.
 
 Version-controlled schema files:
 
 - `infrastructure/terraform/schemas/question_bank.json`
+- `infrastructure/terraform/schemas/user_access.json`
 - `infrastructure/terraform/schemas/answers.json`

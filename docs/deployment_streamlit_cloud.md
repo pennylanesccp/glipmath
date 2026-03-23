@@ -10,6 +10,7 @@ The primary deployment target for the MVP is Streamlit Community Cloud.
 - the runtime service account exists and you have created a JSON key for it manually
 - Google OAuth is configured with the Streamlit Cloud redirect URI
 - the question bank has been loaded into BigQuery
+- `glipmath_core.user_access` has active rows for the users who should be allowed in
 
 ## Streamlit Community Cloud Steps
 
@@ -43,3 +44,4 @@ The secrets structure should match `.streamlit/secrets.toml.example`:
 - one question renders with randomized alternatives
 - submitting an answer writes one row to `glipmath_events.answers`
 - day streak, question streak, and leaderboard position render without errors
+- cohort-scoped users only see their own question cohort

@@ -29,11 +29,11 @@ GlipMath is a small but production-minded Streamlit application deployed on Stre
 1. The user lands on the login page.
 2. `st.login()` starts Google OIDC.
 3. Streamlit exposes the authenticated identity in `st.user`.
-4. The app normalizes the email and creates a lightweight current user object.
+4. The app normalizes the email and resolves one active row from `glipmath_core.user_access`.
 5. Repositories load:
-   - active questions from `glipmath_core.question_bank`
+   - active questions from `glipmath_core.question_bank`, scoped by the user's role and `cohort_key`
    - current user answer history from `glipmath_events.answers`
-   - leaderboard rows from `glipmath_analytics.v_leaderboard`
+   - leaderboard rows from repository queries that are cohort-aware for students and global for teachers
 6. Services compute:
    - the next question
    - randomized display alternatives
@@ -73,11 +73,12 @@ This keeps the storage model simple while allowing per-render answer randomizati
 ## Authentication and Authorization
 
 - Authentication is Google OIDC through Streamlit auth.
-- Authorization is intentionally lightweight in the MVP.
-- Beta access is controlled outside the app through Google OAuth app configuration and test users.
-- There is no BigQuery whitelist dependency in the current version.
+- Authorization is resolved from BigQuery `glipmath_core.user_access`.
+- Users do not choose cohort manually in the UI.
+- Students have `role = student` and exactly one cohort.
+- Teachers have `role = teacher` and `cohort_key = all`.
 
-The authorization service remains as a boundary so internal allowlists or role checks can be added later without pushing business rules into the page code.
+The authorization service remains as a boundary so the page layer still does not own access policy or BigQuery details.
 
 ## Data Access Rules
 
