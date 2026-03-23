@@ -5,6 +5,7 @@ import re
 from typing import Literal
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from app.ui.question_session import render_question_session_template, text_to_html
 from app.ui.template_renderer import asset_to_data_uri, render_template
@@ -163,6 +164,7 @@ def main() -> None:
         layout="centered",
         initial_sidebar_state="collapsed",
     )
+    _apply_preview_shell()
     st.title("Preview das paginas HTML")
     st.caption("Os links, formularios e botoes abaixo foram neutralizados de proposito.")
 
@@ -178,6 +180,7 @@ def main() -> None:
         html = build_login_preview_html(
             button_disabled=button_disabled,
         )
+        preview_height = 760
     else:
         scenario = st.selectbox(
             "Cenario",
@@ -189,8 +192,56 @@ def main() -> None:
             scenario=scenario,
             subject_menu_open=subject_menu_open,
         )
+        preview_height = 1080
 
-    st.markdown(html, unsafe_allow_html=True)
+    components.html(html, height=preview_height, scrolling=True)
+
+
+def _apply_preview_shell() -> None:
+    st.markdown(
+        """
+        <style>
+        [data-testid="stAppViewContainer"] {
+            background:
+                radial-gradient(circle at top, rgba(79, 70, 229, 0.16), transparent 28%),
+                linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+        }
+
+        .stApp,
+        .stApp label,
+        .stApp span,
+        .stApp div {
+            color: #0f172a;
+        }
+
+        .stApp h1 {
+            color: #312e81;
+        }
+
+        .stApp p {
+            color: #475569;
+        }
+
+        [data-testid="stMarkdownContainer"] p {
+            color: #475569;
+        }
+
+        [data-baseweb="radio"] label,
+        [data-baseweb="checkbox"] label,
+        [data-baseweb="select"] * {
+            color: #0f172a !important;
+        }
+
+        [data-baseweb="select"] > div,
+        [data-baseweb="radio"] > div,
+        [data-baseweb="checkbox"] > div {
+            background: rgba(255, 255, 255, 0.88);
+            border-radius: 16px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":

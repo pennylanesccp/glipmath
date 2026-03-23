@@ -11,7 +11,7 @@ def test_render_template_escapes_plain_text_placeholders() -> None:
             "PODIUM_ICON_DATA_URI": "data:image/svg+xml;base64,xyz",
             "STREAK_TEXT": "1d / 2x",
             "RANK_TEXT": "#1 / 1",
-            "TIMER_IFRAME_SRCDOC": "<html></html>",
+            "TIMER_HTML": raw_html("<div class='gm-inline-timer-chip'>00:10</div>"),
             "LOGOUT_HREF": "?action=logout",
             "QUESTION_STATEMENT_HTML": raw_html("2 &lt; 3"),
             "ALTERNATIVES_HTML": raw_html("<div class='gm-option'>A</div>"),

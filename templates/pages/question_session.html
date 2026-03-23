@@ -167,12 +167,44 @@
     }
 
     .gm-inline-timer-frame {
-        background: transparent;
-        border: 0;
-        display: block;
+        display: inline-flex;
+    }
+
+    .gm-inline-timer-chip {
+        align-items: center;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        box-sizing: border-box;
+        color: #2563eb;
+        display: inline-flex;
+        gap: 8px;
         height: 36px;
-        overflow: hidden;
+        justify-content: center;
+        min-width: 108px;
+        padding: 0 12px;
+        white-space: nowrap;
         width: 108px;
+    }
+
+    .gm-inline-timer-icon {
+        display: block;
+        flex: 0 0 auto;
+        height: 16px;
+        width: 16px;
+    }
+
+    .gm-inline-timer-value {
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .gm-inline-timer-pulse {
+        background: currentColor;
+        border-radius: 999px;
+        display: block;
+        height: 8px;
+        width: 8px;
     }
 
     .gm-logout-link,
@@ -504,13 +536,9 @@
                 <span>{{RANK_TEXT}}</span>
             </div>
 
-            <iframe
-                class="gm-inline-timer-frame"
-                srcdoc="{{TIMER_IFRAME_SRCDOC}}"
-                scrolling="no"
-                sandbox="allow-scripts"
-                title="Cronometro"
-            ></iframe>
+            <div class="gm-inline-timer-frame">
+                {{TIMER_HTML}}
+            </div>
         </div>
 
         <a

@@ -5,7 +5,7 @@ def test_login_preview_is_static_and_uses_portuguese_copy() -> None:
     html = build_login_preview_html(button_disabled=True)
 
     assert 'href="#preview-static"' in html
-    assert 'action="#preview-static"' in html
+    assert "<form" not in html
     assert "Continuar com Google" in html
     assert "Continue with Google" not in html
 

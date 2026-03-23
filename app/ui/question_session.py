@@ -57,9 +57,11 @@ def render_question_session_template(
             "PODIUM_ICON_DATA_URI": _load_icon_or_fallback(PODIUM_ICON_RELATIVE_PATH, "podium"),
             "STREAK_TEXT": streak_text,
             "RANK_TEXT": rank_text,
-            "TIMER_IFRAME_SRCDOC": _build_timer_srcdoc(
-                elapsed_seconds=timer_elapsed_seconds,
-                is_running=timer_running,
+            "TIMER_HTML": raw_html(
+                _build_timer_html(
+                    elapsed_seconds=timer_elapsed_seconds,
+                    is_running=timer_running,
+                )
             ),
             "LOGOUT_HREF": logout_href,
             "QUESTION_STATEMENT_HTML": raw_html(question_statement_html),
@@ -236,91 +238,27 @@ def _resolve_option_class(
     return "gm-option gm-option--neutral"
 
 
-def _build_timer_srcdoc(
+def _build_timer_html(
     *,
     elapsed_seconds: int,
     is_running: bool,
 ) -> str:
     initial_text = format_elapsed_time(elapsed_seconds)
-    return f"""
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="utf-8" />
-        <style>
-            html, body {{
-                margin: 0;
-                padding: 0;
-                background: transparent;
-                overflow: hidden;
-            }}
+    pulse_html = ""
+    if is_running:
+        pulse_html = '<span class="gm-inline-timer-pulse" aria-hidden="true"></span>'
 
-            .gm-timer-chip {{
-                align-items: center;
-                background: #eff6ff;
-                border: 1px solid #bfdbfe;
-                border-radius: 999px;
-                box-sizing: border-box;
-                color: #2563eb;
-                display: inline-flex;
-                font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-                font-size: 13px;
-                font-weight: 800;
-                gap: 8px;
-                height: 36px;
-                justify-content: center;
-                min-width: 108px;
-                padding: 0 12px;
-                white-space: nowrap;
-                width: 108px;
-            }}
-
-            .gm-timer-icon {{
-                display: block;
-                flex: 0 0 auto;
-                height: 16px;
-                width: 16px;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="gm-timer-chip">
-            <svg class="gm-timer-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 8V12L14.8 14.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path>
-                <path d="M9 3H15" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"></path>
-                <path d="M12 5C7.58 5 4 8.58 4 13C4 17.42 7.58 21 12 21C16.42 21 20 17.42 20 13C20 8.58 16.42 5 12 5Z" stroke="currentColor" stroke-width="2.1"></path>
-            </svg>
-            <span id="gm-timer-value">{initial_text}</span>
-        </div>
-        <script>
-            const timerElement = document.getElementById("gm-timer-value");
-            let elapsed = {max(int(elapsed_seconds), 0)};
-            const isRunning = {str(is_running).lower()};
-
-            function formatElapsed(totalSeconds) {{
-                const safeSeconds = Math.max(totalSeconds, 0);
-                const seconds = safeSeconds % 60;
-                const totalMinutes = Math.floor(safeSeconds / 60);
-                const minutes = totalMinutes % 60;
-                const hours = Math.floor(totalMinutes / 60);
-
-                if (hours > 0) {{
-                    return `${{hours}}:${{String(minutes).padStart(2, "0")}}:${{String(seconds).padStart(2, "0")}}`;
-                }}
-
-                return `${{String(minutes).padStart(2, "0")}}:${{String(seconds).padStart(2, "0")}}`;
-            }}
-
-            if (isRunning) {{
-                window.setInterval(() => {{
-                    elapsed += 1;
-                    timerElement.textContent = formatElapsed(elapsed);
-                }}, 1000);
-            }}
-        </script>
-    </body>
-    </html>
-    """.strip()
+    return (
+        '<div class="gm-inline-timer-chip" aria-label="Cronometro">'
+        f"{pulse_html}"
+        '<svg class="gm-inline-timer-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+        '<path d="M12 8V12L14.8 14.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path>'
+        '<path d="M9 3H15" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"></path>'
+        '<path d="M12 5C7.58 5 4 8.58 4 13C4 17.42 7.58 21 12 21C16.42 21 20 17.42 20 13C20 8.58 16.42 5 12 5Z" stroke="currentColor" stroke-width="2.1"></path>'
+        "</svg>"
+        f'<span class="gm-inline-timer-value">{initial_text}</span>'
+        "</div>"
+    )
 
 
 def _load_icon_or_fallback(relative_path: str, icon_name: str) -> str:
