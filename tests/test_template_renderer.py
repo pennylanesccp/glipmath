@@ -41,3 +41,5 @@ def test_render_template_preserves_raw_html_fragments() -> None:
     )
 
     assert 'class="gsi-material-button is-disabled"' in html
+    assert "Continuar com Google" in html
+    assert "Continue with Google" not in html
