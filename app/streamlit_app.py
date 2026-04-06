@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    # Streamlit Community Cloud runs the entrypoint by file path, so ensure the repo
+    # root is importable before loading app/modules packages.
+    sys.path.insert(0, str(REPO_ROOT))
 
 import streamlit as st
 
@@ -65,7 +72,7 @@ class RuntimeContext:
 def main() -> None:
     """Streamlit entrypoint."""
 
-    base_dir = Path(__file__).resolve().parents[1]
+    base_dir = REPO_ROOT
     st.set_page_config(
         page_title="GlipMath",
         layout="centered",

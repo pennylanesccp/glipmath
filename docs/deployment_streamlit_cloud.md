@@ -33,6 +33,7 @@ The secrets structure should match `.streamlit/secrets.toml.example`:
 ## Runtime Notes
 
 - the app starts with the normal Streamlit entrypoint
+- `app/streamlit_app.py` bootstraps the repository root on `sys.path` so absolute imports like `app.*` and `modules.*` work in Streamlit Community Cloud
 - no container startup script is required
 - no local filesystem persistence is used
 - BigQuery access uses the service account JSON stored in Streamlit secrets
