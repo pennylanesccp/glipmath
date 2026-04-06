@@ -18,6 +18,7 @@ def render_login_page(settings: AppSettings) -> None:
         "pages/auth_login.html",
         {
             "LOGO_DATA_URI": asset_to_data_uri("assets/brand/ide-logo.png"),
+            "GOOGLE_ICON_DATA_URI": asset_to_data_uri("assets/icons/google-g-logo.svg"),
             "GOOGLE_BUTTON_HREF": _build_login_href(action="login"),
             "GOOGLE_BUTTON_CLASS": "" if settings.auth.is_configured else " is-disabled",
         },
