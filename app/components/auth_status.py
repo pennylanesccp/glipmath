@@ -8,7 +8,29 @@ def render_auth_setup_warning() -> None:
 
     st.warning(
         "A autenticacao Google ainda nao esta configurada. "
-        "Preencha `.streamlit/secrets.toml` localmente ou configure os mesmos segredos no Streamlit Community Cloud."
+        "Preencha `.streamlit/secrets.toml` localmente ou configure as mesmas secoes de segredos no Streamlit Community Cloud."
+    )
+
+
+def render_auth_redirect_warning(
+    *,
+    current_redirect_uri: str | None,
+    expected_redirect_uri: str | None,
+) -> None:
+    """Render a warning when the deployed app points OAuth back to the wrong host."""
+
+    st.error("O login Google esta apontando para um callback diferente da URL publicada do app.")
+    st.write(
+        "No Streamlit Community Cloud, `auth.redirect_uri` precisa usar o dominio atual do app "
+        "e terminar com `/oauth2callback`."
+    )
+    if current_redirect_uri:
+        st.caption(f"redirect_uri atual: {current_redirect_uri}")
+    if expected_redirect_uri:
+        st.caption(f"redirect_uri esperado aqui: {expected_redirect_uri}")
+    st.write(
+        "Atualize esse valor nos segredos do Streamlit Cloud e confirme a mesma URL em "
+        "`Authorized redirect URIs` no cliente OAuth do Google."
     )
 
 

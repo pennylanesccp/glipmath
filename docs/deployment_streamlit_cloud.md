@@ -19,6 +19,8 @@ The primary deployment target for the MVP is Streamlit Community Cloud.
 3. Point the app to `app/streamlit_app.py`.
 4. Set Python version compatibility if needed through the repo metadata.
 5. Paste the secrets payload into the Streamlit Cloud secrets editor.
+6. Set `auth.redirect_uri` to the deployed hostname callback, for example `https://glipmath.streamlit.app/oauth2callback`, instead of the local `localhost` value.
+7. Confirm the same published callback URL is registered in the Google OAuth client's `Authorized redirect URIs`.
 
 ## Secrets Structure
 
@@ -29,6 +31,11 @@ The secrets structure should match `.streamlit/secrets.toml.example`:
 - `[bigquery]`
 - `[auth]`
 - `[gcp_service_account]`
+
+The values are not identical across environments:
+
+- local development should keep `auth.redirect_uri = http://localhost:8501/oauth2callback`
+- Streamlit Community Cloud must use the deployed app URL, for example `https://glipmath.streamlit.app/oauth2callback`
 
 ## Runtime Notes
 

@@ -5,6 +5,25 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
+from urllib.parse import urlparse, urlunparse
+
+
+LOCAL_URL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+@dataclass(frozen=True, slots=True)
+class AuthRedirectRuntimeStatus:
+    """Runtime validation result for the configured OAuth redirect URI."""
+
+    current_redirect_uri: str | None
+    expected_redirect_uri: str | None
+    issue_code: str | None
+
+    @property
+    def is_valid(self) -> bool:
+        """Return whether the configured redirect URI is safe for the current runtime URL."""
+
+        return self.issue_code is None
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +48,61 @@ class AuthSettings:
                 self.client_secret,
                 self.server_metadata_url,
             ]
+        )
+
+    @property
+    def is_local_redirect_uri(self) -> bool:
+        """Return whether the configured redirect URI points to a local host."""
+
+        return _is_local_url(self.redirect_uri)
+
+    def expected_redirect_uri(self, app_url: str | None) -> str | None:
+        """Build the callback URL that matches the current app origin."""
+
+        parsed_app_url = _parsed_url_or_none(app_url)
+        if parsed_app_url is None:
+            return None
+
+        return urlunparse(
+            (
+                parsed_app_url.scheme.lower(),
+                parsed_app_url.netloc.lower(),
+                "/oauth2callback",
+                "",
+                "",
+                "",
+            )
+        )
+
+    def runtime_redirect_status(self, app_url: str | None) -> AuthRedirectRuntimeStatus:
+        """Validate the configured redirect URI against the current app URL when available."""
+
+        expected_redirect_uri = self.expected_redirect_uri(app_url)
+        if not self.is_configured or expected_redirect_uri is None or _is_local_url(app_url):
+            return AuthRedirectRuntimeStatus(
+                current_redirect_uri=self.redirect_uri,
+                expected_redirect_uri=expected_redirect_uri,
+                issue_code=None,
+            )
+
+        if self.is_local_redirect_uri:
+            return AuthRedirectRuntimeStatus(
+                current_redirect_uri=self.redirect_uri,
+                expected_redirect_uri=expected_redirect_uri,
+                issue_code="localhost_redirect",
+            )
+
+        if not _urls_match(self.redirect_uri, expected_redirect_uri):
+            return AuthRedirectRuntimeStatus(
+                current_redirect_uri=self.redirect_uri,
+                expected_redirect_uri=expected_redirect_uri,
+                issue_code="app_url_mismatch",
+            )
+
+        return AuthRedirectRuntimeStatus(
+            current_redirect_uri=self.redirect_uri,
+            expected_redirect_uri=expected_redirect_uri,
+            issue_code=None,
         )
 
 
@@ -332,3 +406,50 @@ def _service_account_info_or_none(
 
 def _looks_like_placeholder(value: str) -> bool:
     return "REPLACE_WITH_" in value or "YOUR_" in value
+
+
+def _parsed_url_or_none(value: str | None):
+    text = _string_or_none(value)
+    if not text:
+        return None
+
+    parsed = urlparse(text)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return parsed
+
+
+def _is_local_url(value: str | None) -> bool:
+    parsed = _parsed_url_or_none(value)
+    if parsed is None:
+        return False
+
+    hostname = (parsed.hostname or "").strip().lower()
+    return hostname in LOCAL_URL_HOSTS
+
+
+def _normalize_url(value: str | None) -> str | None:
+    parsed = _parsed_url_or_none(value)
+    if parsed is None:
+        return None
+
+    path = parsed.path or "/"
+    if path != "/":
+        path = path.rstrip("/")
+
+    return urlunparse(
+        (
+            parsed.scheme.lower(),
+            parsed.netloc.lower(),
+            path,
+            "",
+            "",
+            "",
+        )
+    )
+
+
+def _urls_match(left: str | None, right: str | None) -> bool:
+    normalized_left = _normalize_url(left)
+    normalized_right = _normalize_url(right)
+    return normalized_left is not None and normalized_left == normalized_right

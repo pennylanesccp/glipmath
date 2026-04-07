@@ -7,6 +7,11 @@ def test_render_login_page_uses_streamlit_html(monkeypatch) -> None:
     html_calls: list[str] = []
 
     monkeypatch.setattr(login_page, "_consume_login_actions", lambda settings: None)
+    monkeypatch.setattr(
+        login_page,
+        "_get_auth_redirect_runtime_status",
+        lambda settings: SimpleNamespace(is_valid=True),
+    )
     monkeypatch.setattr(login_page, "asset_to_data_uri", lambda relative_path: "data:image/png;base64,abc")
     monkeypatch.setattr(login_page, "render_template", lambda template_path, context: "<section>login</section>")
     monkeypatch.setattr(login_page.st, "html", lambda html: html_calls.append(html))

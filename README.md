@@ -154,9 +154,10 @@ The production path is Streamlit Community Cloud.
 1. Push the repository to GitHub.
 2. Create the app in Streamlit Community Cloud.
 3. Set the entrypoint to `app/streamlit_app.py`.
-4. Paste the same secrets structure used locally into the Streamlit Cloud secrets editor.
-5. Ensure the OAuth redirect URI for the Streamlit Cloud hostname is registered in Google OAuth.
-6. Redeploy and test login, question loading, answer inserts, and leaderboard reads.
+4. Paste the same secrets sections used locally into the Streamlit Cloud secrets editor, but change `auth.redirect_uri` to the deployed hostname instead of the local `localhost` callback.
+5. For the published app, set `auth.redirect_uri` to `https://glipmath.streamlit.app/oauth2callback`.
+6. Ensure the same redirect URI is registered in Google OAuth.
+7. Redeploy and test login, question loading, answer inserts, and leaderboard reads.
 
 See `docs/deployment_streamlit_cloud.md`.
 

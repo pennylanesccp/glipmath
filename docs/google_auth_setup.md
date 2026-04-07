@@ -18,7 +18,8 @@ Terraform does not create the Google OAuth consent screen or OAuth client. Those
 - Local:
   - `http://localhost:8501/oauth2callback`
 - Streamlit Community Cloud:
-  - `https://<your-streamlit-app-name>.streamlit.app/oauth2callback`
+  - `https://glipmath.streamlit.app/oauth2callback`
+  - if you deploy under another app slug, use that exact hostname instead
 
 If the Streamlit Cloud URL changes, update the OAuth client accordingly.
 
@@ -31,6 +32,12 @@ Put these values into `.streamlit/secrets.toml` locally and into the Streamlit C
 - `auth.client_id`
 - `auth.client_secret`
 - `auth.server_metadata_url`
+
+Important:
+
+- local development should keep `auth.redirect_uri = http://localhost:8501/oauth2callback`
+- Streamlit Community Cloud must use the deployed hostname, for example `https://glipmath.streamlit.app/oauth2callback`
+- copying the local `localhost` value into Streamlit Cloud causes Google login to bounce back to `http://localhost:8501/oauth2callback`
 
 Recommended metadata URL for Google:
 

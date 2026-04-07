@@ -25,7 +25,7 @@ gcloud auth application-default login
 - create a Web application OAuth client
 - add redirect URIs:
   - `http://localhost:8501/oauth2callback`
-  - `https://<your-streamlit-app-name>.streamlit.app/oauth2callback`
+  - `https://glipmath.streamlit.app/oauth2callback`
 - add beta testers as OAuth test users if the app is not publicly published
 
 ## 5. Copy the Terraform Example Variables
@@ -126,7 +126,9 @@ python scripts/enrich_question_explanations.py --limit 50
 
 - connect the GitHub repository
 - set the app entrypoint to `app/streamlit_app.py`
-- paste the same secrets structure used locally into Streamlit Cloud secrets
+- paste the same secrets sections used locally into Streamlit Cloud secrets
+- change `auth.redirect_uri` from the local `http://localhost:8501/oauth2callback` value to `https://glipmath.streamlit.app/oauth2callback`
+- confirm the same published callback URL is present in the Google OAuth client's `Authorized redirect URIs`
 
 ## 12. Deploy and Verify
 
