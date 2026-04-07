@@ -66,8 +66,10 @@ def test_bind_authenticated_user_resets_when_scope_changes(monkeypatch) -> None:
 
     session_state.bind_authenticated_user(first_user)
     session_state.set_subject_filter("Matematica")
+    session_state.set_project_filter("crescer_e_conectar")
 
     session_state.bind_authenticated_user(second_user)
 
     assert session_state.get_subject_filter_label() == "Todas"
+    assert session_state.get_project_filter() is None
     assert session_state.get_current_question() is None

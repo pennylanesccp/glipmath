@@ -110,7 +110,18 @@ def parse_user_access_dataframe(
 def resolve_question_scope_for_user(user: User) -> str | None:
     """Return the cohort filter that should be applied to question reads."""
 
-    return None if user.is_teacher else user.cohort_key
+    return resolve_effective_project_for_user(user)
+
+
+def resolve_effective_project_for_user(
+    user: User,
+    selected_project: str | None = None,
+) -> str | None:
+    """Return the effective project/cohort scope for the current user."""
+
+    if user.is_teacher:
+        return _normalize_optional_cohort_key(selected_project)
+    return user.cohort_key
 
 
 def _normalize_role(value: object) -> str:
@@ -127,4 +138,11 @@ def _normalize_cohort_key(value: object) -> str:
     cohort_key = clean_optional_text(value)
     if not cohort_key:
         raise ValueError("cohort_key cannot be blank.")
+    return cohort_key.lower()
+
+
+def _normalize_optional_cohort_key(value: object) -> str | None:
+    cohort_key = clean_optional_text(value)
+    if not cohort_key:
+        return None
     return cohort_key.lower()

@@ -231,6 +231,34 @@ def build_subject_options(question_index: Sequence[QuestionIndexEntry]) -> list[
     return ["Todas", *subjects]
 
 
+def build_project_options(question_index: Sequence[QuestionIndexEntry]) -> list[str]:
+    """Build sorted project filter options for teacher users."""
+
+    return sorted(
+        {
+            cohort_key
+            for entry in question_index
+            for cohort_key in [entry.cohort_key]
+            if cohort_key
+        },
+        key=str.casefold,
+    )
+
+
+def filter_question_index_by_project(
+    question_index: Sequence[QuestionIndexEntry],
+    project: str | None,
+) -> list[QuestionIndexEntry]:
+    """Return the active question index filtered by one project/cohort."""
+
+    selected_project = _normalize_project_key(project)
+    return [
+        entry
+        for entry in question_index
+        if selected_project is None or entry.cohort_key == selected_project
+    ]
+
+
 def filter_question_ids_by_subject(
     question_index: Sequence[QuestionIndexEntry],
     subject: str | None,
@@ -243,6 +271,27 @@ def filter_question_ids_by_subject(
         for entry in question_index
         if selected_subject is None or entry.subject == selected_subject
     ]
+
+
+def format_project_label(project: str | None) -> str:
+    """Render one cohort/project key as a readable Portuguese-BR label."""
+
+    normalized_project = _normalize_project_key(project)
+    if normalized_project is None:
+        return ""
+
+    words = normalized_project.replace("_", " ").split()
+    if not words:
+        return normalized_project
+
+    lower_words = {"e", "de", "da", "do", "das", "dos"}
+    formatted_words: list[str] = []
+    for index, word in enumerate(words):
+        if index > 0 and word in lower_words:
+            formatted_words.append(word)
+        else:
+            formatted_words.append(word.capitalize())
+    return " ".join(formatted_words)
 
 
 def find_question_by_id(
@@ -404,6 +453,13 @@ def _parse_optional_cohort_key(value: object) -> str | None:
     if not cohort_key:
         return None
     return cohort_key.lower()
+
+
+def _normalize_project_key(value: object) -> str | None:
+    project = clean_optional_text(value)
+    if not project:
+        return None
+    return project.lower()
 
 
 def _find_duplicate_id_by_index(dataframe: pd.DataFrame) -> dict[int, int]:

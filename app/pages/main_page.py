@@ -9,6 +9,7 @@ from app.state.session_state import (
     clear_current_question,
     clear_question_skip,
     get_last_answer_result,
+    get_project_filter,
     get_question_selection,
     get_question_started_at,
     get_session_id,
@@ -17,6 +18,7 @@ from app.state.session_state import (
     is_submission_in_progress,
     mark_question_answered,
     mark_question_skipped,
+    set_project_filter,
     set_question_selection,
     set_subject_filter,
     start_submission,
@@ -26,6 +28,7 @@ from app.ui.question_session import format_elapsed_time, normalize_subject_filte
 from modules.auth.auth_service import trigger_logout
 from modules.domain.models import DisplayAlternative, Question, User
 from modules.services.answer_service import AnswerService
+from modules.services.question_service import format_project_label
 from modules.services.question_service import find_display_alternative
 from modules.storage.bigquery_client import BigQueryError
 from modules.utils.datetime_utils import utc_now
@@ -37,6 +40,8 @@ def render_main_page(
     current_question: Question | None,
     alternatives: list[DisplayAlternative],
     answer_service: AnswerService,
+    project_options: list[str],
+    selected_project: str | None,
     subject_options: list[str],
     selected_subject: str,
     day_streak: int,
@@ -50,6 +55,9 @@ def render_main_page(
 
     normalized_subject = _normalize_selected_subject(selected_subject, subject_options)
     _render_topbar(
+        user=user,
+        project_options=project_options,
+        selected_project=selected_project,
         subject_options=subject_options,
         selected_subject=normalized_subject,
     )
@@ -106,24 +114,60 @@ def render_main_page(
 
 def _render_topbar(
     *,
+    user: User,
+    project_options: list[str],
+    selected_project: str | None,
     subject_options: list[str],
     selected_subject: str,
 ) -> None:
-    controls_col, logout_col = st.columns([4, 1], vertical_alignment="bottom")
-    current_index = subject_options.index(selected_subject) if selected_subject in subject_options else 0
+    normalized_project = _normalize_selected_project(selected_project, project_options)
 
-    with controls_col:
-        chosen_subject = st.selectbox(
-            "Disciplina",
-            options=subject_options,
-            index=current_index,
-            key="gm_subject_filter_select",
-        )
+    if user.is_teacher and project_options:
+        project_col, subject_col, logout_col = st.columns([1.8, 1.8, 0.9], vertical_alignment="bottom")
+
+        with project_col:
+            chosen_project = st.selectbox(
+                "Projeto",
+                options=project_options,
+                index=project_options.index(normalized_project) if normalized_project in project_options else 0,
+                format_func=format_project_label,
+                key="gm_project_filter_select",
+                label_visibility="collapsed",
+            )
+
+        with subject_col:
+            chosen_subject = st.selectbox(
+                "Disciplina",
+                options=subject_options,
+                index=subject_options.index(selected_subject) if selected_subject in subject_options else 0,
+                key="gm_subject_filter_select",
+                label_visibility="collapsed",
+            )
+    else:
+        controls_col, logout_col = st.columns([4, 1], vertical_alignment="bottom")
+        chosen_project = None
+        with controls_col:
+            chosen_subject = st.selectbox(
+                "Disciplina",
+                options=subject_options,
+                index=subject_options.index(selected_subject) if selected_subject in subject_options else 0,
+                key="gm_subject_filter_select",
+                label_visibility="collapsed",
+            )
 
     with logout_col:
         if st.button("Sair", type="secondary", use_container_width=True):
             trigger_logout()
             st.stop()
+
+    selected_project_from_state = get_project_filter()
+    normalized_choice_project = _normalize_selected_project(chosen_project, project_options)
+    if normalized_choice_project != _normalize_selected_project(selected_project_from_state, project_options):
+        st.session_state.pop("gm_subject_filter_select", None)
+        set_project_filter(normalized_choice_project)
+        set_subject_filter(None)
+        clear_current_question()
+        st.rerun()
 
     normalized_choice = _normalize_selected_subject(chosen_subject, subject_options)
     if normalized_choice != selected_subject:
@@ -377,6 +421,17 @@ def _normalize_selected_subject(subject: str | None, subject_options: list[str])
     if normalized_subject in subject_options:
         return normalized_subject
     return "Todas"
+
+
+def _normalize_selected_project(
+    project: str | None,
+    project_options: list[str],
+) -> str | None:
+    if not project_options:
+        return None
+    if project in project_options:
+        return project
+    return project_options[0]
 
 
 def _format_streak_text(day_streak: int, question_streak: int) -> str:

@@ -24,6 +24,7 @@ from app.state.session_state import (
     get_current_question,
     get_current_question_id,
     get_invalid_question_ids,
+    get_project_filter,
     get_skipped_question_ids,
     get_subject_filter,
     get_subject_filter_label,
@@ -43,14 +44,16 @@ from modules.services.answer_service import AnswerService, parse_answers_datafra
 from modules.services.leaderboard_service import find_user_position, parse_leaderboard_dataframe
 from modules.services.question_service import (
     build_display_alternatives,
+    build_project_options,
     build_subject_options,
+    filter_question_index_by_project,
     filter_question_ids_by_subject,
     parse_question_index_dataframe,
     parse_single_question_dataframe,
     select_next_question_id,
 )
 from modules.services.streak_service import compute_day_streak, compute_question_streak
-from modules.services.user_service import resolve_question_scope_for_user
+from modules.services.user_service import resolve_effective_project_for_user
 from modules.storage.answer_repository import AnswerRepository
 from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
@@ -109,13 +112,25 @@ def main() -> None:
             return
 
         bind_authenticated_user(authorized_user)
-        question_scope = resolve_question_scope_for_user(authorized_user)
+        selected_project = None
         question_index, question_index_issues = load_active_question_index(
             context.question_repository,
             settings.bigquery.question_bank_table_id(settings.gcp.project_id),
-            question_scope,
+            resolve_effective_project_for_user(authorized_user),
         )
-        subject_options = build_subject_options(question_index)
+        project_options = build_project_options(question_index) if authorized_user.is_teacher else []
+        if authorized_user.is_teacher:
+            selected_project = _resolve_selected_project_filter(project_options)
+            filtered_question_index = filter_question_index_by_project(question_index, selected_project)
+        else:
+            selected_project = authorized_user.cohort_key
+            filtered_question_index = question_index
+
+        effective_project_scope = resolve_effective_project_for_user(
+            authorized_user,
+            selected_project=selected_project,
+        )
+        subject_options = build_subject_options(filtered_question_index)
 
         _ensure_user_answer_history_loaded(
             answer_repository=context.answer_repository,
@@ -136,8 +151,11 @@ def main() -> None:
         current_question, current_alternatives, question_lookup_issues = resolve_current_question(
             question_repository=context.question_repository,
             question_table_id=settings.bigquery.question_bank_table_id(settings.gcp.project_id),
-            cohort_key=question_scope,
-            active_question_ids=filter_question_ids_by_subject(question_index, get_subject_filter()),
+            cohort_key=effective_project_scope,
+            active_question_ids=filter_question_ids_by_subject(
+                filtered_question_index,
+                get_subject_filter(),
+            ),
             answered_question_ids=get_answered_question_ids(authorized_user.email),
         )
     except BigQueryError as exc:
@@ -165,6 +183,8 @@ def main() -> None:
         current_question=current_question,
         alternatives=current_alternatives,
         answer_service=context.answer_service,
+        project_options=project_options,
+        selected_project=selected_project if authorized_user.is_teacher else None,
         subject_options=subject_options,
         selected_subject=get_subject_filter_label(),
         day_streak=compute_day_streak(answer_history, timezone_name=settings.timezone),
@@ -421,6 +441,15 @@ def _resolve_leaderboard_position(entry: LeaderboardEntry | None, total_users: i
     if entry is None or total_users <= 0:
         return "#-"
     return f"#{entry.rank} / {total_users}"
+
+
+def _resolve_selected_project_filter(project_options: list[str]) -> str | None:
+    selected_project = get_project_filter()
+    if selected_project in project_options:
+        return selected_project
+    if not project_options:
+        return None
+    return project_options[0]
 
 
 if __name__ == "__main__":

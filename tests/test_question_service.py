@@ -6,8 +6,11 @@ import pytest
 from modules.domain.models import Question, QuestionAlternative, QuestionIndexEntry, User
 from modules.services.question_service import (
     build_display_alternatives,
+    build_project_options,
     build_subject_options,
+    filter_question_index_by_project,
     filter_question_ids_by_subject,
+    format_project_label,
     find_valid_question_bank_row_indexes,
     parse_question_bank_dataframe,
     parse_question_id_dataframe,
@@ -16,7 +19,7 @@ from modules.services.question_service import (
     select_next_question,
     select_next_question_id,
 )
-from modules.services.user_service import resolve_question_scope_for_user
+from modules.services.user_service import resolve_effective_project_for_user, resolve_question_scope_for_user
 from modules.storage.schema_validation import WorksheetValidationError
 
 
@@ -198,6 +201,20 @@ def test_subject_option_helpers_build_and_filter_active_ids() -> None:
     assert filter_question_ids_by_subject(question_index, "Matematica") == [1, 3]
 
 
+def test_project_option_helpers_build_filter_and_format_labels() -> None:
+    question_index = [
+        QuestionIndexEntry(id_question=1, subject="Matematica", cohort_key="crescer_e_conectar"),
+        QuestionIndexEntry(id_question=2, subject="Portugues", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=3, subject="Matematica", cohort_key="crescer_e_conectar"),
+        QuestionIndexEntry(id_question=4, subject=None, cohort_key=None),
+    ]
+
+    assert build_project_options(question_index) == ["ano_1", "crescer_e_conectar"]
+    assert [entry.id_question for entry in filter_question_index_by_project(question_index, "crescer_e_conectar")] == [1, 3]
+    assert format_project_label("crescer_e_conectar") == "Crescer e Conectar"
+    assert format_project_label("ano_1") == "Ano 1"
+
+
 def test_subject_filter_still_works_after_cohort_scoping() -> None:
     scoped_question_index = [
         QuestionIndexEntry(id_question=11, subject="Matematica", cohort_key="ano_2"),
@@ -218,6 +235,12 @@ def test_resolve_question_scope_for_teacher_returns_global_scope() -> None:
     user = User(email="prof@example.com", role="teacher", cohort_key="all")
 
     assert resolve_question_scope_for_user(user) is None
+
+
+def test_resolve_effective_project_for_teacher_returns_selected_project() -> None:
+    user = User(email="prof@example.com", role="teacher", cohort_key="all")
+
+    assert resolve_effective_project_for_user(user, selected_project="crescer_e_conectar") == "crescer_e_conectar"
 
 
 def test_parse_single_question_dataframe_returns_single_question() -> None:
