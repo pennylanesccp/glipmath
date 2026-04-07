@@ -136,52 +136,16 @@ def _render_controls_bar(
     normalized_project = _normalize_selected_project(selected_project, project_options)
 
     if user.is_teacher and project_options:
-        project_col, subject_col, streak_col, rank_col, timer_col = st.columns(
-            [2.4, 1.8, 1, 1, 1],
-            vertical_alignment="center",
+        chosen_project = st.selectbox(
+            "Projeto",
+            options=project_options,
+            index=project_options.index(normalized_project) if normalized_project in project_options else 0,
+            format_func=format_project_label,
+            key="gm_project_filter_select",
+            label_visibility="collapsed",
         )
-
-        with project_col:
-            chosen_project = st.selectbox(
-                "Projeto",
-                options=project_options,
-                index=project_options.index(normalized_project) if normalized_project in project_options else 0,
-                format_func=format_project_label,
-                key="gm_project_filter_select",
-                label_visibility="collapsed",
-            )
-
-        with subject_col:
-            chosen_subject = st.selectbox(
-                "Disciplina",
-                options=subject_options,
-                index=subject_options.index(selected_subject) if selected_subject in subject_options else 0,
-                format_func=format_subject_label,
-                key="gm_subject_filter_select",
-                label_visibility="collapsed",
-            )
     else:
-        subject_col, streak_col, rank_col, timer_col = st.columns(
-            [2.4, 1, 1, 1],
-            vertical_alignment="center",
-        )
         chosen_project = None
-        with subject_col:
-            chosen_subject = st.selectbox(
-                "Disciplina",
-                options=subject_options,
-                index=subject_options.index(selected_subject) if selected_subject in subject_options else 0,
-                format_func=format_subject_label,
-                key="gm_subject_filter_select",
-                label_visibility="collapsed",
-            )
-
-    with streak_col:
-        st.html(_build_metric_chip_html(streak_text, fire_icon_data_uri))
-    with rank_col:
-        st.html(_build_metric_chip_html(rank_text, podium_icon_data_uri))
-    with timer_col:
-        st.html(_build_metric_chip_html(timer_text, timer_icon_data_uri, is_timer=True, timer_running=timer_running))
 
     selected_project_from_state = get_project_filter()
     normalized_choice_project = _normalize_selected_project(chosen_project, project_options)
@@ -191,6 +155,34 @@ def _render_controls_bar(
         set_subject_filter(None)
         clear_current_question()
         st.rerun()
+
+    subject_col, metrics_col = st.columns(
+        [1.95, 1.45],
+        vertical_alignment="center",
+    )
+
+    with subject_col:
+        chosen_subject = st.selectbox(
+            "Disciplina",
+            options=subject_options,
+            index=subject_options.index(selected_subject) if selected_subject in subject_options else 0,
+            format_func=format_subject_label,
+            key="gm_subject_filter_select",
+            label_visibility="collapsed",
+        )
+
+    with metrics_col:
+        st.html(
+            _build_metrics_bar_html(
+                streak_text=streak_text,
+                rank_text=rank_text,
+                timer_text=timer_text,
+                timer_running=timer_running,
+                fire_icon_data_uri=fire_icon_data_uri,
+                podium_icon_data_uri=podium_icon_data_uri,
+                timer_icon_data_uri=timer_icon_data_uri,
+            )
+        )
 
     normalized_choice = _normalize_selected_subject(chosen_subject, subject_options)
     if normalized_choice != selected_subject:
@@ -339,21 +331,40 @@ def _build_metric_chip_html(
     pulse_html = ""
     timer_class = ""
     if is_timer:
-        timer_class = " gm-live-chip--timer"
+        timer_class = " gm-live-metric--timer"
         if timer_running:
-            pulse_html = '<span class="gm-live-chip-dot" aria-hidden="true"></span>'
+            pulse_html = '<span class="gm-live-metric-dot" aria-hidden="true"></span>'
 
     icon_html = ""
     if icon_data_uri:
         icon_html = (
-            f'<img class="gm-live-chip-icon" src="{escape(icon_data_uri, quote=True)}" alt="" aria-hidden="true" />'
+            f'<img class="gm-live-metric-icon" src="{escape(icon_data_uri, quote=True)}" alt="" aria-hidden="true" />'
         )
 
     return (
-        f'<div class="gm-live-chip{timer_class}">'
+        f'<div class="gm-live-metric{timer_class}">'
         f"{pulse_html}"
         f"{icon_html}"
-        f'<span>{escape(value_text)}</span>'
+        f'<span class="gm-live-metric-value">{escape(value_text)}</span>'
+        "</div>"
+    )
+
+
+def _build_metrics_bar_html(
+    *,
+    streak_text: str,
+    rank_text: str,
+    timer_text: str,
+    timer_running: bool,
+    fire_icon_data_uri: str,
+    podium_icon_data_uri: str,
+    timer_icon_data_uri: str,
+) -> str:
+    return (
+        '<div class="gm-live-metrics-bar">'
+        f"{_build_metric_chip_html(streak_text, fire_icon_data_uri)}"
+        f"{_build_metric_chip_html(rank_text, podium_icon_data_uri)}"
+        f"{_build_metric_chip_html(timer_text, timer_icon_data_uri, is_timer=True, timer_running=timer_running)}"
         "</div>"
     )
 
@@ -466,13 +477,15 @@ def _normalize_selected_project(
     return project_options[0]
 
 
-def _format_streak_text(day_streak: int, question_streak: int) -> str:
-    return f"{max(day_streak, 0)}d / {max(question_streak, 0)}x"
+def _format_streak_text(day_streak: int, _question_streak: int) -> str:
+    return str(max(day_streak, 0))
 
 
 def _format_rank_text(leaderboard_position: str) -> str:
     text = str(leaderboard_position or "").strip()
-    return text or "#-"
+    if not text:
+        return "#-"
+    return text.split("/")[0].strip()
 
 
 def _text_to_html(text: str | None) -> str:
@@ -492,7 +505,7 @@ def _apply_live_page_styles() -> None:
         <style>
         [data-testid="stAppViewContainer"] {
             background:
-                radial-gradient(circle at top, rgba(34, 197, 94, 0.10), transparent 24%),
+                radial-gradient(circle at top, rgba(37, 99, 235, 0.12), transparent 26%),
                 linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%) !important;
         }
 
@@ -502,24 +515,29 @@ def _apply_live_page_styles() -> None:
             padding-bottom: 1rem;
         }
 
-        .gm-live-chip {
+        .gm-live-metrics-bar {
             align-items: center;
-            background: #ffffff;
-            border: 1px solid #dbeafe;
-            border-radius: 999px;
-            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
-            color: #1e3a8a;
-            display: inline-flex;
-            font-size: 0.92rem;
-            font-weight: 700;
-            gap: 0.5rem;
-            justify-content: center;
+            display: flex;
+            gap: 0.95rem;
+            justify-content: flex-end;
             min-height: 2.65rem;
-            padding: 0 0.95rem;
             width: 100%;
         }
 
-        .gm-live-chip-dot {
+        .gm-live-metric {
+            align-items: center;
+            color: #1e3a8a;
+            display: inline-flex;
+            font-size: 0.98rem;
+            font-weight: 800;
+            gap: 0.45rem;
+            justify-content: flex-end;
+            min-height: 0;
+            padding: 0;
+            width: auto;
+        }
+
+        .gm-live-metric-dot {
             background: #2563eb;
             border-radius: 999px;
             display: inline-block;
@@ -527,11 +545,17 @@ def _apply_live_page_styles() -> None:
             width: 0.5rem;
         }
 
-        .gm-live-chip-icon {
+        .gm-live-metric-icon {
             display: block;
             flex: 0 0 auto;
             height: 1rem;
             width: 1rem;
+        }
+
+        .gm-live-metric-value {
+            color: #1e3a8a;
+            font-weight: 800;
+            white-space: nowrap;
         }
 
         .gm-live-card {
@@ -615,7 +639,7 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stSelectbox"] {
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
 
         div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
@@ -645,10 +669,26 @@ def _apply_live_page_styles() -> None:
             background: #eef2ff !important;
         }
 
+        div[data-testid="stRadio"] {
+            width: 100% !important;
+        }
+
         div[data-testid="stRadio"] > label {
             color: #0f172a;
             font-weight: 700;
             margin-bottom: 0.5rem;
+        }
+
+        div[data-testid="stRadio"] > div:first-of-type,
+        div[data-testid="stRadio"] > div,
+        div[data-testid="stRadio"] [role="radiogroup"] {
+            width: 100% !important;
+        }
+
+        div[data-testid="stRadio"] [role="radiogroup"] {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.75rem !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"] {
@@ -656,9 +696,13 @@ def _apply_live_page_styles() -> None:
             background: #ffffff;
             border: 1px solid #dbeafe;
             border-radius: 1rem;
+            box-sizing: border-box;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
-            margin-bottom: 0.75rem;
+            display: flex !important;
+            margin-bottom: 0 !important;
+            min-width: 100% !important;
             padding: 0.95rem 1rem;
+            width: 100% !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"] * {
@@ -666,13 +710,36 @@ def _apply_live_page_styles() -> None:
             opacity: 1 !important;
         }
 
+        div[data-testid="stRadio"] label[data-baseweb="radio"] > div:last-child {
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+        }
+
+        div[data-testid="stRadio"] input[type="radio"] {
+            accent-color: #2563eb !important;
+        }
+
+        div[data-testid="stRadio"] label[data-baseweb="radio"] svg,
+        div[data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] svg {
+            fill: #94a3b8 !important;
+            color: #94a3b8 !important;
+            stroke: #94a3b8 !important;
+        }
+
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
             background: #eef2ff;
-            border-color: #818cf8;
+            border-color: #93c5fd;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) * {
-            color: #312e81 !important;
+            color: #1d4ed8 !important;
+        }
+
+        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) svg,
+        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) [data-testid="stMarkdownContainer"] svg {
+            fill: #2563eb !important;
+            color: #2563eb !important;
+            stroke: #2563eb !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
@@ -681,10 +748,18 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stButton"] button[kind="primary"],
         div[data-testid="stFormSubmitButton"] button[kind="primary"] {
-            background: #22c55e !important;
-            border: 1px solid #16a34a !important;
-            color: #052e16 !important;
-            box-shadow: 0 12px 24px rgba(34, 197, 94, 0.24) !important;
+            background: #1e40af !important;
+            border: 1px solid #1e3a8a !important;
+            color: #ffffff !important;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22) !important;
+        }
+
+        div[data-testid="stButton"] button[kind="secondary"],
+        div[data-testid="stFormSubmitButton"] button[kind="secondary"] {
+            background: #eff6ff !important;
+            border: 1px solid #93c5fd !important;
+            color: #1d4ed8 !important;
+            box-shadow: none !important;
         }
 
         div[data-testid="stButton"] button,
