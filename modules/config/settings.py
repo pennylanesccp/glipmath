@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -196,14 +197,18 @@ def load_settings(
 ) -> AppSettings:
     """Load application settings from environment variables and Streamlit secrets."""
 
-    secrets_dict = _to_plain_dict(secrets or _load_streamlit_secrets())
     resolved_base_dir = (base_dir or Path.cwd()).resolve()
+    public_config_dict = _load_toml_file(resolved_base_dir / "glipmath.toml")
+    secrets_dict = _to_plain_dict(secrets if secrets is not None else _load_streamlit_secrets())
 
-    app_section = _as_mapping(secrets_dict.get("app"))
-    gcp_section = _as_mapping(secrets_dict.get("gcp"))
-    bigquery_section = _as_mapping(secrets_dict.get("bigquery"))
+    app_section = _merge_sections(public_config_dict.get("app"), secrets_dict.get("app"))
+    gcp_section = _merge_sections(public_config_dict.get("gcp"), secrets_dict.get("gcp"))
+    bigquery_section = _merge_sections(
+        public_config_dict.get("bigquery"),
+        secrets_dict.get("bigquery"),
+    )
     auth_section = _as_mapping(secrets_dict.get("auth"))
-    ai_section = _as_mapping(secrets_dict.get("ai"))
+    ai_section = _merge_sections(public_config_dict.get("ai"), secrets_dict.get("ai"))
     service_account_section = _as_mapping(secrets_dict.get("gcp_service_account"))
     service_account_json = _string_or_none(
         os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
@@ -332,6 +337,19 @@ def _load_streamlit_secrets() -> dict[str, Any]:
         return {}
 
 
+def _load_toml_file(path: Path) -> dict[str, Any]:
+    """Load a TOML file into plain Python types, returning an empty mapping on failure."""
+
+    if not path.is_file():
+        return {}
+
+    try:
+        with path.open("rb") as handle:
+            return _to_plain_dict(tomllib.load(handle))
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+
+
 def _env_or_section(env_name: str, section: Mapping[str, Any], key: str) -> str | None:
     """Return an environment variable value or fall back to a secrets section key."""
 
@@ -366,6 +384,15 @@ def _as_mapping(value: Any) -> dict[str, Any]:
     if isinstance(value, Mapping):
         return {str(key): _to_plain_dict(item) for key, item in value.items()}
     return {}
+
+
+def _merge_sections(*sections: Mapping[str, Any] | Any) -> dict[str, Any]:
+    """Merge config sections from left to right, with later values taking precedence."""
+
+    merged: dict[str, Any] = {}
+    for section in sections:
+        merged.update(_as_mapping(section))
+    return merged
 
 
 def _string_or_none(value: Any) -> str | None:

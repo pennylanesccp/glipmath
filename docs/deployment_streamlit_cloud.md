@@ -21,21 +21,22 @@ The primary deployment target for the MVP is Streamlit Community Cloud.
 5. Paste the secrets payload into the Streamlit Cloud secrets editor.
 6. Set `auth.redirect_uri` to the deployed hostname callback, for example `https://glipmath.streamlit.app/oauth2callback`, instead of the local `localhost` value.
 7. Confirm the same published callback URL is registered in the Google OAuth client's `Authorized redirect URIs`.
+8. Remember that editing the local `.streamlit/secrets.toml` file does not change the deployed app; the Streamlit Cloud secrets editor is a separate environment.
 
 ## Secrets Structure
 
-The secrets structure should match `.streamlit/secrets.toml.example`:
+The checked-in public defaults live in `glipmath.toml`.
+The secrets payload should match `.streamlit/secrets.toml.example`:
 
-- `[app]`
-- `[gcp]`
-- `[bigquery]`
 - `[auth]`
+- `[ai]`
 - `[gcp_service_account]`
 
 The values are not identical across environments:
 
 - local development should keep `auth.redirect_uri = http://localhost:8501/oauth2callback`
 - Streamlit Community Cloud must use the deployed app URL, for example `https://glipmath.streamlit.app/oauth2callback`
+- `auth.redirect_uri`, `auth.client_id`, and `auth.server_metadata_url` are public in practice, but Streamlit auth still requires them under `[auth]` in secrets
 
 ## Runtime Notes
 

@@ -74,9 +74,10 @@ Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
 Populate:
 
 - Google OAuth values under `[auth]`
-- BigQuery config under `[gcp]` and `[bigquery]`
-- optional Gemini config under `[ai]` if you want to run explanation enrichment
+- optional Gemini API key under `[ai]` if you want to run explanation enrichment
 - the service account JSON fields under `[gcp_service_account]`
+
+The non-sensitive app, GCP, BigQuery, and Gemini model defaults live in the versioned `glipmath.toml` file.
 
 ## 9. Populate User Access
 
@@ -129,6 +130,7 @@ python scripts/enrich_question_explanations.py --limit 50
 - paste the same secrets sections used locally into Streamlit Cloud secrets
 - change `auth.redirect_uri` from the local `http://localhost:8501/oauth2callback` value to `https://glipmath.streamlit.app/oauth2callback`
 - confirm the same published callback URL is present in the Google OAuth client's `Authorized redirect URIs`
+- remember that changing the local `.streamlit/secrets.toml` file does not update the deployed Streamlit Cloud app
 
 ## 12. Deploy and Verify
 

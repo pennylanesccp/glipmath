@@ -8,7 +8,8 @@ def render_auth_setup_warning() -> None:
 
     st.warning(
         "A autenticacao Google ainda nao esta configurada. "
-        "Preencha `.streamlit/secrets.toml` localmente ou configure as mesmas secoes de segredos no Streamlit Community Cloud."
+        "Preencha `.streamlit/secrets.toml` com a secao `[auth]` localmente "
+        "ou configure a mesma secao de segredos no Streamlit Community Cloud."
     )
 
 
@@ -29,8 +30,9 @@ def render_auth_redirect_warning(
     if expected_redirect_uri:
         st.caption(f"redirect_uri esperado aqui: {expected_redirect_uri}")
     st.write(
-        "Atualize esse valor nos segredos do Streamlit Cloud e confirme a mesma URL em "
-        "`Authorized redirect URIs` no cliente OAuth do Google."
+        "Esse valor vem da secao `[auth]` nas secrets do ambiente ativo. "
+        "Trocar o arquivo local nao altera o app publicado: atualize os segredos do Streamlit Cloud "
+        "e confirme a mesma URL em `Authorized redirect URIs` no cliente OAuth do Google."
     )
 
 

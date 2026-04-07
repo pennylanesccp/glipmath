@@ -39,17 +39,16 @@ Official references:
 
 ## Secrets Configuration
 
-Add Gemini settings to `.streamlit/secrets.toml` locally and, if you want them available in hosted environments, to Streamlit Community Cloud secrets as well.
+Keep the Gemini model selection in `glipmath.toml` and put only the API key in `.streamlit/secrets.toml` locally. If you want enrichment available in hosted environments, add the same API key to Streamlit Community Cloud secrets as well.
 
 ```toml
 [ai]
 GEMINI_API_KEY = "REPLACE_WITH_GEMINI_API_KEY"
-GEMINI_MODEL = "gemini-2.5-flash-lite"
 ```
 
 Notes:
 
-- `GEMINI_MODEL` defaults to `gemini-2.5-flash-lite` if omitted in app config.
+- `glipmath.toml` already defaults `ai.model` to `gemini-2.5-flash-lite`.
 - the enrichment script reads secrets through the shared config loader
 - student question answering does not require Gemini to be configured
 - install the admin extra before running enrichment:

@@ -116,13 +116,14 @@ The app combines the correct answer and wrong answers in memory, assigns stable 
    Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
    ```
 
-4. Fill these sections in `.streamlit/secrets.toml`:
+4. Review the public defaults in `glipmath.toml`.
+   This file is versioned and holds non-sensitive app, GCP, BigQuery, and Gemini model settings.
+
+5. Fill these sections in `.streamlit/secrets.toml`:
    - `[auth]` for Google OIDC
-   - `[gcp]` for project/location
-   - `[bigquery]` for dataset/table/view names, including `user_access_table`
-   - `[ai]` for optional Gemini enrichment scripts
+   - `[ai]` for the optional Gemini API key
    - `[gcp_service_account]` for the BigQuery runtime service account JSON fields
-5. Apply Terraform for the GCP data layer.
+6. Apply Terraform for the GCP data layer.
    Recommended:
 
    ```powershell
@@ -130,18 +131,18 @@ The app combines the correct answer and wrong answers in memory, assigns stable 
    .\run_terraform.ps1
    ```
 
-6. Populate `glipmath_core.user_access` with one active row per authorized user.
+7. Populate `glipmath_core.user_access` with one active row per authorized user.
    Students get one specific cohort, for example `ano_1`.
    Teachers get `role = teacher` and `cohort_key = all`.
-7. Place supported raw question files under `data/`.
-8. Validate and load the question bank:
+8. Place supported raw question files under `data/`.
+9. Validate and load the question bank:
 
    ```powershell
    python scripts/validate_question_bank.py --input-path data --cohort-key ano_1
    python scripts/load_question_bank_to_bigquery.py --input-path data --cohort-key ano_1
    ```
 
-9. Run the app:
+10. Run the app:
 
    ```powershell
    .\run_streamlit.ps1
@@ -158,6 +159,8 @@ The production path is Streamlit Community Cloud.
 5. For the published app, set `auth.redirect_uri` to `https://glipmath.streamlit.app/oauth2callback`.
 6. Ensure the same redirect URI is registered in Google OAuth.
 7. Redeploy and test login, question loading, answer inserts, and leaderboard reads.
+
+`auth.redirect_uri`, `auth.client_id`, and `auth.server_metadata_url` are public values in practice, but Streamlit's built-in `st.login()` still requires them under `[auth]` in `secrets.toml`.
 
 See `docs/deployment_streamlit_cloud.md`.
 

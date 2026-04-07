@@ -33,11 +33,14 @@ Put these values into `.streamlit/secrets.toml` locally and into the Streamlit C
 - `auth.client_secret`
 - `auth.server_metadata_url`
 
+Even though `auth.redirect_uri`, `auth.client_id`, and `auth.server_metadata_url` are not confidential by themselves, Streamlit's built-in `st.login()` reads them from `[auth]` in `secrets.toml`, so they still need to stay there.
+
 Important:
 
 - local development should keep `auth.redirect_uri = http://localhost:8501/oauth2callback`
 - Streamlit Community Cloud must use the deployed hostname, for example `https://glipmath.streamlit.app/oauth2callback`
 - copying the local `localhost` value into Streamlit Cloud causes Google login to bounce back to `http://localhost:8501/oauth2callback`
+- changing your local `.streamlit/secrets.toml` does not update the published app; you must edit the Streamlit Cloud secrets for the deployed environment
 
 Recommended metadata URL for Google:
 
