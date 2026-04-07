@@ -396,6 +396,18 @@ def _apply_live_page_styles() -> None:
     st.html(
         """
         <style>
+        [data-testid="stAppViewContainer"] {
+            background:
+                radial-gradient(circle at top, rgba(34, 197, 94, 0.10), transparent 24%),
+                linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%) !important;
+        }
+
+        .block-container {
+            max-width: 480px;
+            padding-top: 0.75rem;
+            padding-bottom: 1rem;
+        }
+
         .gm-live-chip-row {
             display: flex;
             flex-wrap: wrap;
@@ -500,6 +512,39 @@ def _apply_live_page_styles() -> None:
             padding-top: 0.7rem;
         }
 
+        div[data-testid="stSelectbox"] label p,
+        div[data-testid="stSelectbox"] label span {
+            color: #334155 !important;
+            font-weight: 700 !important;
+        }
+
+        div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 0.9rem !important;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+            min-height: 2.65rem !important;
+        }
+
+        div[data-testid="stSelectbox"] [data-baseweb="select"] * {
+            color: #0f172a !important;
+        }
+
+        div[data-baseweb="popover"] [role="listbox"] {
+            background: #ffffff !important;
+            border: 1px solid #dbeafe !important;
+            border-radius: 1rem !important;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12) !important;
+        }
+
+        div[data-baseweb="popover"] [role="option"] * {
+            color: #0f172a !important;
+        }
+
+        div[data-baseweb="popover"] [role="option"][aria-selected="true"] {
+            background: #eef2ff !important;
+        }
+
         div[data-testid="stRadio"] > label {
             color: #0f172a;
             font-weight: 700;
@@ -516,9 +561,38 @@ def _apply_live_page_styles() -> None:
             padding: 0.95rem 1rem;
         }
 
+        div[data-testid="stRadio"] label[data-baseweb="radio"] * {
+            color: #0f172a !important;
+            opacity: 1 !important;
+        }
+
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
             background: #eef2ff;
             border-color: #818cf8;
+        }
+
+        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) * {
+            color: #312e81 !important;
+        }
+
+        div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
+            color: #475569 !important;
+        }
+
+        div[data-testid="stButton"] button[kind="secondary"],
+        div[data-testid="stFormSubmitButton"] button[kind="secondary"] {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #334155 !important;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+        }
+
+        div[data-testid="stButton"] button[kind="primary"],
+        div[data-testid="stFormSubmitButton"] button[kind="primary"] {
+            background: #22c55e !important;
+            border: 1px solid #16a34a !important;
+            color: #052e16 !important;
+            box-shadow: 0 12px 24px rgba(34, 197, 94, 0.24) !important;
         }
 
         div[data-testid="stButton"] button,
@@ -526,6 +600,16 @@ def _apply_live_page_styles() -> None:
             border-radius: 1rem;
             font-weight: 700;
             min-height: 3rem;
+        }
+
+        div[data-testid="stAlert"] {
+            background: #ffffff !important;
+            border: 1px solid #dbeafe !important;
+            color: #0f172a !important;
+        }
+
+        div[data-testid="stAlert"] * {
+            color: #0f172a !important;
         }
         </style>
         """
