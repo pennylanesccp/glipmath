@@ -189,6 +189,7 @@ def build_runtime_context(settings: AppSettings) -> RuntimeContext:
         project_id=settings.gcp.project_id,
         location=settings.gcp.location,
         service_account_info=settings.service_account_info,
+        allow_application_default_credentials=False,
     )
     question_repository = QuestionRepository(
         bigquery_client,

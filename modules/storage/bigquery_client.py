@@ -26,6 +26,7 @@ class BigQueryClient:
         project_id: str,
         location: str,
         service_account_info: Mapping[str, Any] | None = None,
+        allow_application_default_credentials: bool = True,
     ) -> None:
         self._table_columns_cache: dict[str, tuple[str, ...]] = {}
         credentials = None
@@ -41,6 +42,16 @@ class BigQueryClient:
                 raise BigQueryError(
                     "Invalid BigQuery service-account credentials in Streamlit secrets."
                 ) from exc
+        elif not allow_application_default_credentials:
+            logger.error(
+                "Missing explicit BigQuery credentials | project_id=%s | location=%s",
+                project_id,
+                location,
+            )
+            raise BigQueryError(
+                "BigQuery credentials are not configured. Add a valid [gcp_service_account] "
+                "block to Streamlit secrets."
+            )
 
         self._location = location
         try:

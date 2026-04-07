@@ -45,6 +45,7 @@ The values are not identical across environments:
 - no container startup script is required
 - no local filesystem persistence is used
 - BigQuery access uses the service account JSON stored in Streamlit secrets
+- when `[gcp_service_account]` is missing, the app now fails fast with a configuration error instead of falling back to metadata-based ADC lookup
 
 ## Verification Checklist
 
