@@ -294,6 +294,29 @@ def format_project_label(project: str | None) -> str:
     return " ".join(formatted_words)
 
 
+def format_subject_label(subject: str | None) -> str:
+    """Render one subject key as a readable Portuguese-BR label."""
+
+    normalized_subject = clean_optional_text(subject)
+    if not normalized_subject:
+        return ""
+
+    accent_map = {
+        "matematica": "Matemática",
+        "portugues": "Português",
+        "historia": "História",
+        "geografia": "Geografia",
+        "ciencias": "Ciências",
+        "todas": "Todas",
+    }
+    key = normalized_subject.lower()
+    if key in accent_map:
+        return accent_map[key]
+
+    words = normalized_subject.replace("_", " ").split()
+    return " ".join(word.capitalize() for word in words)
+
+
 def find_question_by_id(
     questions: Iterable[Question],
     id_question: int | None,

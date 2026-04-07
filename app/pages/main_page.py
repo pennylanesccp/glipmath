@@ -25,13 +25,17 @@ from app.state.session_state import (
     finish_submission,
 )
 from app.ui.question_session import format_elapsed_time, normalize_subject_filter
-from modules.auth.auth_service import trigger_logout
+from app.ui.template_renderer import asset_to_data_uri
 from modules.domain.models import DisplayAlternative, Question, User
 from modules.services.answer_service import AnswerService
-from modules.services.question_service import format_project_label
+from modules.services.question_service import format_project_label, format_subject_label
 from modules.services.question_service import find_display_alternative
 from modules.storage.bigquery_client import BigQueryError
 from modules.utils.datetime_utils import utc_now
+
+FIRE_ICON_RELATIVE_PATH = "assets/icons/fire-svgrepo-com.svg"
+PODIUM_ICON_RELATIVE_PATH = "assets/icons/pedestal-podium-svgrepo-com.svg"
+TIMER_ICON_RELATIVE_PATH = "assets/icons/timer-outline-svgrepo-com.svg"
 
 
 def render_main_page(
@@ -53,15 +57,11 @@ def render_main_page(
     initialize_session_state()
     _apply_live_page_styles()
 
-    normalized_subject = _normalize_selected_subject(selected_subject, subject_options)
-    _render_topbar(
-        user=user,
-        project_options=project_options,
-        selected_project=selected_project,
-        subject_options=subject_options,
-        selected_subject=normalized_subject,
-    )
+    fire_icon_data_uri = _load_icon_data_uri(FIRE_ICON_RELATIVE_PATH)
+    podium_icon_data_uri = _load_icon_data_uri(PODIUM_ICON_RELATIVE_PATH)
+    timer_icon_data_uri = _load_icon_data_uri(TIMER_ICON_RELATIVE_PATH)
 
+    normalized_subject = _normalize_selected_subject(selected_subject, subject_options)
     question_answered = is_current_question_answered()
     last_result = get_last_answer_result()
     selected_option_id = _selected_option_id_for_render(current_question.id_question if current_question else None)
@@ -71,13 +71,19 @@ def render_main_page(
     )
     answer_is_correct = bool(last_result.get("is_correct")) if last_result else False
 
-    st.html(
-        _build_stats_row_html(
-            streak_text=_format_streak_text(day_streak, question_streak),
-            rank_text=_format_rank_text(leaderboard_position),
-            timer_text=format_elapsed_time(elapsed_seconds),
-            timer_running=not question_answered and current_question is not None,
-        )
+    _render_controls_bar(
+        user=user,
+        project_options=project_options,
+        selected_project=selected_project,
+        subject_options=subject_options,
+        selected_subject=normalized_subject,
+        streak_text=_format_streak_text(day_streak, question_streak),
+        rank_text=_format_rank_text(leaderboard_position),
+        timer_text=format_elapsed_time(elapsed_seconds),
+        timer_running=not question_answered and current_question is not None,
+        fire_icon_data_uri=fire_icon_data_uri,
+        podium_icon_data_uri=podium_icon_data_uri,
+        timer_icon_data_uri=timer_icon_data_uri,
     )
 
     if current_question is None:
@@ -112,18 +118,28 @@ def render_main_page(
     )
 
 
-def _render_topbar(
+def _render_controls_bar(
     *,
     user: User,
     project_options: list[str],
     selected_project: str | None,
     subject_options: list[str],
     selected_subject: str,
+    streak_text: str,
+    rank_text: str,
+    timer_text: str,
+    timer_running: bool,
+    fire_icon_data_uri: str,
+    podium_icon_data_uri: str,
+    timer_icon_data_uri: str,
 ) -> None:
     normalized_project = _normalize_selected_project(selected_project, project_options)
 
     if user.is_teacher and project_options:
-        project_col, subject_col, logout_col = st.columns([1.8, 1.8, 0.9], vertical_alignment="bottom")
+        project_col, subject_col, streak_col, rank_col, timer_col = st.columns(
+            [2.4, 1.8, 1, 1, 1],
+            vertical_alignment="center",
+        )
 
         with project_col:
             chosen_project = st.selectbox(
@@ -140,25 +156,32 @@ def _render_topbar(
                 "Disciplina",
                 options=subject_options,
                 index=subject_options.index(selected_subject) if selected_subject in subject_options else 0,
+                format_func=format_subject_label,
                 key="gm_subject_filter_select",
                 label_visibility="collapsed",
             )
     else:
-        controls_col, logout_col = st.columns([4, 1], vertical_alignment="bottom")
+        subject_col, streak_col, rank_col, timer_col = st.columns(
+            [2.4, 1, 1, 1],
+            vertical_alignment="center",
+        )
         chosen_project = None
-        with controls_col:
+        with subject_col:
             chosen_subject = st.selectbox(
                 "Disciplina",
                 options=subject_options,
                 index=subject_options.index(selected_subject) if selected_subject in subject_options else 0,
+                format_func=format_subject_label,
                 key="gm_subject_filter_select",
                 label_visibility="collapsed",
             )
 
-    with logout_col:
-        if st.button("Sair", type="secondary", use_container_width=True):
-            trigger_logout()
-            st.stop()
+    with streak_col:
+        st.html(_build_metric_chip_html(streak_text, fire_icon_data_uri))
+    with rank_col:
+        st.html(_build_metric_chip_html(rank_text, podium_icon_data_uri))
+    with timer_col:
+        st.html(_build_metric_chip_html(timer_text, timer_icon_data_uri, is_timer=True, timer_running=timer_running))
 
     selected_project_from_state = get_project_filter()
     normalized_choice_project = _normalize_selected_project(chosen_project, project_options)
@@ -306,22 +329,31 @@ def _submit_selected_answer(
     st.rerun()
 
 
-def _build_stats_row_html(
+def _build_metric_chip_html(
+    value_text: str,
+    icon_data_uri: str,
     *,
-    streak_text: str,
-    rank_text: str,
-    timer_text: str,
-    timer_running: bool,
+    is_timer: bool = False,
+    timer_running: bool = False,
 ) -> str:
     pulse_html = ""
-    if timer_running:
-        pulse_html = '<span class="gm-live-chip-dot" aria-hidden="true"></span>'
+    timer_class = ""
+    if is_timer:
+        timer_class = " gm-live-chip--timer"
+        if timer_running:
+            pulse_html = '<span class="gm-live-chip-dot" aria-hidden="true"></span>'
+
+    icon_html = ""
+    if icon_data_uri:
+        icon_html = (
+            f'<img class="gm-live-chip-icon" src="{escape(icon_data_uri, quote=True)}" alt="" aria-hidden="true" />'
+        )
 
     return (
-        '<div class="gm-live-chip-row">'
-        f'<div class="gm-live-chip">Sequencia: {escape(streak_text)}</div>'
-        f'<div class="gm-live-chip">Ranking: {escape(rank_text)}</div>'
-        f'<div class="gm-live-chip gm-live-chip--timer">{pulse_html}Tempo: {escape(timer_text)}</div>'
+        f'<div class="gm-live-chip{timer_class}">'
+        f"{pulse_html}"
+        f"{icon_html}"
+        f'<span>{escape(value_text)}</span>'
         "</div>"
     )
 
@@ -447,6 +479,13 @@ def _text_to_html(text: str | None) -> str:
     return escape(str(text or "").strip()).replace("\n", "<br>")
 
 
+def _load_icon_data_uri(relative_path: str) -> str:
+    try:
+        return asset_to_data_uri(relative_path)
+    except FileNotFoundError:
+        return ""
+
+
 def _apply_live_page_styles() -> None:
     st.html(
         """
@@ -463,13 +502,6 @@ def _apply_live_page_styles() -> None:
             padding-bottom: 1rem;
         }
 
-        .gm-live-chip-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            margin: 0.25rem 0 1rem;
-        }
-
         .gm-live-chip {
             align-items: center;
             background: #ffffff;
@@ -481,8 +513,10 @@ def _apply_live_page_styles() -> None:
             font-size: 0.92rem;
             font-weight: 700;
             gap: 0.5rem;
-            min-height: 2.35rem;
+            justify-content: center;
+            min-height: 2.65rem;
             padding: 0 0.95rem;
+            width: 100%;
         }
 
         .gm-live-chip-dot {
@@ -491,6 +525,13 @@ def _apply_live_page_styles() -> None:
             display: inline-block;
             height: 0.5rem;
             width: 0.5rem;
+        }
+
+        .gm-live-chip-icon {
+            display: block;
+            flex: 0 0 auto;
+            height: 1rem;
+            width: 1rem;
         }
 
         .gm-live-card {
@@ -573,10 +614,14 @@ def _apply_live_page_styles() -> None:
             font-weight: 700 !important;
         }
 
+        div[data-testid="stSelectbox"] {
+            margin-bottom: 1rem;
+        }
+
         div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
             background: #ffffff !important;
             border: 1px solid #cbd5e1 !important;
-            border-radius: 0.9rem !important;
+            border-radius: 999px !important;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
             min-height: 2.65rem !important;
         }
@@ -632,14 +677,6 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
             color: #475569 !important;
-        }
-
-        div[data-testid="stButton"] button[kind="secondary"],
-        div[data-testid="stFormSubmitButton"] button[kind="secondary"] {
-            background: #ffffff !important;
-            border: 1px solid #cbd5e1 !important;
-            color: #334155 !important;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
         }
 
         div[data-testid="stButton"] button[kind="primary"],

@@ -11,6 +11,7 @@ from modules.services.question_service import (
     filter_question_index_by_project,
     filter_question_ids_by_subject,
     format_project_label,
+    format_subject_label,
     find_valid_question_bank_row_indexes,
     parse_question_bank_dataframe,
     parse_question_id_dataframe,
@@ -213,6 +214,7 @@ def test_project_option_helpers_build_filter_and_format_labels() -> None:
     assert [entry.id_question for entry in filter_question_index_by_project(question_index, "crescer_e_conectar")] == [1, 3]
     assert format_project_label("crescer_e_conectar") == "Crescer e Conectar"
     assert format_project_label("ano_1") == "Ano 1"
+    assert format_subject_label("matematica") == "Matemática"
 
 
 def test_subject_filter_still_works_after_cohort_scoping() -> None:
