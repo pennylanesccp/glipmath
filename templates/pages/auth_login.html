@@ -68,7 +68,9 @@
     }
 
     .gm-google-button-wrap {
-        width: min(100%, 320px);
+        width: 100%;
+        display: flex;
+        justify-content: center;
     }
 
     .gsi-material-button {
@@ -85,20 +87,22 @@
         color: var(--gsi-text);
         cursor: pointer;
         font-family: "Roboto", Arial, sans-serif;
-        font-size: 14px;
-        font-weight: 500;
-        height: 44px;
+        font-size: 13px;
+        font-weight: 400;
+        height: 42px;
         letter-spacing: 0.25px;
         outline: none;
         overflow: hidden;
-        padding: 0;
+        padding: 0 22px;
         position: relative;
-        display: block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         text-align: center;
         transition: box-shadow .18s ease, transform .18s ease, opacity .18s ease;
         vertical-align: middle;
         white-space: nowrap;
-        width: 100%;
+        width: min(100%, 322px);
         box-shadow: var(--gm-shadow-soft);
         text-decoration: none;
     }
@@ -145,15 +149,15 @@
         flex-direction: row;
         flex-wrap: nowrap;
         height: 100%;
+        gap: 10px;
         justify-content: center;
         position: relative;
-        width: 100%;
+        width: auto;
     }
 
     .gsi-material-button-icon {
         flex: 0 0 18px;
         height: 18px;
-        margin-right: 12px;
         min-width: 18px;
         width: 18px;
     }
@@ -167,8 +171,8 @@
     .gsi-material-button-contents {
         flex-grow: 0;
         font-family: "Roboto", Arial, sans-serif;
-        font-size: 14px;
-        font-weight: 500;
+        font-size: 13px;
+        font-weight: 400;
         line-height: 20px;
         overflow: hidden;
         text-overflow: ellipsis;
