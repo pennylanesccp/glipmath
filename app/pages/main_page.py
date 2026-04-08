@@ -693,6 +693,10 @@ def _apply_live_page_styles() -> None:
             border-color: #9ae6b4;
         }
 
+        .gm-live-answer-card {
+            margin-bottom: 0 !important;
+        }
+
         .gm-live-answer-card--correct .gm-live-answer-badge,
         .gm-live-answer-card--correct .gm-live-answer-text,
         .gm-live-answer-card--correct .gm-live-answer-explanation {
