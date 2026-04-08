@@ -598,6 +598,18 @@ def _apply_live_page_styles() -> None:
             padding-bottom: 0.75rem;
         }
 
+        .block-container > div[data-testid="stVerticalBlock"] {
+            gap: 0.55rem !important;
+        }
+
+        div[data-testid="stVerticalBlock"] {
+            gap: 0.55rem !important;
+        }
+
+        div[data-testid="stHorizontalBlock"] {
+            gap: 0.55rem !important;
+        }
+
         .gm-live-metrics-bar {
             align-items: center;
             display: flex;
@@ -646,7 +658,7 @@ def _apply_live_page_styles() -> None:
             border: 1px solid #dbeafe;
             border-radius: 1.25rem;
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-            margin-bottom: 0.7rem;
+            margin-bottom: 0.55rem;
             padding: 1rem 1rem 0.95rem;
         }
 
@@ -734,7 +746,7 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stSelectbox"] {
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.2rem;
         }
 
         div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
@@ -765,10 +777,13 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stForm"] {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
             width: 100% !important;
         }
 
         div[data-testid="stForm"] form {
+            margin-top: 0 !important;
             width: 100% !important;
         }
 
