@@ -12,6 +12,7 @@
         "**/__pycache__": true,
         "**/*venv*": true,
         "**/zz_codex_tmp_dir": true,
-        "**/.cache": true
+        "**/.cache": true,
+        "pytest-cache-files*": true
     },
 }
