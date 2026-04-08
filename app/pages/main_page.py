@@ -952,9 +952,23 @@ def _apply_live_page_styles() -> None:
             color: #1d4ed8 !important;
         }
 
+        div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stFormSubmitButton"] button {
+            background: #edf4ff !important;
+            border: 1px solid #93c5fd !important;
+            color: #1d4ed8 !important;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stFormSubmitButton"] button:hover {
+            background: #e2eeff !important;
+            border-color: #60a5fa !important;
+            color: #1d4ed8 !important;
+        }
+
         div[data-testid="stButton"] button[kind="primary"],
         div[data-testid="stFormSubmitButton"] button[kind="primary"],
-        div[data-testid="stForm"] form div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stFormSubmitButton"] button {
+        div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stFormSubmitButton"] button,
+        div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stFormSubmitButton"] button {
             background: #1e40af !important;
             border: 1px solid #1e3a8a !important;
             color: #ffffff !important;
