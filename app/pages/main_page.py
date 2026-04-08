@@ -709,8 +709,8 @@ def _apply_live_page_styles() -> None:
             margin-bottom: 0 !important;
             margin-left: auto;
             margin-right: auto;
-            max-width: 24.6rem;
-            width: min(100%, 24.6rem);
+            max-width: calc(100% - 1.1rem);
+            width: calc(100% - 1.1rem);
         }
 
         .gm-live-answer-card--correct .gm-live-answer-badge,
@@ -844,7 +844,7 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stForm"] form > div[data-testid="stVerticalBlock"] {
-            gap: 0.38rem !important;
+            gap: 0.55rem !important;
         }
 
         div[data-testid="stForm"] form > div[data-testid="stVerticalBlock"] > div {
@@ -855,8 +855,8 @@ def _apply_live_page_styles() -> None:
             display: block !important;
             margin-left: auto !important;
             margin-right: auto !important;
-            max-width: 24.6rem !important;
-            width: 100% !important;
+            max-width: calc(100% - 1.1rem) !important;
+            width: calc(100% - 1.1rem) !important;
         }
 
         div[data-testid="stRadio"] > label {
