@@ -8,6 +8,7 @@
 data/db/
 data/raw/
 trash/
+local/bq_seeds/
 tests/*
 !tests/
 !tests/*.py
