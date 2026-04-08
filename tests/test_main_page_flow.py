@@ -177,3 +177,27 @@ def test_build_answer_status_chip_html_matches_result_state() -> None:
     assert "gm-live-status-chip--correct" in correct_html
     assert "Errou" in wrong_html
     assert "gm-live-status-chip--wrong" in wrong_html
+
+
+def test_resolve_live_timer_text_uses_current_time_when_running(monkeypatch) -> None:
+    monkeypatch.setattr(
+        main_page,
+        "utc_now",
+        lambda: datetime(2026, 4, 8, 16, 0, 9, tzinfo=timezone.utc),
+    )
+
+    timer_text = main_page._resolve_live_timer_text(
+        timer_elapsed_seconds=0,
+        timer_started_at=datetime(2026, 4, 8, 16, 0, 0, tzinfo=timezone.utc),
+    )
+
+    assert timer_text == "00:09"
+
+
+def test_resolve_live_timer_text_falls_back_to_existing_elapsed_seconds() -> None:
+    timer_text = main_page._resolve_live_timer_text(
+        timer_elapsed_seconds=112,
+        timer_started_at=None,
+    )
+
+    assert timer_text == "01:52"

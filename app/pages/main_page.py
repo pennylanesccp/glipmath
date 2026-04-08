@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from html import escape
 
 import streamlit as st
@@ -70,6 +71,7 @@ def render_main_page(
         last_result=last_result,
     )
     answer_is_correct = bool(last_result.get("is_correct")) if last_result else False
+    timer_started_at = get_question_started_at()
 
     _render_controls_bar(
         user=user,
@@ -79,7 +81,8 @@ def render_main_page(
         selected_subject=normalized_subject,
         streak_text=_format_streak_text(day_streak, question_streak),
         rank_text=_format_rank_text(leaderboard_position),
-        timer_text=format_elapsed_time(elapsed_seconds),
+        timer_elapsed_seconds=elapsed_seconds,
+        timer_started_at=timer_started_at,
         timer_running=not question_answered and current_question is not None,
         fire_icon_data_uri=fire_icon_data_uri,
         podium_icon_data_uri=podium_icon_data_uri,
@@ -123,7 +126,8 @@ def _render_controls_bar(
     selected_subject: str,
     streak_text: str,
     rank_text: str,
-    timer_text: str,
+    timer_elapsed_seconds: int,
+    timer_started_at: datetime | None,
     timer_running: bool,
     fire_icon_data_uri: str,
     podium_icon_data_uri: str,
@@ -168,16 +172,15 @@ def _render_controls_bar(
         )
 
     with metrics_col:
-        st.html(
-            _build_metrics_bar_html(
-                streak_text=streak_text,
-                rank_text=rank_text,
-                timer_text=timer_text,
-                timer_running=timer_running,
-                fire_icon_data_uri=fire_icon_data_uri,
-                podium_icon_data_uri=podium_icon_data_uri,
-                timer_icon_data_uri=timer_icon_data_uri,
-            )
+        _render_metrics_bar(
+            streak_text=streak_text,
+            rank_text=rank_text,
+            timer_elapsed_seconds=timer_elapsed_seconds,
+            timer_started_at=timer_started_at,
+            timer_running=timer_running,
+            fire_icon_data_uri=fire_icon_data_uri,
+            podium_icon_data_uri=podium_icon_data_uri,
+            timer_icon_data_uri=timer_icon_data_uri,
         )
 
     normalized_choice = _normalize_selected_subject(chosen_subject, subject_options)
@@ -362,6 +365,69 @@ def _build_metrics_bar_html(
     )
 
 
+def _render_metrics_bar(
+    *,
+    streak_text: str,
+    rank_text: str,
+    timer_elapsed_seconds: int,
+    timer_started_at: datetime | None,
+    timer_running: bool,
+    fire_icon_data_uri: str,
+    podium_icon_data_uri: str,
+    timer_icon_data_uri: str,
+) -> None:
+    if timer_running:
+        _render_live_metrics_bar_fragment(
+            streak_text=streak_text,
+            rank_text=rank_text,
+            timer_elapsed_seconds=timer_elapsed_seconds,
+            timer_started_at=timer_started_at,
+            fire_icon_data_uri=fire_icon_data_uri,
+            podium_icon_data_uri=podium_icon_data_uri,
+            timer_icon_data_uri=timer_icon_data_uri,
+        )
+        return
+
+    st.html(
+        _build_metrics_bar_html(
+            streak_text=streak_text,
+            rank_text=rank_text,
+            timer_text=format_elapsed_time(timer_elapsed_seconds),
+            timer_running=False,
+            fire_icon_data_uri=fire_icon_data_uri,
+            podium_icon_data_uri=podium_icon_data_uri,
+            timer_icon_data_uri=timer_icon_data_uri,
+        )
+    )
+
+
+@st.fragment(run_every="1s")
+def _render_live_metrics_bar_fragment(
+    *,
+    streak_text: str,
+    rank_text: str,
+    timer_elapsed_seconds: int,
+    timer_started_at: datetime | None,
+    fire_icon_data_uri: str,
+    podium_icon_data_uri: str,
+    timer_icon_data_uri: str,
+) -> None:
+    st.html(
+        _build_metrics_bar_html(
+            streak_text=streak_text,
+            rank_text=rank_text,
+            timer_text=_resolve_live_timer_text(
+                timer_elapsed_seconds=timer_elapsed_seconds,
+                timer_started_at=timer_started_at,
+            ),
+            timer_running=True,
+            fire_icon_data_uri=fire_icon_data_uri,
+            podium_icon_data_uri=podium_icon_data_uri,
+            timer_icon_data_uri=timer_icon_data_uri,
+        )
+    )
+
+
 def _build_question_card_html(statement: str) -> str:
     return (
         '<section class="gm-live-card gm-live-question-card">'
@@ -458,6 +524,22 @@ def _resolve_elapsed_seconds(
     if started_at is None:
         return 0
     return max(int((utc_now() - started_at).total_seconds()), 0)
+
+
+def _resolve_live_timer_text(
+    *,
+    timer_elapsed_seconds: int,
+    timer_started_at: datetime | None,
+) -> str:
+    if timer_started_at is None:
+        return format_elapsed_time(timer_elapsed_seconds)
+
+    live_elapsed_seconds = max(
+        int((utc_now() - timer_started_at).total_seconds()),
+        int(timer_elapsed_seconds),
+        0,
+    )
+    return format_elapsed_time(live_elapsed_seconds)
 
 
 def _normalize_selected_subject(subject: str | None, subject_options: list[str]) -> str:
