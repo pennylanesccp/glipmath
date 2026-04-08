@@ -325,6 +325,13 @@ def test_build_answer_review_card_html_uses_wrong_style_for_all_incorrect_option
     assert "Gabarito" not in correct_html
 
 
+def test_build_question_card_html_renders_markdown_snippets() -> None:
+    html = main_page._build_question_card_html("```sql\nSELECT 1\n```")
+
+    assert "<pre>" in html
+    assert "SELECT 1" in html
+
+
 def test_build_answer_status_chip_html_matches_result_state() -> None:
     correct_html = main_page._build_answer_status_chip_html(True)
     wrong_html = main_page._build_answer_status_chip_html(False)

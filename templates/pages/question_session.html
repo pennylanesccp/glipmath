@@ -234,6 +234,61 @@
         line-height: 1.65;
     }
 
+    .gm-question-statement > :first-child,
+    .gm-option-text > :first-child,
+    .gm-option-explanation > :first-child {
+        margin-top: 0;
+    }
+
+    .gm-question-statement > :last-child,
+    .gm-option-text > :last-child,
+    .gm-option-explanation > :last-child {
+        margin-bottom: 0;
+    }
+
+    .gm-question-statement p,
+    .gm-question-statement ul,
+    .gm-question-statement ol,
+    .gm-option-text p,
+    .gm-option-text ul,
+    .gm-option-text ol,
+    .gm-option-explanation p,
+    .gm-option-explanation ul,
+    .gm-option-explanation ol {
+        margin: 0 0 10px;
+    }
+
+    .gm-question-statement pre,
+    .gm-option-text pre,
+    .gm-option-explanation pre {
+        background: #0f172a;
+        border-radius: 16px;
+        color: #e2e8f0;
+        margin: 10px 0;
+        overflow-x: auto;
+        padding: 14px 16px;
+        white-space: pre-wrap;
+    }
+
+    .gm-question-statement code,
+    .gm-option-text code,
+    .gm-option-explanation code {
+        background: #eef2ff;
+        border-radius: 8px;
+        color: var(--gm-primary-strong);
+        font-family: "Consolas", "Courier New", monospace;
+        font-size: 0.94em;
+        padding: 2px 6px;
+    }
+
+    .gm-question-statement pre code,
+    .gm-option-text pre code,
+    .gm-option-explanation pre code {
+        background: transparent;
+        color: inherit;
+        padding: 0;
+    }
+
     .gm-options {
         display: flex;
         flex-direction: column;

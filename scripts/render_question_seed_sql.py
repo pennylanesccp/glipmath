@@ -5,6 +5,9 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+DEFAULT_INPUT_DIR = Path("local/bq_seeds/source")
+DEFAULT_OUTPUT_DIR = Path("local/bq_seeds/sql")
+
 
 def load_seed_payload(input_path: Path) -> dict[str, Any]:
     """Load one JSON seed payload from disk."""
@@ -122,6 +125,41 @@ def write_seed_sql(
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(sql, encoding="utf-8")
+
+
+def render_seed_directory(
+    input_dir: Path,
+    output_dir: Path,
+    *,
+    table_id_override: str | None = None,
+) -> list[Path]:
+    """Render one SQL file per JSON payload under the input directory."""
+
+    if not input_dir.exists():
+        raise ValueError(f"Seed JSON directory not found: {input_dir}")
+    if not input_dir.is_dir():
+        raise ValueError(f"Seed JSON input must be a directory: {input_dir}")
+
+    input_paths = sorted(
+        path
+        for path in input_dir.rglob("*.json")
+        if path.is_file()
+    )
+    if not input_paths:
+        raise ValueError(f"No seed JSON files were found under: {input_dir}")
+
+    output_paths: list[Path] = []
+    for input_path in input_paths:
+        payload = load_seed_payload(input_path)
+        output_path = output_dir / input_path.relative_to(input_dir).with_suffix(".sql")
+        write_seed_sql(
+            payload,
+            input_path=input_path,
+            output_path=output_path,
+            table_id_override=table_id_override,
+        )
+        output_paths.append(output_path)
+    return output_paths
 
 
 def _render_question_select(question: Mapping[str, Any], *, row_label: str) -> str:
@@ -242,18 +280,28 @@ def _require_bool(value: Any, field_name: str) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Render one BigQuery seed SQL file from a local JSON payload.",
+        description="Render BigQuery seed SQL files from local JSON payloads.",
     )
-    parser.add_argument(
+    input_group = parser.add_mutually_exclusive_group()
+    input_group.add_argument(
         "--input-json",
-        required=True,
         type=Path,
-        help="Path to the local JSON seed payload.",
+        help="Path to one local JSON seed payload.",
+    )
+    input_group.add_argument(
+        "--input-dir",
+        type=Path,
+        help=f"Path to a directory of JSON payloads. Defaults to {DEFAULT_INPUT_DIR.as_posix()}.",
     )
     parser.add_argument(
         "--output-sql",
         type=Path,
-        help="Optional output path for the generated SQL. Defaults to stdout.",
+        help="Optional output path for one generated SQL file.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help=f"Optional output directory for generated SQL files. Defaults to {DEFAULT_OUTPUT_DIR.as_posix()}.",
     )
     parser.add_argument(
         "--table-id",
@@ -261,25 +309,43 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    payload = load_seed_payload(args.input_json)
-    if args.output_sql is None:
-        print(
-            render_seed_sql(
-                payload,
-                source_path=args.input_json,
-                table_id_override=args.table_id,
-            ),
-            end="",
+    if args.input_json is not None:
+        payload = load_seed_payload(args.input_json)
+        if args.output_dir is not None and args.output_sql is not None:
+            raise ValueError("Use only one of --output-sql or --output-dir in file mode.")
+
+        output_sql = args.output_sql or _resolve_output_sql_path(
+            input_json=args.input_json,
+            output_dir=args.output_dir or DEFAULT_OUTPUT_DIR,
         )
+        write_seed_sql(
+            payload,
+            input_path=args.input_json,
+            output_path=output_sql,
+            table_id_override=args.table_id,
+        )
+        print(f"Generated SQL seed: {output_sql}")
         return
 
-    write_seed_sql(
-        payload,
-        input_path=args.input_json,
-        output_path=args.output_sql,
+    if args.output_sql is not None:
+        raise ValueError("--output-sql is only valid together with --input-json.")
+
+    input_dir = args.input_dir or DEFAULT_INPUT_DIR
+    output_dir = args.output_dir or DEFAULT_OUTPUT_DIR
+    output_paths = render_seed_directory(
+        input_dir,
+        output_dir,
         table_id_override=args.table_id,
     )
-    print(f"Generated SQL seed: {args.output_sql}")
+    for output_path in output_paths:
+        print(f"Generated SQL seed: {output_path}")
+
+
+def _resolve_output_sql_path(*, input_json: Path, output_dir: Path) -> Path:
+    if input_json.is_relative_to(DEFAULT_INPUT_DIR):
+        relative_path = input_json.relative_to(DEFAULT_INPUT_DIR).with_suffix(".sql")
+        return output_dir / relative_path
+    return output_dir / input_json.with_suffix(".sql").name
 
 
 if __name__ == "__main__":

@@ -25,6 +25,7 @@ from app.state.session_state import (
     start_submission,
     finish_submission,
 )
+from app.ui.markdown_renderer import markdown_to_html, markdown_to_plain_text
 from app.ui.question_session import format_elapsed_time, normalize_subject_filter
 from app.ui.template_renderer import asset_to_data_uri
 from modules.domain.models import DisplayAlternative, Question, User
@@ -204,7 +205,7 @@ def _render_pending_state(
 
     option_ids = [alternative.option_id for alternative in alternatives]
     option_labels = {
-        alternative.option_id: alternative.alternative_text
+        alternative.option_id: markdown_to_plain_text(alternative.alternative_text)
         for alternative in alternatives
     }
     selected_index = _find_option_index(option_ids, selected_option_id)
@@ -572,7 +573,7 @@ def _format_rank_text(leaderboard_position: str) -> str:
 
 
 def _text_to_html(text: str | None) -> str:
-    return escape(str(text or "").strip()).replace("\n", "<br>")
+    return markdown_to_html(text)
 
 
 def _load_icon_data_uri(relative_path: str) -> str:
@@ -690,6 +691,61 @@ def _apply_live_page_styles() -> None:
             color: #0f172a;
             font-size: 0.98rem;
             line-height: 1.5;
+        }
+
+        .gm-live-question-text > :first-child,
+        .gm-live-answer-text > :first-child,
+        .gm-live-answer-explanation > :first-child {
+            margin-top: 0;
+        }
+
+        .gm-live-question-text > :last-child,
+        .gm-live-answer-text > :last-child,
+        .gm-live-answer-explanation > :last-child {
+            margin-bottom: 0;
+        }
+
+        .gm-live-question-text p,
+        .gm-live-question-text ul,
+        .gm-live-question-text ol,
+        .gm-live-answer-text p,
+        .gm-live-answer-text ul,
+        .gm-live-answer-text ol,
+        .gm-live-answer-explanation p,
+        .gm-live-answer-explanation ul,
+        .gm-live-answer-explanation ol {
+            margin: 0 0 0.55rem;
+        }
+
+        .gm-live-question-text pre,
+        .gm-live-answer-text pre,
+        .gm-live-answer-explanation pre {
+            background: #0f172a;
+            border-radius: 0.95rem;
+            color: #e2e8f0;
+            margin: 0.55rem 0;
+            overflow-x: auto;
+            padding: 0.85rem 0.95rem;
+            white-space: pre-wrap;
+        }
+
+        .gm-live-question-text code,
+        .gm-live-answer-text code,
+        .gm-live-answer-explanation code {
+            background: #eff6ff;
+            border-radius: 0.45rem;
+            color: #1e3a8a;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 0.94em;
+            padding: 0.12rem 0.34rem;
+        }
+
+        .gm-live-question-text pre code,
+        .gm-live-answer-text pre code,
+        .gm-live-answer-explanation pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
         }
 
         .gm-live-answer-badge {

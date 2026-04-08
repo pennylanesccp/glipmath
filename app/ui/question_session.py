@@ -3,6 +3,7 @@ from __future__ import annotations
 from html import escape
 from urllib.parse import urlencode
 
+from app.ui.markdown_renderer import markdown_to_html
 from app.ui.template_renderer import asset_to_data_uri, raw_html, render_template
 from modules.domain.models import DisplayAlternative
 
@@ -110,9 +111,9 @@ def format_elapsed_time(total_seconds: float | int) -> str:
 
 
 def text_to_html(text: str | None) -> str:
-    """Render plain multi-line text as safe HTML."""
+    """Render Markdown text as HTML for the question-session template."""
 
-    return escape(str(text or "").strip()).replace("\n", "<br>")
+    return markdown_to_html(text)
 
 
 def _render_subject_options_html(
@@ -147,7 +148,7 @@ def _render_alternatives_html(
         explanation_html = ""
         if question_answered and alternative.explanation:
             explanation_html = (
-                f'<p class="gm-option-explanation">{text_to_html(alternative.explanation)}</p>'
+                f'<div class="gm-option-explanation">{text_to_html(alternative.explanation)}</div>'
             )
 
         option_class = _resolve_option_class(
@@ -158,10 +159,10 @@ def _render_alternatives_html(
         )
         option_body = (
             '<span class="gm-option-radio"></span>'
-            '<span class="gm-option-content">'
-            f'<span class="gm-option-text">{escape(alternative.alternative_text)}</span>'
+            '<div class="gm-option-content">'
+            f'<div class="gm-option-text">{text_to_html(alternative.alternative_text)}</div>'
             f"{explanation_html}"
-            "</span>"
+            "</div>"
         )
 
         if question_answered:
