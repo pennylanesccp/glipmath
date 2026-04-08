@@ -18,6 +18,7 @@ from modules.services.question_service import (
     parse_question_index_dataframe,
     parse_project_options_dataframe,
     parse_single_question_dataframe,
+    select_question_batch_ids,
     select_next_question,
     select_next_question_id,
 )
@@ -162,6 +163,20 @@ def test_select_next_question_id_prioritizes_unseen_question_ids() -> None:
     )
 
     assert selected == 2
+
+
+def test_select_question_batch_ids_excludes_answered_and_limits_prefetch_size() -> None:
+    selected = select_question_batch_ids(
+        [1, 2, 3, 4, 5],
+        excluded_question_ids={2, 5},
+        limit=2,
+        randomizer=random.Random(3),
+    )
+
+    assert len(selected) == 2
+    assert set(selected).issubset({1, 3, 4})
+    assert 2 not in selected
+    assert 5 not in selected
 
 
 def test_parse_question_id_dataframe_reads_integer_ids() -> None:

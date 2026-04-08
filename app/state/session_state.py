@@ -16,6 +16,8 @@ AUTHENTICATED_RUN_LOGGED_KEY = "glipmath_authenticated_run_logged"
 CURRENT_QUESTION_ID_KEY = "glipmath_current_question_id"
 CURRENT_QUESTION_KEY = "glipmath_current_question"
 CURRENT_ALTERNATIVES_KEY = "glipmath_current_alternatives"
+QUESTION_POOL_KEY = "glipmath_question_pool"
+QUESTION_POOL_SCOPE_KEY = "glipmath_question_pool_scope"
 QUESTION_STARTED_AT_KEY = "glipmath_question_started_at"
 QUESTION_ANSWERED_KEY = "glipmath_question_answered"
 LAST_ANSWER_RESULT_KEY = "glipmath_last_answer_result"
@@ -41,6 +43,8 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(CURRENT_QUESTION_ID_KEY, None)
     st.session_state.setdefault(CURRENT_QUESTION_KEY, None)
     st.session_state.setdefault(CURRENT_ALTERNATIVES_KEY, [])
+    st.session_state.setdefault(QUESTION_POOL_KEY, [])
+    st.session_state.setdefault(QUESTION_POOL_SCOPE_KEY, None)
     st.session_state.setdefault(QUESTION_STARTED_AT_KEY, None)
     st.session_state.setdefault(QUESTION_ANSWERED_KEY, False)
     st.session_state.setdefault(LAST_ANSWER_RESULT_KEY, None)
@@ -85,6 +89,8 @@ def bind_authenticated_user(user: User) -> None:
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
     st.session_state[SUBJECT_FILTER_KEY] = "Todas"
     st.session_state[PROJECT_FILTER_KEY] = None
+    st.session_state[QUESTION_POOL_KEY] = []
+    st.session_state[QUESTION_POOL_SCOPE_KEY] = None
     clear_current_question()
 
 
@@ -183,41 +189,7 @@ def get_current_question() -> Question | None:
     """Return the current question snapshot from session state."""
 
     initialize_session_state()
-    raw_question = st.session_state[CURRENT_QUESTION_KEY]
-    if not isinstance(raw_question, dict):
-        return None
-
-    try:
-        raw_correct = raw_question["correct_answer"]
-        raw_wrong_answers = raw_question["wrong_answers"]
-        if not isinstance(raw_correct, dict) or not isinstance(raw_wrong_answers, list):
-            return None
-
-        return Question(
-            id_question=int(raw_question["id_question"]),
-            statement=str(raw_question["statement"]),
-            correct_answer=QuestionAlternative(
-                alternative_text=str(raw_correct["alternative_text"]),
-                explanation=_string_or_none(raw_correct.get("explanation")),
-            ),
-            wrong_answers=tuple(
-                QuestionAlternative(
-                    alternative_text=str(item["alternative_text"]),
-                    explanation=_string_or_none(item.get("explanation")),
-                )
-                for item in raw_wrong_answers
-                if isinstance(item, dict) and "alternative_text" in item
-            ),
-            subject=_string_or_none(raw_question.get("subject")),
-            topic=_string_or_none(raw_question.get("topic")),
-            difficulty=_string_or_none(raw_question.get("difficulty")),
-            source=_string_or_none(raw_question.get("source")),
-            cohort_key=_string_or_none(raw_question.get("cohort_key")),
-            created_at_utc=raw_question.get("created_at_utc") if isinstance(raw_question.get("created_at_utc"), datetime) else None,
-            updated_at_utc=raw_question.get("updated_at_utc") if isinstance(raw_question.get("updated_at_utc"), datetime) else None,
-        )
-    except (KeyError, TypeError, ValueError):
-        return None
+    return _deserialize_question(st.session_state[CURRENT_QUESTION_KEY])
 
 
 def get_current_alternatives() -> list[DisplayAlternative]:
@@ -269,28 +241,7 @@ def set_current_question(question: Question, alternatives: list[DisplayAlternati
 
     initialize_session_state()
     st.session_state[CURRENT_QUESTION_ID_KEY] = question.id_question
-    st.session_state[CURRENT_QUESTION_KEY] = {
-        "id_question": question.id_question,
-        "statement": question.statement,
-        "correct_answer": {
-            "alternative_text": question.correct_answer.alternative_text,
-            "explanation": question.correct_answer.explanation,
-        },
-        "wrong_answers": [
-            {
-                "alternative_text": wrong_answer.alternative_text,
-                "explanation": wrong_answer.explanation,
-            }
-            for wrong_answer in question.wrong_answers
-        ],
-        "subject": question.subject,
-        "topic": question.topic,
-        "difficulty": question.difficulty,
-        "source": question.source,
-        "cohort_key": question.cohort_key,
-        "created_at_utc": question.created_at_utc,
-        "updated_at_utc": question.updated_at_utc,
-    }
+    st.session_state[CURRENT_QUESTION_KEY] = _serialize_question(question)
     st.session_state[CURRENT_ALTERNATIVES_KEY] = [
         {
             "option_id": alternative.option_id,
@@ -305,6 +256,51 @@ def set_current_question(question: Question, alternatives: list[DisplayAlternati
     st.session_state[LAST_ANSWER_RESULT_KEY] = None
     st.session_state[QUESTION_SELECTION_KEY] = None
     st.session_state[SUBMISSION_IN_PROGRESS_KEY] = False
+
+
+def get_question_pool() -> list[Question]:
+    """Return the prefetched question pool for the current session scope."""
+
+    initialize_session_state()
+    raw_pool = st.session_state[QUESTION_POOL_KEY]
+    if not isinstance(raw_pool, list):
+        return []
+    return [
+        question
+        for question in (_deserialize_question(item) for item in raw_pool)
+        if question is not None
+    ]
+
+
+def get_question_pool_scope() -> str | None:
+    """Return the scope signature attached to the current prefetched question pool."""
+
+    initialize_session_state()
+    return _string_or_none(st.session_state[QUESTION_POOL_SCOPE_KEY])
+
+
+def ensure_question_pool_scope(scope_key: str | None) -> None:
+    """Reset the prefetched question pool when the active question scope changes."""
+
+    initialize_session_state()
+    normalized_scope_key = _string_or_none(scope_key)
+    if st.session_state[QUESTION_POOL_SCOPE_KEY] == normalized_scope_key:
+        return
+    st.session_state[QUESTION_POOL_SCOPE_KEY] = normalized_scope_key
+    st.session_state[QUESTION_POOL_KEY] = []
+
+
+def set_question_pool(
+    questions: list[Question],
+    *,
+    scope_key: str | None = None,
+) -> None:
+    """Persist the prefetched question pool for the current session scope."""
+
+    initialize_session_state()
+    if scope_key is not None:
+        st.session_state[QUESTION_POOL_SCOPE_KEY] = _string_or_none(scope_key)
+    st.session_state[QUESTION_POOL_KEY] = [_serialize_question(question) for question in questions]
 
 
 def clear_current_question() -> None:
@@ -488,7 +484,71 @@ def _bind_authenticated_user_email(user_email: str) -> None:
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
     st.session_state[SUBJECT_FILTER_KEY] = "Todas"
     st.session_state[PROJECT_FILTER_KEY] = None
+    st.session_state[QUESTION_POOL_KEY] = []
+    st.session_state[QUESTION_POOL_SCOPE_KEY] = None
     clear_current_question()
+
+
+def _serialize_question(question: Question) -> dict[str, object]:
+    return {
+        "id_question": question.id_question,
+        "statement": question.statement,
+        "correct_answer": {
+            "alternative_text": question.correct_answer.alternative_text,
+            "explanation": question.correct_answer.explanation,
+        },
+        "wrong_answers": [
+            {
+                "alternative_text": wrong_answer.alternative_text,
+                "explanation": wrong_answer.explanation,
+            }
+            for wrong_answer in question.wrong_answers
+        ],
+        "subject": question.subject,
+        "topic": question.topic,
+        "difficulty": question.difficulty,
+        "source": question.source,
+        "cohort_key": question.cohort_key,
+        "created_at_utc": question.created_at_utc,
+        "updated_at_utc": question.updated_at_utc,
+    }
+
+
+def _deserialize_question(raw_question: object) -> Question | None:
+    if not isinstance(raw_question, dict):
+        return None
+
+    try:
+        raw_correct = raw_question["correct_answer"]
+        raw_wrong_answers = raw_question["wrong_answers"]
+        if not isinstance(raw_correct, dict) or not isinstance(raw_wrong_answers, list):
+            return None
+
+        return Question(
+            id_question=int(raw_question["id_question"]),
+            statement=str(raw_question["statement"]),
+            correct_answer=QuestionAlternative(
+                alternative_text=str(raw_correct["alternative_text"]),
+                explanation=_string_or_none(raw_correct.get("explanation")),
+            ),
+            wrong_answers=tuple(
+                QuestionAlternative(
+                    alternative_text=str(item["alternative_text"]),
+                    explanation=_string_or_none(item.get("explanation")),
+                )
+                for item in raw_wrong_answers
+                if isinstance(item, dict) and "alternative_text" in item
+            ),
+            subject=_string_or_none(raw_question.get("subject")),
+            topic=_string_or_none(raw_question.get("topic")),
+            difficulty=_string_or_none(raw_question.get("difficulty")),
+            source=_string_or_none(raw_question.get("source")),
+            cohort_key=_string_or_none(raw_question.get("cohort_key")),
+            created_at_utc=raw_question.get("created_at_utc") if isinstance(raw_question.get("created_at_utc"), datetime) else None,
+            updated_at_utc=raw_question.get("updated_at_utc") if isinstance(raw_question.get("updated_at_utc"), datetime) else None,
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def _string_or_none(value: object) -> str | None:

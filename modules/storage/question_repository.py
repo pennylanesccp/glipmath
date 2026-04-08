@@ -121,6 +121,61 @@ class QuestionRepository:
         """
         return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
 
+    def load_question_frames_by_ids(
+        self,
+        id_questions: list[int] | tuple[int, ...],
+        *,
+        cohort_key: str | None = None,
+    ) -> pd.DataFrame:
+        """Load multiple active questions by identifier in one round-trip."""
+
+        normalized_ids = sorted({int(id_question) for id_question in id_questions})
+        if not normalized_ids:
+            return pd.DataFrame(
+                columns=[
+                    "id_question",
+                    "statement",
+                    "correct_answer",
+                    "wrong_answers",
+                    "subject",
+                    "topic",
+                    "difficulty",
+                    "source",
+                    "cohort_key",
+                    "is_active",
+                    "created_at_utc",
+                    "updated_at_utc",
+                ]
+            )
+
+        parameters: list[bigquery.ScalarQueryParameter | bigquery.ArrayQueryParameter] = [
+            bigquery.ArrayQueryParameter("id_question_ids", "INT64", normalized_ids)
+        ]
+        cohort_condition, cohort_parameters = self._build_cohort_filter(cohort_key)
+        extra_filter = f"\n              AND {cohort_condition}" if cohort_condition else ""
+        parameters.extend(cohort_parameters)
+        query = f"""
+            SELECT
+                id_question,
+                statement,
+                correct_answer,
+                wrong_answers,
+                subject,
+                topic,
+                difficulty,
+                source,
+                cohort_key,
+                is_active,
+                created_at_utc,
+                updated_at_utc
+            FROM `{self._table_id}`
+            WHERE is_active = TRUE
+              AND id_question IN UNNEST(@id_question_ids)
+              {extra_filter}
+            ORDER BY id_question
+        """
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
+
     def load_missing_explanations_frame(self, *, limit: int | None = None) -> pd.DataFrame:
         """Load active questions that still need one or more explanations."""
 

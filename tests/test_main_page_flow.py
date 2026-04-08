@@ -143,6 +143,123 @@ def test_resolve_current_question_reuses_loaded_snapshot(monkeypatch) -> None:
     assert issues == []
 
 
+def test_resolve_current_question_prefetches_batch_and_reuses_session_pool(monkeypatch) -> None:
+    question_one = Question(
+        id_question=7,
+        statement="Quanto e 2 + 2?",
+        correct_answer=QuestionAlternative("4", "Porque 2 + 2 = 4."),
+        wrong_answers=(QuestionAlternative("3", "Soma incompleta."),),
+        subject="Matematica",
+    )
+    question_two = Question(
+        id_question=8,
+        statement="Quanto e 3 + 3?",
+        correct_answer=QuestionAlternative("6", "Porque 3 + 3 = 6."),
+        wrong_answers=(QuestionAlternative("5", "Faltou 1."),),
+        subject="Matematica",
+    )
+    state = {
+        "current_question_id": None,
+        "current_question": None,
+        "current_alternatives": [],
+        "pool": [],
+        "pool_scope": None,
+        "invalid_ids": set(),
+    }
+    batch_calls: list[tuple[int, ...]] = []
+
+    def _set_current_question(question, alternatives):
+        state["current_question_id"] = question.id_question
+        state["current_question"] = question
+        state["current_alternatives"] = alternatives
+
+    monkeypatch.setattr(streamlit_app, "get_current_question_id", lambda: state["current_question_id"])
+    monkeypatch.setattr(streamlit_app, "get_current_question", lambda: state["current_question"])
+    monkeypatch.setattr(streamlit_app, "get_current_alternatives", lambda: state["current_alternatives"])
+    monkeypatch.setattr(
+        streamlit_app,
+        "clear_current_question",
+        lambda: state.update({"current_question_id": None, "current_question": None, "current_alternatives": []}),
+    )
+    monkeypatch.setattr(streamlit_app, "get_skipped_question_ids", lambda: set())
+    monkeypatch.setattr(streamlit_app, "get_invalid_question_ids", lambda: set(state["invalid_ids"]))
+    monkeypatch.setattr(streamlit_app, "mark_question_invalid", lambda id_question: state["invalid_ids"].add(id_question))
+    monkeypatch.setattr(streamlit_app, "get_question_pool", lambda: list(state["pool"]))
+    monkeypatch.setattr(
+        streamlit_app,
+        "ensure_question_pool_scope",
+        lambda scope_key: state.update({"pool_scope": scope_key, "pool": []})
+        if state["pool_scope"] != scope_key
+        else None,
+    )
+    monkeypatch.setattr(
+        streamlit_app,
+        "set_question_pool",
+        lambda questions, scope_key=None: state.update(
+            {
+                "pool": list(questions),
+                "pool_scope": scope_key if scope_key is not None else state["pool_scope"],
+            }
+        ),
+    )
+    monkeypatch.setattr(streamlit_app, "set_current_question", _set_current_question)
+    monkeypatch.setattr(
+        streamlit_app,
+        "build_display_alternatives",
+        lambda question: [
+            DisplayAlternative(
+                option_id=f"option_{question.id_question}",
+                alternative_text=question.correct_answer.alternative_text,
+                explanation=question.correct_answer.explanation,
+                is_correct=True,
+            )
+        ],
+    )
+    monkeypatch.setattr(streamlit_app, "select_question_batch_ids", lambda *args, **kwargs: [7, 8])
+    monkeypatch.setattr(
+        streamlit_app,
+        "load_question_batch",
+        lambda *args, **kwargs: (batch_calls.append(tuple(kwargs.get("question_ids", args[2]))) or [question_one, question_two], []),
+    )
+    monkeypatch.setattr(
+        streamlit_app,
+        "load_question_snapshot",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("single-question lookup should not run")),
+    )
+
+    resolved_question, resolved_alternatives, issues = streamlit_app.resolve_current_question(
+        question_repository=SimpleNamespace(),
+        question_table_id="project.dataset.question_bank",
+        cohort_key="ano_1",
+        active_question_ids=[7, 8],
+        answered_question_ids=set(),
+    )
+
+    assert resolved_question == question_one
+    assert [question.id_question for question in state["pool"]] == [8]
+    assert resolved_alternatives[0].option_id == "option_7"
+    assert issues == []
+    assert batch_calls == [(7, 8)]
+
+    state["current_question_id"] = None
+    state["current_question"] = None
+    state["current_alternatives"] = []
+
+    resolved_question, resolved_alternatives, issues = streamlit_app.resolve_current_question(
+        question_repository=SimpleNamespace(),
+        question_table_id="project.dataset.question_bank",
+        cohort_key="ano_1",
+        active_question_ids=[7, 8],
+        answered_question_ids=set(),
+    )
+
+    assert resolved_question == question_two
+    assert state["pool"] == []
+    assert resolved_alternatives[0].option_id == "option_8"
+    assert issues == []
+    assert batch_calls == [(7, 8)]
+
+
 def test_build_answer_review_card_html_uses_wrong_style_for_all_incorrect_options() -> None:
     wrong_html = main_page._build_answer_review_card_html(
         alternative=DisplayAlternative(

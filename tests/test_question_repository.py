@@ -53,6 +53,23 @@ def test_load_question_frame_by_id_enforces_cohort_scope() -> None:
     assert {parameter.name for parameter in parameters} == {"id_question", "cohort_key"}
 
 
+def test_load_question_frames_by_ids_uses_one_array_parameter_query() -> None:
+    fake_client = FakeBigQueryClient()
+    repository = QuestionRepository(fake_client, "project.dataset.question_bank")
+
+    repository.load_question_frames_by_ids([42, 7, 42], cohort_key="ano_2")
+
+    assert "id_question IN UNNEST(@id_question_ids)" in fake_client.queries[0]
+    assert "LOWER(TRIM(cohort_key)) = @cohort_key" in fake_client.queries[0]
+    parameters = fake_client.parameters[0]
+    assert parameters is not None
+    assert [parameter.name for parameter in parameters] == ["id_question_ids", "cohort_key"]
+    assert parameters[0].to_api_repr()["parameterValue"]["arrayValues"] == [
+        {"value": "7"},
+        {"value": "42"},
+    ]
+
+
 def test_load_active_project_frame_returns_distinct_non_blank_cohorts() -> None:
     fake_client = FakeBigQueryClient()
     repository = QuestionRepository(fake_client, "project.dataset.question_bank")

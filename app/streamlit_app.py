@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,11 +20,13 @@ from app.pages.main_page import render_main_page
 from app.state.session_state import (
     bind_authenticated_user,
     clear_current_question,
+    ensure_question_pool_scope,
     get_answered_question_ids,
     get_current_alternatives,
     get_current_question,
     get_current_question_id,
     get_invalid_question_ids,
+    get_question_pool,
     get_project_filter,
     get_skipped_question_ids,
     get_subject_filter,
@@ -36,6 +39,7 @@ from app.state.session_state import (
     mark_question_invalid,
     mark_authenticated_run_logged,
     set_current_question,
+    set_question_pool,
     set_user_answer_history,
 )
 from modules.auth.auth_service import get_authenticated_identity
@@ -48,9 +52,12 @@ from modules.services.question_service import (
     build_display_alternatives,
     build_subject_options,
     filter_question_ids_by_subject,
+    find_question_by_id,
     parse_project_options_dataframe,
+    parse_question_bank_dataframe,
     parse_question_index_dataframe,
     parse_single_question_dataframe,
+    select_question_batch_ids,
     select_next_question_id,
 )
 from modules.services.streak_service import compute_day_streak, compute_question_streak
@@ -60,6 +67,8 @@ from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
 from modules.storage.user_access_repository import UserAccessRepository
 from modules.utils.logging_utils import configure_logging, get_logger
+
+QUESTION_PREFETCH_BATCH_SIZE = 10
 
 
 @dataclass(slots=True)
@@ -316,6 +325,37 @@ def load_question_snapshot(
     return question, issues
 
 
+@st.cache_data(show_spinner=False, ttl=300)
+def load_question_batch(
+    _question_repository: QuestionRepository,
+    question_table_id: str,
+    question_ids: tuple[int, ...],
+    cohort_key: str | None,
+) -> tuple[list[Question], list[str]]:
+    """Load and cache a batch of fully parsed questions for the active pool."""
+
+    if not question_ids:
+        return [], []
+
+    logger = get_logger(__name__)
+    started_at = perf_counter()
+    question_frame = _question_repository.load_question_frames_by_ids(
+        list(question_ids),
+        cohort_key=cohort_key,
+    )
+    questions, issues = parse_question_bank_dataframe(question_frame)
+    logger.debug(
+        "Loaded question batch | table_id=%s | requested=%s | loaded=%s | cohort_key=%s | issues=%s | elapsed_ms=%.2f",
+        question_table_id,
+        len(question_ids),
+        len(questions),
+        cohort_key,
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return questions, issues
+
+
 @st.cache_data(show_spinner=False, ttl=120)
 def load_user_answer_history(
     _answer_repository: AnswerRepository,
@@ -398,14 +438,21 @@ def resolve_current_question(
     active_question_ids: list[int],
     answered_question_ids: set[int],
 ) -> tuple[Question | None, list[DisplayAlternative], list[str]]:
-    """Resolve the current question, selecting and caching one if needed."""
+    """Resolve the current question, prefetched in batches when possible."""
 
     issues: list[str] = []
+    active_question_id_set = {int(question_id) for question_id in active_question_ids}
+    pool_scope_key = _build_question_pool_scope_key(
+        cohort_key=cohort_key,
+        active_question_ids=active_question_id_set,
+    )
+    ensure_question_pool_scope(pool_scope_key)
+
     current_question_id = get_current_question_id()
     current_question = get_current_question()
     current_alternatives = get_current_alternatives()
 
-    if current_question_id is not None and current_question_id not in active_question_ids:
+    if current_question_id is not None and current_question_id not in active_question_id_set:
         clear_current_question()
         current_question_id = None
         current_question = None
@@ -414,6 +461,10 @@ def resolve_current_question(
     if current_question_id is not None and current_alternatives:
         if current_question is not None and current_question.id_question == current_question_id:
             return current_question, current_alternatives, []
+
+        pooled_question = find_question_by_id(get_question_pool(), current_question_id)
+        if pooled_question is not None:
+            return pooled_question, current_alternatives, []
 
         current_question, current_issues = load_question_snapshot(
             question_repository,
@@ -432,26 +483,66 @@ def resolve_current_question(
         | get_skipped_question_ids()
         | get_invalid_question_ids()
     )
+    question_pool = _prune_question_pool(
+        question_pool=get_question_pool(),
+        active_question_ids=active_question_id_set,
+        excluded_question_ids=excluded_question_ids,
+    )
+    set_question_pool(question_pool, scope_key=pool_scope_key)
+
+    next_question, question_pool = _take_next_question_from_pool(question_pool)
+    if next_question is not None:
+        set_question_pool(question_pool, scope_key=pool_scope_key)
+        alternatives = build_display_alternatives(next_question)
+        set_current_question(next_question, alternatives)
+        return next_question, alternatives, issues
 
     while True:
-        next_question_id = select_next_question_id(active_question_ids, excluded_question_ids)
-        if next_question_id is None:
+        batch_question_ids = tuple(
+            select_question_batch_ids(
+                active_question_id_set,
+                excluded_question_ids,
+                limit=QUESTION_PREFETCH_BATCH_SIZE,
+            )
+        )
+        if not batch_question_ids:
             return None, [], issues
 
-        next_question, current_issues = load_question_snapshot(
+        batch_questions, current_issues = load_question_batch(
             question_repository,
             question_table_id,
-            next_question_id,
+            batch_question_ids,
             cohort_key,
         )
-        if next_question is not None and not current_issues:
+        issues.extend(current_issues)
+
+        batch_questions_by_id = {
+            question.id_question: question
+            for question in batch_questions
+        }
+        missing_question_ids = [
+            question_id
+            for question_id in batch_question_ids
+            if question_id not in batch_questions_by_id
+        ]
+        for missing_question_id in missing_question_ids:
+            issues.append(f"question_bank row for id_question {missing_question_id} was not found.")
+            mark_question_invalid(missing_question_id)
+            excluded_question_ids.add(missing_question_id)
+
+        question_pool = [
+            batch_questions_by_id[question_id]
+            for question_id in batch_question_ids
+            if question_id in batch_questions_by_id
+        ]
+        next_question, remaining_pool = _take_next_question_from_pool(question_pool)
+        if next_question is not None:
+            set_question_pool(remaining_pool, scope_key=pool_scope_key)
             alternatives = build_display_alternatives(next_question)
             set_current_question(next_question, alternatives)
             return next_question, alternatives, issues
 
-        issues.extend(current_issues or [f"question_bank row for id_question {next_question_id} was not found."])
-        mark_question_invalid(next_question_id)
-        excluded_question_ids.add(next_question_id)
+        excluded_question_ids.update(batch_question_ids)
 
 
 def _render_diagnostics(
@@ -485,6 +576,49 @@ def _resolve_selected_project_filter(project_options: list[str]) -> str | None:
     if not project_options:
         return None
     return project_options[0]
+
+
+def _build_question_pool_scope_key(
+    *,
+    cohort_key: str | None,
+    active_question_ids: set[int],
+) -> str:
+    return json.dumps(
+        {
+            "cohort_key": cohort_key,
+            "active_question_ids": sorted(active_question_ids),
+        },
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+
+
+def _prune_question_pool(
+    *,
+    question_pool: list[Question],
+    active_question_ids: set[int],
+    excluded_question_ids: set[int],
+) -> list[Question]:
+    seen_question_ids: set[int] = set()
+    pruned_pool: list[Question] = []
+    for question in question_pool:
+        if question.id_question in seen_question_ids:
+            continue
+        if question.id_question not in active_question_ids:
+            continue
+        if question.id_question in excluded_question_ids:
+            continue
+        seen_question_ids.add(question.id_question)
+        pruned_pool.append(question)
+    return pruned_pool
+
+
+def _take_next_question_from_pool(
+    question_pool: list[Question],
+) -> tuple[Question | None, list[Question]]:
+    if not question_pool:
+        return None, []
+    return question_pool[0], question_pool[1:]
 
 
 if __name__ == "__main__":

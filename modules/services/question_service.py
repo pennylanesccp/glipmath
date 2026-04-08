@@ -243,6 +243,31 @@ def select_next_question_id(
     return chooser.choice(pool)
 
 
+def select_question_batch_ids(
+    question_ids: Iterable[int],
+    excluded_question_ids: set[int],
+    *,
+    limit: int,
+    randomizer: random.Random | None = None,
+) -> list[int]:
+    """Select a randomized batch of question IDs that are still eligible for prefetch."""
+
+    if limit <= 0:
+        return []
+
+    available_question_ids = [
+        question_id
+        for question_id in sorted({int(question_id) for question_id in question_ids})
+        if question_id not in excluded_question_ids
+    ]
+    if not available_question_ids:
+        return []
+
+    chooser = randomizer or random.Random()
+    chooser.shuffle(available_question_ids)
+    return available_question_ids[:limit]
+
+
 def build_subject_options(question_index: Sequence[QuestionIndexEntry]) -> list[str]:
     """Build sorted subject filter options for the practice screen."""
 
