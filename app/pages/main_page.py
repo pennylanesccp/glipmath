@@ -615,7 +615,7 @@ def _apply_live_page_styles() -> None:
             display: flex;
             gap: 0.72rem;
             justify-content: flex-end;
-            min-height: 2.35rem;
+            min-height: 2.55rem;
             width: 100%;
         }
 
@@ -623,9 +623,9 @@ def _apply_live_page_styles() -> None:
             align-items: center;
             color: #1e3a8a;
             display: inline-flex;
-            font-size: 0.9rem;
+            font-size: 1rem;
             font-weight: 800;
-            gap: 0.32rem;
+            gap: 0.42rem;
             justify-content: flex-end;
             min-height: 0;
             padding: 0;
@@ -643,8 +643,8 @@ def _apply_live_page_styles() -> None:
         .gm-live-metric-icon {
             display: block;
             flex: 0 0 auto;
-            height: 0.88rem;
-            width: 0.88rem;
+            height: 1.1rem;
+            width: 1.1rem;
         }
 
         .gm-live-metric-value {
@@ -658,7 +658,7 @@ def _apply_live_page_styles() -> None:
             border: 1px solid #dbeafe;
             border-radius: 1.25rem;
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-            margin-bottom: 0.55rem;
+            margin-bottom: 0 !important;
             padding: 1rem 1rem 0.95rem;
         }
 
@@ -900,25 +900,35 @@ def _apply_live_page_styles() -> None:
             color: #475569 !important;
         }
 
-        div[data-testid="stButton"] button[kind="secondary"],
-        div[data-testid="stFormSubmitButton"] button,
-        div[data-testid="stFormSubmitButton"] button[kind="secondary"] {
+        div[data-testid="stButton"] button[kind="secondary"] {
             background: #edf4ff !important;
             border: 1px solid #93c5fd !important;
             color: #1d4ed8 !important;
             box-shadow: 0 10px 24px rgba(59, 130, 246, 0.1) !important;
         }
 
-        div[data-testid="stButton"] button[kind="secondary"]:hover,
-        div[data-testid="stFormSubmitButton"] button:hover,
-        div[data-testid="stFormSubmitButton"] button[kind="secondary"]:hover {
+        div[data-testid="stButton"] button[kind="secondary"]:hover {
+            background: #e2eeff !important;
+            border-color: #60a5fa !important;
+            color: #1d4ed8 !important;
+        }
+
+        div[data-testid="stForm"] form div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stFormSubmitButton"] button {
+            background: #edf4ff !important;
+            border: 1px solid #93c5fd !important;
+            color: #1d4ed8 !important;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        div[data-testid="stForm"] form div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stFormSubmitButton"] button:hover {
             background: #e2eeff !important;
             border-color: #60a5fa !important;
             color: #1d4ed8 !important;
         }
 
         div[data-testid="stButton"] button[kind="primary"],
-        div[data-testid="stFormSubmitButton"] button[kind="primary"] {
+        div[data-testid="stFormSubmitButton"] button[kind="primary"],
+        div[data-testid="stForm"] form div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stFormSubmitButton"] button {
             background: #1e40af !important;
             border: 1px solid #1e3a8a !important;
             color: #ffffff !important;
