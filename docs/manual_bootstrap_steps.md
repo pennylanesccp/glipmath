@@ -128,6 +128,7 @@ python scripts/enrich_question_explanations.py --limit 50
 - connect the GitHub repository
 - set the app entrypoint to `app/streamlit_app.py`
 - paste the same secrets sections used locally into Streamlit Cloud secrets
+- include the real `[gcp_service_account]` block in the deployed app secrets because Streamlit Community Cloud cannot use metadata-server ADC for BigQuery
 - change `auth.redirect_uri` from the local `http://localhost:8501/oauth2callback` value to `https://glipmath.streamlit.app/oauth2callback`
 - confirm the same published callback URL is present in the Google OAuth client's `Authorized redirect URIs`
 - remember that changing the local `.streamlit/secrets.toml` file does not update the deployed Streamlit Cloud app

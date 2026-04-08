@@ -2,7 +2,8 @@ param(
     [int]$Port = 8501,
     [switch]$Headless,
     [switch]$NoBrowser,
-    [switch]$ForceInstall
+    [switch]$ForceInstall,
+    [switch]$SkipAuthRedirectGuard
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,6 +20,57 @@ $EditableInstallInputs = @(
     (Join-Path $RepoRoot "requirements.txt")
 )
 $LocalSecretsPath = Join-Path $RepoRoot ".streamlit\secrets.toml"
+
+function Get-AuthRedirectUriFromSecrets {
+    param(
+        [string]$SecretsPath
+    )
+
+    if (-not (Test-Path $SecretsPath)) {
+        return $null
+    }
+
+    $inAuthSection = $false
+    foreach ($line in Get-Content $SecretsPath) {
+        $trimmed = $line.Trim()
+
+        if ($trimmed -match '^\[(.+)\]$') {
+            $inAuthSection = $Matches[1] -eq "auth"
+            continue
+        }
+
+        if (-not $inAuthSection -or [string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith("#")) {
+            continue
+        }
+
+        if ($trimmed -match '^redirect_uri\s*=\s*"([^"]+)"') {
+            return $Matches[1]
+        }
+    }
+
+    return $null
+}
+
+function Test-IsSupportedLocalRedirectUri {
+    param(
+        [string]$RedirectUri,
+        [int]$Port
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RedirectUri)) {
+        return $false
+    }
+
+    $normalized = $RedirectUri.Trim().ToLowerInvariant()
+    $supportedUris = @(
+        "http://localhost:$Port/oauth2callback",
+        "http://127.0.0.1:$Port/oauth2callback",
+        "http://localhost:{port}/oauth2callback",
+        "http://127.0.0.1:{port}/oauth2callback"
+    )
+
+    return $supportedUris -contains $normalized
+}
 
 if (-not (Test-Path $AppPath)) {
     throw "Streamlit app not found. Expected '$AppPath'."
@@ -56,6 +108,18 @@ Write-Host "Port: $Port"
 
 if (-not (Test-Path $LocalSecretsPath)) {
     Write-Warning "Local secrets file not found at '$LocalSecretsPath'. Google auth and BigQuery access may fail."
+} elseif (-not $SkipAuthRedirectGuard) {
+    $authRedirectUri = Get-AuthRedirectUriFromSecrets -SecretsPath $LocalSecretsPath
+    if (-not (Test-IsSupportedLocalRedirectUri -RedirectUri $authRedirectUri -Port $Port)) {
+        throw (
+            "Local auth redirect_uri is incompatible with this Streamlit run. " +
+            "Found '$authRedirectUri' in '$LocalSecretsPath'. " +
+            "For local runs, use 'http://localhost:$Port/oauth2callback' " +
+            "or 'http://localhost:{port}/oauth2callback'. " +
+            "Keep the published Streamlit Community Cloud callback only in the deployed app secrets. " +
+            "Use -SkipAuthRedirectGuard only if you intentionally want to bypass this local safety check."
+        )
+    }
 }
 
 Push-Location $RepoRoot

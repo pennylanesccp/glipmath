@@ -157,10 +157,12 @@ The production path is Streamlit Community Cloud.
 3. Set the entrypoint to `app/streamlit_app.py`.
 4. Paste the same secrets sections used locally into the Streamlit Cloud secrets editor, but change `auth.redirect_uri` to the deployed hostname instead of the local `localhost` callback.
 5. For the published app, set `auth.redirect_uri` to `https://glipmath.streamlit.app/oauth2callback`.
-6. Ensure the same redirect URI is registered in Google OAuth.
-7. Redeploy and test login, question loading, answer inserts, and leaderboard reads.
+6. Paste a valid `[gcp_service_account]` block into the Streamlit Cloud secrets editor as well.
+7. Ensure the same redirect URI is registered in Google OAuth.
+8. Redeploy and test login, question loading, answer inserts, and leaderboard reads.
 
 `auth.redirect_uri`, `auth.client_id`, and `auth.server_metadata_url` are public values in practice, but Streamlit's built-in `st.login()` still requires them under `[auth]` in `secrets.toml`.
+On Streamlit Community Cloud, BigQuery cannot rely on metadata-server Application Default Credentials, so the deployed app also needs explicit service-account credentials in secrets.
 
 See `docs/deployment_streamlit_cloud.md`.
 
