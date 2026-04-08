@@ -114,6 +114,33 @@ def parse_question_index_dataframe(
     return entries, issues
 
 
+def parse_project_options_dataframe(
+    dataframe: pd.DataFrame,
+) -> tuple[list[str], list[str]]:
+    """Parse one distinct-project dataframe for teacher filtering."""
+
+    prepared = prepare_dataframe(dataframe)
+    if prepared.empty and not list(prepared.columns):
+        return [], []
+
+    require_columns(prepared, ["cohort_key"], QUESTION_RESOURCE_NAME)
+
+    project_options: list[str] = []
+    seen_projects: set[str] = set()
+    issues: list[str] = []
+    for index, row in prepared.iterrows():
+        row_number = worksheet_row_number(index)
+        try:
+            project = _parse_optional_cohort_key(row.get("cohort_key"))
+            if project is None or project in seen_projects:
+                continue
+            seen_projects.add(project)
+            project_options.append(project)
+        except ValueError as exc:
+            issues.append(f"{QUESTION_RESOURCE_NAME} row {row_number}: {exc}")
+    return sorted(project_options, key=str.casefold), issues
+
+
 def parse_single_question_dataframe(
     dataframe: pd.DataFrame,
 ) -> tuple[Question | None, list[str]]:

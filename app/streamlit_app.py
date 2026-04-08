@@ -39,15 +39,14 @@ from app.state.session_state import (
 from modules.auth.auth_service import get_authenticated_identity
 from modules.auth.authorization_service import AuthorizationService
 from modules.config.settings import AppSettings, load_settings
-from modules.domain.models import AnswerAttempt, DisplayAlternative, LeaderboardEntry, Question, QuestionIndexEntry
+from modules.domain.models import AnswerAttempt, DisplayAlternative, Question, QuestionIndexEntry
 from modules.services.answer_service import AnswerService, parse_answers_dataframe
-from modules.services.leaderboard_service import find_user_position, parse_leaderboard_dataframe
+from modules.services.leaderboard_service import parse_leaderboard_position_dataframe
 from modules.services.question_service import (
     build_display_alternatives,
-    build_project_options,
     build_subject_options,
-    filter_question_index_by_project,
     filter_question_ids_by_subject,
+    parse_project_options_dataframe,
     parse_question_index_dataframe,
     parse_single_question_dataframe,
     select_next_question_id,
@@ -112,25 +111,28 @@ def main() -> None:
             return
 
         bind_authenticated_user(authorized_user)
+        project_options: list[str] = []
+        project_option_issues: list[str] = []
         selected_project = None
-        question_index, question_index_issues = load_active_question_index(
-            context.question_repository,
-            settings.bigquery.question_bank_table_id(settings.gcp.project_id),
-            resolve_effective_project_for_user(authorized_user),
-        )
-        project_options = build_project_options(question_index) if authorized_user.is_teacher else []
         if authorized_user.is_teacher:
+            project_options, project_option_issues = load_active_project_options(
+                context.question_repository,
+                settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+            )
             selected_project = _resolve_selected_project_filter(project_options)
-            filtered_question_index = filter_question_index_by_project(question_index, selected_project)
         else:
             selected_project = authorized_user.cohort_key
-            filtered_question_index = question_index
 
         effective_project_scope = resolve_effective_project_for_user(
             authorized_user,
             selected_project=selected_project,
         )
-        subject_options = build_subject_options(filtered_question_index)
+        question_index, question_index_issues = load_active_question_index(
+            context.question_repository,
+            settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+            effective_project_scope,
+        )
+        subject_options = build_subject_options(question_index)
 
         _ensure_user_answer_history_loaded(
             answer_repository=context.answer_repository,
@@ -139,21 +141,21 @@ def main() -> None:
         )
         answer_history = get_user_answer_history(authorized_user.email)
 
-        leaderboard_entries, leaderboard_issues = load_leaderboard_snapshot(
+        leaderboard_rank, leaderboard_total_users, leaderboard_issues = load_leaderboard_position(
             context.answer_repository,
             settings.bigquery.answers_table_id(settings.gcp.project_id),
             settings.bigquery.user_access_table_id(settings.gcp.project_id),
+            user_email=authorized_user.email,
             role=authorized_user.role,
             cohort_key=authorized_user.cohort_key if not authorized_user.is_teacher else None,
         )
-        user_position = find_user_position(leaderboard_entries, authorized_user)
 
         current_question, current_alternatives, question_lookup_issues = resolve_current_question(
             question_repository=context.question_repository,
             question_table_id=settings.bigquery.question_bank_table_id(settings.gcp.project_id),
             cohort_key=effective_project_scope,
             active_question_ids=filter_question_ids_by_subject(
-                filtered_question_index,
+                question_index,
                 get_subject_filter(),
             ),
             answered_question_ids=get_answered_question_ids(authorized_user.email),
@@ -170,7 +172,7 @@ def main() -> None:
             st.exception(exc.__cause__ or exc)
         return
 
-    question_issues = list(question_index_issues) + list(question_lookup_issues)
+    question_issues = list(project_option_issues) + list(question_index_issues) + list(question_lookup_issues)
     answer_issues = get_user_answer_history_issues(authorized_user.email) + list(leaderboard_issues)
     _render_diagnostics(
         settings=settings,
@@ -189,7 +191,7 @@ def main() -> None:
         selected_subject=get_subject_filter_label(),
         day_streak=compute_day_streak(answer_history, timezone_name=settings.timezone),
         question_streak=compute_question_streak(answer_history),
-        leaderboard_position=_resolve_leaderboard_position(user_position, len(leaderboard_entries)),
+        leaderboard_position=_resolve_leaderboard_position(leaderboard_rank, leaderboard_total_users),
     )
 
 
@@ -235,6 +237,27 @@ def build_runtime_context(settings: AppSettings) -> RuntimeContext:
         ),
         authorization_service=AuthorizationService(user_access_repository=user_access_repository),
     )
+
+
+@st.cache_data(show_spinner=False, ttl=300)
+def load_active_project_options(
+    _question_repository: QuestionRepository,
+    question_table_id: str,
+) -> tuple[list[str], list[str]]:
+    """Load and cache the distinct active project/cohort keys for teacher filtering."""
+
+    logger = get_logger(__name__)
+    started_at = perf_counter()
+    project_frame = _question_repository.load_active_project_frame()
+    project_options, issues = parse_project_options_dataframe(project_frame)
+    logger.debug(
+        "Loaded active project options | table_id=%s | count=%s | issues=%s | elapsed_ms=%.2f",
+        question_table_id,
+        len(project_options),
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return project_options, issues
 
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -311,32 +334,39 @@ def load_user_answer_history(
     return answers, issues
 
 
-@st.cache_data(show_spinner=False, ttl=120)
-def load_leaderboard_snapshot(
+@st.cache_data(show_spinner=False, ttl=60)
+def load_leaderboard_position(
     _answer_repository: AnswerRepository,
     answers_table_id: str,
     user_access_table_id: str,
     *,
+    user_email: str,
     role: str,
     cohort_key: str | None,
-) -> tuple[list[LeaderboardEntry], list[str]]:
-    """Load and cache the effective leaderboard for the current user scope."""
+) -> tuple[int | None, int, list[str]]:
+    """Load and cache only the current user's leaderboard rank plus total users."""
 
     logger = get_logger(__name__)
     started_at = perf_counter()
-    leaderboard_frame = _answer_repository.load_leaderboard_frame(role=role, cohort_key=cohort_key)
-    entries, issues = parse_leaderboard_dataframe(leaderboard_frame)
+    leaderboard_frame = _answer_repository.load_user_leaderboard_position_frame(
+        user_email=user_email,
+        role=role,
+        cohort_key=cohort_key,
+    )
+    rank, total_users, issues = parse_leaderboard_position_dataframe(leaderboard_frame)
     logger.debug(
-        "Loaded leaderboard snapshot | answers_table_id=%s | user_access_table_id=%s | role=%s | cohort_key=%s | entries=%s | issues=%s | elapsed_ms=%.2f",
+        "Loaded leaderboard position | answers_table_id=%s | user_access_table_id=%s | user_email=%s | role=%s | cohort_key=%s | rank=%s | total_users=%s | issues=%s | elapsed_ms=%.2f",
         answers_table_id,
         user_access_table_id,
+        user_email,
         role,
         cohort_key,
-        len(entries),
+        rank,
+        total_users,
         len(issues),
         (perf_counter() - started_at) * 1000,
     )
-    return entries, issues
+    return rank, total_users, issues
 
 
 def _ensure_user_answer_history_loaded(
@@ -437,10 +467,10 @@ def _render_diagnostics(
             st.write(f"- {issue}")
 
 
-def _resolve_leaderboard_position(entry: LeaderboardEntry | None, total_users: int) -> str:
-    if entry is None or total_users <= 0:
+def _resolve_leaderboard_position(rank: int | None, total_users: int) -> str:
+    if rank is None or total_users <= 0:
         return "#-"
-    return f"#{entry.rank} / {total_users}"
+    return f"#{rank} / {total_users}"
 
 
 def _resolve_selected_project_filter(project_options: list[str]) -> str | None:

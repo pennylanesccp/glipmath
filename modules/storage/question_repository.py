@@ -80,6 +80,20 @@ class QuestionRepository:
         """
         return self._bigquery_client.query_to_dataframe(query, parameters=parameters or None)
 
+    def load_active_project_frame(self) -> pd.DataFrame:
+        """Load the distinct active project/cohort keys for teacher filtering."""
+
+        query = f"""
+            SELECT DISTINCT
+                cohort_key
+            FROM `{self._table_id}`
+            WHERE is_active = TRUE
+              AND cohort_key IS NOT NULL
+              AND TRIM(cohort_key) != ''
+            ORDER BY cohort_key
+        """
+        return self._bigquery_client.query_to_dataframe(query)
+
     def load_question_frame_by_id(self, id_question: int, *, cohort_key: str | None = None) -> pd.DataFrame:
         """Load a single active question by identifier."""
 

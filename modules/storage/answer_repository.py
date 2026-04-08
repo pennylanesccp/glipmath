@@ -130,6 +130,80 @@ class AnswerRepository:
         """
         return self._bigquery_client.query_to_dataframe(query, parameters=parameters or None)
 
+    def load_user_leaderboard_position_frame(
+        self,
+        *,
+        user_email: str,
+        role: str,
+        cohort_key: str | None = None,
+    ) -> pd.DataFrame:
+        """Load only the current user's leaderboard rank and total participant count."""
+
+        parameters: list[bigquery.ScalarQueryParameter] = [
+            bigquery.ScalarQueryParameter("user_email", "STRING", user_email.lower().strip())
+        ]
+        cohort_filter = ""
+        if role == "student":
+            if not cohort_key:
+                raise ValueError("student leaderboard queries require cohort_key.")
+            parameters.append(
+                bigquery.ScalarQueryParameter("cohort_key", "STRING", cohort_key.lower())
+            )
+            cohort_filter = """
+              AND LOWER(TRIM(answers.cohort_key)) = @cohort_key
+              AND access.role = 'student'
+              AND access.cohort_key = @cohort_key
+            """
+
+        query = f"""
+            WITH active_access AS (
+                SELECT
+                    LOWER(TRIM(user_email)) AS user_email,
+                    LOWER(TRIM(role)) AS role,
+                    LOWER(TRIM(cohort_key)) AS cohort_key
+                FROM `{self._user_access_table_id}`
+                WHERE is_active = TRUE
+                  AND user_email IS NOT NULL
+                  AND TRIM(user_email) != ''
+                QUALIFY ROW_NUMBER() OVER (
+                    PARTITION BY LOWER(TRIM(user_email))
+                    ORDER BY updated_at_utc DESC NULLS LAST, created_at_utc DESC NULLS LAST
+                ) = 1
+            ),
+            aggregated_answers AS (
+                SELECT
+                    LOWER(TRIM(answers.user_email)) AS user_email,
+                    COUNT(*) AS total_answers,
+                    COUNTIF(answers.is_correct) AS total_correct
+                FROM `{self._answers_table_id}` AS answers
+                INNER JOIN active_access AS access
+                    ON access.user_email = LOWER(TRIM(answers.user_email))
+                WHERE answers.user_email IS NOT NULL
+                  AND TRIM(answers.user_email) != ''
+                  {cohort_filter}
+                GROUP BY LOWER(TRIM(answers.user_email))
+            ),
+            ranked AS (
+                SELECT
+                    ROW_NUMBER() OVER (
+                        ORDER BY total_correct DESC, total_answers DESC, user_email ASC
+                    ) AS rank,
+                    user_email
+                FROM aggregated_answers
+            ),
+            totals AS (
+                SELECT COUNT(*) AS total_users
+                FROM aggregated_answers
+            )
+            SELECT
+                ranked.rank,
+                totals.total_users
+            FROM totals
+            LEFT JOIN ranked
+                ON ranked.user_email = @user_email
+        """
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
+
     def _build_answers_select_columns(self) -> list[str]:
         available_columns = set(self._bigquery_client.get_table_column_names(self._answers_table_id))
         select_columns = list(self._REQUIRED_ANSWER_COLUMNS)

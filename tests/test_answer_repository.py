@@ -141,3 +141,44 @@ def test_load_leaderboard_frame_keeps_teacher_view_global() -> None:
 
     assert "LOWER(TRIM(answers.cohort_key)) = @cohort_key" not in fake_client.queries[0]
     assert fake_client.parameters[0] is None
+
+
+def test_load_user_leaderboard_position_frame_queries_only_one_user_rank() -> None:
+    fake_client = FakeBigQueryClient(tuple())
+    repository = AnswerRepository(
+        fake_client,
+        answers_table_id="project.dataset.answers",
+        user_access_table_id="project.dataset.user_access",
+    )
+
+    repository.load_user_leaderboard_position_frame(
+        user_email="Ana@example.com",
+        role="teacher",
+    )
+
+    assert "LEFT JOIN ranked" in fake_client.queries[0]
+    assert "totals.total_users" in fake_client.queries[0]
+    parameters = fake_client.parameters[0]
+    assert parameters is not None
+    assert parameters[0].name == "user_email"
+    assert parameters[0].to_api_repr()["parameterValue"]["value"] == "ana@example.com"
+
+
+def test_load_user_leaderboard_position_frame_scopes_students_to_one_cohort() -> None:
+    fake_client = FakeBigQueryClient(tuple())
+    repository = AnswerRepository(
+        fake_client,
+        answers_table_id="project.dataset.answers",
+        user_access_table_id="project.dataset.user_access",
+    )
+
+    repository.load_user_leaderboard_position_frame(
+        user_email="ana@example.com",
+        role="student",
+        cohort_key="ano_2",
+    )
+
+    assert "LOWER(TRIM(answers.cohort_key)) = @cohort_key" in fake_client.queries[0]
+    parameters = fake_client.parameters[0]
+    assert parameters is not None
+    assert [parameter.name for parameter in parameters] == ["user_email", "cohort_key"]

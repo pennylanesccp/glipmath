@@ -90,6 +90,40 @@ def parse_leaderboard_dataframe(
     return entries, issues
 
 
+def parse_leaderboard_position_dataframe(
+    dataframe: pd.DataFrame,
+) -> tuple[int | None, int, list[str]]:
+    """Parse a one-row dataframe containing the current rank and total participants."""
+
+    prepared = prepare_dataframe(dataframe)
+    if prepared.empty and not list(prepared.columns):
+        return None, 0, []
+
+    require_columns(prepared, ["rank", "total_users"], LEADERBOARD_RESOURCE_NAME)
+
+    issues: list[str] = []
+    if len(prepared.index) > 1:
+        issues.append("v_leaderboard query returned more than one row for a single user rank lookup.")
+
+    row = prepared.iloc[0]
+    try:
+        total_users = _parse_required_int(row.get("total_users"), "total_users")
+    except ValueError as exc:
+        issues.append(f"{LEADERBOARD_RESOURCE_NAME} row {worksheet_row_number(prepared.index[0])}: {exc}")
+        total_users = 0
+
+    rank_value = row.get("rank")
+    if rank_value is None or str(rank_value).strip() == "":
+        return None, total_users, issues
+
+    try:
+        rank = _parse_required_int(rank_value, "rank")
+    except ValueError as exc:
+        issues.append(f"{LEADERBOARD_RESOURCE_NAME} row {worksheet_row_number(prepared.index[0])}: {exc}")
+        rank = None
+    return rank, total_users, issues
+
+
 def find_user_position(
     leaderboard: list[LeaderboardEntry],
     user: User,

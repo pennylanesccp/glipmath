@@ -1,7 +1,14 @@
+import pandas as pd
+
 from datetime import datetime, timezone
 
 from modules.domain.models import AnswerAttempt, User
-from modules.services.leaderboard_service import compute_leaderboard, find_user_position, format_position
+from modules.services.leaderboard_service import (
+    compute_leaderboard,
+    find_user_position,
+    format_position,
+    parse_leaderboard_position_dataframe,
+)
 
 
 def _answer(id_answer: str, user_email: str, is_correct: bool) -> AnswerAttempt:
@@ -45,3 +52,23 @@ def test_format_position_handles_missing_user() -> None:
 
     assert find_user_position(leaderboard, User(email="cai@example.com")) is None
     assert format_position(None, len(leaderboard)) == "#- / 1"
+
+
+def test_parse_leaderboard_position_dataframe_reads_rank_and_total_users() -> None:
+    rank, total_users, issues = parse_leaderboard_position_dataframe(
+        pd.DataFrame([{"rank": 3, "total_users": 17}])
+    )
+
+    assert issues == []
+    assert rank == 3
+    assert total_users == 17
+
+
+def test_parse_leaderboard_position_dataframe_accepts_missing_rank_for_new_user() -> None:
+    rank, total_users, issues = parse_leaderboard_position_dataframe(
+        pd.DataFrame([{"rank": None, "total_users": 17}])
+    )
+
+    assert issues == []
+    assert rank is None
+    assert total_users == 17

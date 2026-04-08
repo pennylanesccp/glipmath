@@ -51,3 +51,15 @@ def test_load_question_frame_by_id_enforces_cohort_scope() -> None:
     parameters = fake_client.parameters[0]
     assert parameters is not None
     assert {parameter.name for parameter in parameters} == {"id_question", "cohort_key"}
+
+
+def test_load_active_project_frame_returns_distinct_non_blank_cohorts() -> None:
+    fake_client = FakeBigQueryClient()
+    repository = QuestionRepository(fake_client, "project.dataset.question_bank")
+
+    repository.load_active_project_frame()
+
+    assert "SELECT DISTINCT" in fake_client.queries[0]
+    assert "cohort_key IS NOT NULL" in fake_client.queries[0]
+    assert "TRIM(cohort_key) != ''" in fake_client.queries[0]
+    assert fake_client.parameters[0] is None

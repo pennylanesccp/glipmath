@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import mimetypes
+from functools import lru_cache
 
 from dataclasses import dataclass
 from html import escape
@@ -24,6 +25,7 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+@lru_cache(maxsize=None)
 def asset_to_data_uri(relative_path: str) -> str:
     asset_path = TEMPLATES_DIR / relative_path
 

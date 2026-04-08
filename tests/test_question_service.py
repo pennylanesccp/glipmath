@@ -16,6 +16,7 @@ from modules.services.question_service import (
     parse_question_bank_dataframe,
     parse_question_id_dataframe,
     parse_question_index_dataframe,
+    parse_project_options_dataframe,
     parse_single_question_dataframe,
     select_next_question,
     select_next_question_id,
@@ -225,6 +226,22 @@ def test_subject_filter_still_works_after_cohort_scoping() -> None:
     ]
 
     assert filter_question_ids_by_subject(scoped_question_index, "Matematica") == [11, 13]
+
+
+def test_parse_project_options_dataframe_normalizes_and_deduplicates_values() -> None:
+    project_options, issues = parse_project_options_dataframe(
+        pd.DataFrame(
+            [
+                {"cohort_key": "Ano_1"},
+                {"cohort_key": "crescer_e_conectar"},
+                {"cohort_key": "ano_1"},
+                {"cohort_key": None},
+            ]
+        )
+    )
+
+    assert issues == []
+    assert project_options == ["ano_1", "crescer_e_conectar"]
 
 
 def test_resolve_question_scope_for_student_returns_specific_cohort() -> None:
