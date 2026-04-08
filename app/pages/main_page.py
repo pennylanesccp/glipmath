@@ -750,6 +750,7 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stSelectbox"] {
+            cursor: pointer !important;
             margin-bottom: 0.2rem;
         }
 
@@ -758,7 +759,14 @@ def _apply_live_page_styles() -> None:
             border: 1px solid #cbd5e1 !important;
             border-radius: 999px !important;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+            cursor: pointer !important;
             min-height: 2.55rem !important;
+        }
+
+        div[data-testid="stSelectbox"] [data-baseweb="select"],
+        div[data-testid="stSelectbox"] [data-baseweb="select"] *,
+        div[data-testid="stSelectbox"] [data-baseweb="select"] input {
+            cursor: pointer !important;
         }
 
         div[data-testid="stSelectbox"] [data-baseweb="select"] * {
@@ -772,12 +780,14 @@ def _apply_live_page_styles() -> None:
             border: 1px solid #dbeafe !important;
             border-radius: 1rem !important;
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12) !important;
+            cursor: pointer !important;
         }
 
         div[data-baseweb="popover"] ul,
         div[data-baseweb="popover"] li,
         div[data-baseweb="popover"] [role="option"] {
             background: #ffffff !important;
+            cursor: pointer !important;
         }
 
         div[data-baseweb="popover"] *,
@@ -849,6 +859,7 @@ def _apply_live_page_styles() -> None:
             border-radius: 1rem;
             box-sizing: border-box;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+            cursor: pointer !important;
             display: flex !important;
             flex: 1 1 auto !important;
             margin-bottom: 0 !important;
@@ -938,6 +949,7 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stButton"] button,
         div[data-testid="stFormSubmitButton"] button {
             border-radius: 1rem;
+            cursor: pointer !important;
             font-weight: 700;
             min-height: 2.9rem;
         }
