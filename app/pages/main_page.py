@@ -800,7 +800,13 @@ def _apply_live_page_styles() -> None:
             width: 100% !important;
         }
 
+        div[data-testid="stForm"] form > div,
+        div[data-testid="stForm"] [data-testid="stElementContainer"] {
+            width: 100% !important;
+        }
+
         div[data-testid="stRadio"] {
+            display: block !important;
             width: 100% !important;
         }
 
@@ -817,10 +823,19 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stRadio"] [role="radiogroup"] {
+            align-self: stretch !important;
             align-items: stretch !important;
             display: flex !important;
             flex-direction: column !important;
             gap: 0.55rem !important;
+            max-width: none !important;
+            width: 100% !important;
+        }
+
+        div[data-testid="stRadio"] [role="radiogroup"] > * {
+            align-self: stretch !important;
+            max-width: none !important;
+            width: 100% !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"] {
@@ -831,8 +846,9 @@ def _apply_live_page_styles() -> None:
             box-sizing: border-box;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
             display: flex !important;
+            flex: 1 1 auto !important;
             margin-bottom: 0 !important;
-            max-width: 100% !important;
+            max-width: none !important;
             min-width: 100% !important;
             padding: 0.9rem 1rem;
             width: 100% !important;
