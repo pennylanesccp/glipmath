@@ -481,7 +481,7 @@ def _build_answer_review_card_html(
 
 def _build_answer_status_chip_html(answer_is_correct: bool) -> str:
     status_class = "gm-live-status-chip--correct" if answer_is_correct else "gm-live-status-chip--wrong"
-    status_text = "Acertou" if answer_is_correct else "Errou"
+    status_text = "Você acertou" if answer_is_correct else "Você errou"
     return (
         f'<div class="gm-live-status-chip {status_class}">'
         f"{escape(status_text)}"
