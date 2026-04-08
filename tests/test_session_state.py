@@ -126,6 +126,15 @@ def test_bind_authenticated_user_resets_when_scope_changes(monkeypatch) -> None:
     assert session_state.get_question_pool() == []
 
 
+def test_get_authenticated_user_returns_bound_user(monkeypatch) -> None:
+    monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
+
+    user = User(email="ana@example.com", name="Ana", role="teacher", cohort_key="all")
+    session_state.bind_authenticated_user(user)
+
+    assert session_state.get_authenticated_user() == user
+
+
 def test_bind_authenticated_user_resets_authenticated_run_log_flag(monkeypatch) -> None:
     monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
 
@@ -140,3 +149,17 @@ def test_bind_authenticated_user_resets_authenticated_run_log_flag(monkeypatch) 
     session_state.bind_authenticated_user(second_user)
 
     assert session_state.has_logged_authenticated_run() is False
+
+
+def test_leaderboard_position_round_trips_through_session_state(monkeypatch) -> None:
+    monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
+
+    session_state.set_leaderboard_position(
+        "ana@example.com",
+        3,
+        14,
+        issues=["lag temporary"],
+    )
+
+    assert session_state.has_loaded_leaderboard_position("ana@example.com") is True
+    assert session_state.get_leaderboard_position("ana@example.com") == (3, 14, ["lag temporary"])

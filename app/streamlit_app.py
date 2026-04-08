@@ -22,10 +22,12 @@ from app.state.session_state import (
     clear_current_question,
     ensure_question_pool_scope,
     get_answered_question_ids,
+    get_authenticated_user,
     get_current_alternatives,
     get_current_question,
     get_current_question_id,
     get_invalid_question_ids,
+    get_leaderboard_position,
     get_question_pool,
     get_project_filter,
     get_skipped_question_ids,
@@ -34,11 +36,13 @@ from app.state.session_state import (
     get_user_answer_history,
     get_user_answer_history_issues,
     has_loaded_user_answer_history,
+    has_loaded_leaderboard_position,
     has_logged_authenticated_run,
     initialize_session_state,
     mark_question_invalid,
     mark_authenticated_run_logged,
     set_current_question,
+    set_leaderboard_position,
     set_question_pool,
     set_user_answer_history,
 )
@@ -67,6 +71,7 @@ from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
 from modules.storage.user_access_repository import UserAccessRepository
 from modules.utils.logging_utils import configure_logging, get_logger
+from modules.utils.normalization import normalize_email
 
 QUESTION_PREFETCH_BATCH_SIZE = 10
 
@@ -107,15 +112,15 @@ def main() -> None:
 
     try:
         context = build_runtime_context(settings)
-        authorized_user = context.authorization_service.authorize(
-            identity.email,
+        authorized_user = _resolve_authorized_user(
+            authorization_service=context.authorization_service,
+            email=identity.email,
             fallback_name=identity.name,
         )
         if authorized_user is None:
             render_not_authorized_page(settings, identity.email)
             return
 
-        bind_authenticated_user(authorized_user)
         if not has_logged_authenticated_run():
             logger.info(
                 "Starting authenticated app run | environment=%s | project_id=%s | location=%s | user_email=%s",
@@ -155,10 +160,10 @@ def main() -> None:
         )
         answer_history = get_user_answer_history(authorized_user.email)
 
-        leaderboard_rank, leaderboard_total_users, leaderboard_issues = load_leaderboard_position(
-            context.answer_repository,
-            settings.bigquery.answers_table_id(settings.gcp.project_id),
-            settings.bigquery.user_access_table_id(settings.gcp.project_id),
+        leaderboard_rank, leaderboard_total_users, leaderboard_issues = _ensure_leaderboard_position_loaded(
+            answer_repository=context.answer_repository,
+            answers_table_id=settings.bigquery.answers_table_id(settings.gcp.project_id),
+            user_access_table_id=settings.bigquery.user_access_table_id(settings.gcp.project_id),
             user_email=authorized_user.email,
             role=authorized_user.role,
             cohort_key=authorized_user.cohort_key if not authorized_user.is_teacher else None,
@@ -428,6 +433,58 @@ def _ensure_user_answer_history_loaded(
         )
         set_user_answer_history(user_email, answers, issues=issues)
     return get_user_answer_history(user_email)
+
+
+def _resolve_authorized_user(
+    *,
+    authorization_service: AuthorizationService,
+    email: str | None,
+    fallback_name: str | None,
+) -> User | None:
+    normalized_email = normalize_email(email)
+    if not normalized_email:
+        return None
+
+    cached_user = get_authenticated_user()
+    if cached_user is not None and normalize_email(cached_user.email) == normalized_email:
+        bind_authenticated_user(cached_user)
+        return cached_user
+
+    authorized_user = authorization_service.authorize(
+        normalized_email,
+        fallback_name=fallback_name,
+    )
+    if authorized_user is None:
+        return None
+    bind_authenticated_user(authorized_user)
+    return authorized_user
+
+
+def _ensure_leaderboard_position_loaded(
+    *,
+    answer_repository: AnswerRepository,
+    answers_table_id: str,
+    user_access_table_id: str,
+    user_email: str,
+    role: str,
+    cohort_key: str | None,
+) -> tuple[int | None, int, list[str]]:
+    if not has_loaded_leaderboard_position(user_email):
+        rank, total_users, issues = load_leaderboard_position(
+            answer_repository,
+            answers_table_id,
+            user_access_table_id,
+            user_email=user_email,
+            role=role,
+            cohort_key=cohort_key,
+        )
+        set_leaderboard_position(
+            user_email,
+            rank,
+            total_users,
+            issues=issues,
+        )
+    return get_leaderboard_position(user_email)
 
 
 def resolve_current_question(

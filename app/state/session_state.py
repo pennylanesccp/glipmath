@@ -12,12 +12,17 @@ from modules.utils.datetime_utils import utc_now
 SESSION_ID_KEY = "glipmath_session_id"
 AUTHENTICATED_USER_EMAIL_KEY = "glipmath_authenticated_user_email"
 AUTHENTICATED_USER_SCOPE_KEY = "glipmath_authenticated_user_scope"
+AUTHENTICATED_USER_KEY = "glipmath_authenticated_user"
 AUTHENTICATED_RUN_LOGGED_KEY = "glipmath_authenticated_run_logged"
 CURRENT_QUESTION_ID_KEY = "glipmath_current_question_id"
 CURRENT_QUESTION_KEY = "glipmath_current_question"
 CURRENT_ALTERNATIVES_KEY = "glipmath_current_alternatives"
 QUESTION_POOL_KEY = "glipmath_question_pool"
 QUESTION_POOL_SCOPE_KEY = "glipmath_question_pool_scope"
+LEADERBOARD_RANK_KEY = "glipmath_leaderboard_rank"
+LEADERBOARD_TOTAL_USERS_KEY = "glipmath_leaderboard_total_users"
+LEADERBOARD_ISSUES_KEY = "glipmath_leaderboard_issues"
+LEADERBOARD_LOADED_KEY = "glipmath_leaderboard_loaded"
 QUESTION_STARTED_AT_KEY = "glipmath_question_started_at"
 QUESTION_ANSWERED_KEY = "glipmath_question_answered"
 LAST_ANSWER_RESULT_KEY = "glipmath_last_answer_result"
@@ -39,12 +44,17 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(SESSION_ID_KEY, uuid4().hex)
     st.session_state.setdefault(AUTHENTICATED_USER_EMAIL_KEY, None)
     st.session_state.setdefault(AUTHENTICATED_USER_SCOPE_KEY, None)
+    st.session_state.setdefault(AUTHENTICATED_USER_KEY, None)
     st.session_state.setdefault(AUTHENTICATED_RUN_LOGGED_KEY, False)
     st.session_state.setdefault(CURRENT_QUESTION_ID_KEY, None)
     st.session_state.setdefault(CURRENT_QUESTION_KEY, None)
     st.session_state.setdefault(CURRENT_ALTERNATIVES_KEY, [])
     st.session_state.setdefault(QUESTION_POOL_KEY, [])
     st.session_state.setdefault(QUESTION_POOL_SCOPE_KEY, None)
+    st.session_state.setdefault(LEADERBOARD_RANK_KEY, None)
+    st.session_state.setdefault(LEADERBOARD_TOTAL_USERS_KEY, 0)
+    st.session_state.setdefault(LEADERBOARD_ISSUES_KEY, [])
+    st.session_state.setdefault(LEADERBOARD_LOADED_KEY, False)
     st.session_state.setdefault(QUESTION_STARTED_AT_KEY, None)
     st.session_state.setdefault(QUESTION_ANSWERED_KEY, False)
     st.session_state.setdefault(LAST_ANSWER_RESULT_KEY, None)
@@ -79,6 +89,12 @@ def bind_authenticated_user(user: User) -> None:
 
     st.session_state[AUTHENTICATED_USER_EMAIL_KEY] = user.email
     st.session_state[AUTHENTICATED_USER_SCOPE_KEY] = user_scope
+    st.session_state[AUTHENTICATED_USER_KEY] = {
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "cohort_key": user.cohort_key,
+    }
     st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = False
     st.session_state[SESSION_ID_KEY] = uuid4().hex
     st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
@@ -91,7 +107,31 @@ def bind_authenticated_user(user: User) -> None:
     st.session_state[PROJECT_FILTER_KEY] = None
     st.session_state[QUESTION_POOL_KEY] = []
     st.session_state[QUESTION_POOL_SCOPE_KEY] = None
+    st.session_state[LEADERBOARD_RANK_KEY] = None
+    st.session_state[LEADERBOARD_TOTAL_USERS_KEY] = 0
+    st.session_state[LEADERBOARD_ISSUES_KEY] = []
+    st.session_state[LEADERBOARD_LOADED_KEY] = False
     clear_current_question()
+
+
+def get_authenticated_user() -> User | None:
+    """Return the cached authorized user for the current browser session."""
+
+    initialize_session_state()
+    raw_user = st.session_state[AUTHENTICATED_USER_KEY]
+    if not isinstance(raw_user, dict):
+        return None
+
+    email = _string_or_none(raw_user.get("email"))
+    if not email:
+        return None
+
+    return User(
+        email=email,
+        name=_string_or_none(raw_user.get("name")),
+        role=_string_or_none(raw_user.get("role")) or "student",
+        cohort_key=_string_or_none(raw_user.get("cohort_key")) or "all",
+    )
 
 
 def has_loaded_user_answer_history(user_email: str) -> bool:
@@ -116,6 +156,47 @@ def mark_authenticated_run_logged() -> None:
 
     initialize_session_state()
     st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = True
+
+
+def has_loaded_leaderboard_position(user_email: str) -> bool:
+    """Return whether the current user's leaderboard snapshot is already in session."""
+
+    initialize_session_state()
+    return (
+        st.session_state[AUTHENTICATED_USER_EMAIL_KEY] == user_email
+        and bool(st.session_state[LEADERBOARD_LOADED_KEY])
+    )
+
+
+def set_leaderboard_position(
+    user_email: str,
+    rank: int | None,
+    total_users: int,
+    *,
+    issues: list[str] | None = None,
+) -> None:
+    """Persist the current user's leaderboard snapshot in session state."""
+
+    _bind_authenticated_user_email(user_email)
+    st.session_state[LEADERBOARD_RANK_KEY] = int(rank) if rank is not None else None
+    st.session_state[LEADERBOARD_TOTAL_USERS_KEY] = max(int(total_users), 0)
+    st.session_state[LEADERBOARD_ISSUES_KEY] = list(issues or [])
+    st.session_state[LEADERBOARD_LOADED_KEY] = True
+
+
+def get_leaderboard_position(user_email: str) -> tuple[int | None, int, list[str]]:
+    """Return the cached leaderboard snapshot for the current authenticated user."""
+
+    if not has_loaded_leaderboard_position(user_email):
+        return None, 0, []
+
+    raw_rank = st.session_state[LEADERBOARD_RANK_KEY]
+    raw_total_users = st.session_state[LEADERBOARD_TOTAL_USERS_KEY]
+    raw_issues = st.session_state[LEADERBOARD_ISSUES_KEY]
+    rank = int(raw_rank) if raw_rank is not None else None
+    total_users = max(int(raw_total_users), 0) if raw_total_users is not None else 0
+    issues = [str(issue) for issue in raw_issues] if isinstance(raw_issues, list) else []
+    return rank, total_users, issues
 
 
 def set_user_answer_history(
@@ -474,6 +555,7 @@ def _bind_authenticated_user_email(user_email: str) -> None:
 
     st.session_state[AUTHENTICATED_USER_EMAIL_KEY] = user_email
     st.session_state[AUTHENTICATED_USER_SCOPE_KEY] = None
+    st.session_state[AUTHENTICATED_USER_KEY] = None
     st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = False
     st.session_state[SESSION_ID_KEY] = uuid4().hex
     st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
@@ -486,6 +568,10 @@ def _bind_authenticated_user_email(user_email: str) -> None:
     st.session_state[PROJECT_FILTER_KEY] = None
     st.session_state[QUESTION_POOL_KEY] = []
     st.session_state[QUESTION_POOL_SCOPE_KEY] = None
+    st.session_state[LEADERBOARD_RANK_KEY] = None
+    st.session_state[LEADERBOARD_TOTAL_USERS_KEY] = 0
+    st.session_state[LEADERBOARD_ISSUES_KEY] = []
+    st.session_state[LEADERBOARD_LOADED_KEY] = False
     clear_current_question()
 
 

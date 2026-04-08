@@ -260,6 +260,45 @@ def test_resolve_current_question_prefetches_batch_and_reuses_session_pool(monke
     assert batch_calls == [(7, 8)]
 
 
+def test_resolve_authorized_user_reuses_cached_session_user(monkeypatch) -> None:
+    cached_user = User(email="ana@example.com", name="Ana", role="teacher", cohort_key="all")
+    bind_calls: list[User] = []
+
+    monkeypatch.setattr(streamlit_app, "get_authenticated_user", lambda: cached_user)
+    monkeypatch.setattr(streamlit_app, "bind_authenticated_user", lambda user: bind_calls.append(user))
+
+    resolved_user = streamlit_app._resolve_authorized_user(
+        authorization_service=SimpleNamespace(
+            authorize=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not reauthorize"))
+        ),
+        email=" ANA@example.com ",
+        fallback_name="Ana OAuth",
+    )
+
+    assert resolved_user == cached_user
+    assert bind_calls == [cached_user]
+
+
+def test_ensure_leaderboard_position_loaded_reuses_session_snapshot(monkeypatch) -> None:
+    monkeypatch.setattr(streamlit_app, "has_loaded_leaderboard_position", lambda user_email: True)
+    monkeypatch.setattr(
+        streamlit_app,
+        "get_leaderboard_position",
+        lambda user_email: (2, 9, ["cached issue"]),
+    )
+
+    leaderboard = streamlit_app._ensure_leaderboard_position_loaded(
+        answer_repository=SimpleNamespace(),
+        answers_table_id="project.dataset.answers",
+        user_access_table_id="project.dataset.user_access",
+        user_email="ana@example.com",
+        role="teacher",
+        cohort_key=None,
+    )
+
+    assert leaderboard == (2, 9, ["cached issue"])
+
+
 def test_build_answer_review_card_html_uses_wrong_style_for_all_incorrect_options() -> None:
     wrong_html = main_page._build_answer_review_card_html(
         alternative=DisplayAlternative(
