@@ -173,9 +173,9 @@ def test_build_answer_status_chip_html_matches_result_state() -> None:
     correct_html = main_page._build_answer_status_chip_html(True)
     wrong_html = main_page._build_answer_status_chip_html(False)
 
-    assert "Acertou" in correct_html
+    assert "Você acertou" in correct_html
     assert "gm-live-status-chip--correct" in correct_html
-    assert "Errou" in wrong_html
+    assert "Você errou" in wrong_html
     assert "gm-live-status-chip--wrong" in wrong_html
 
 

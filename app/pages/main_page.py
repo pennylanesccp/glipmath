@@ -613,9 +613,9 @@ def _apply_live_page_styles() -> None:
         .gm-live-metrics-bar {
             align-items: center;
             display: flex;
-            gap: 0.72rem;
+            gap: 0.8rem;
             justify-content: flex-end;
-            min-height: 2.55rem;
+            min-height: 2.7rem;
             width: 100%;
         }
 
@@ -623,11 +623,12 @@ def _apply_live_page_styles() -> None:
             align-items: center;
             color: #1e3a8a;
             display: inline-flex;
-            font-size: 1rem;
+            font-size: 1.08rem;
             font-weight: 800;
-            gap: 0.42rem;
+            gap: 0.48rem;
             justify-content: flex-end;
-            min-height: 0;
+            line-height: 1;
+            min-height: 2.7rem;
             padding: 0;
             width: auto;
         }
@@ -636,15 +637,15 @@ def _apply_live_page_styles() -> None:
             background: #2563eb;
             border-radius: 999px;
             display: inline-block;
-            height: 0.5rem;
-            width: 0.5rem;
+            height: 0.58rem;
+            width: 0.58rem;
         }
 
         .gm-live-metric-icon {
             display: block;
             flex: 0 0 auto;
-            height: 1.1rem;
-            width: 1.1rem;
+            height: 1.28rem;
+            width: 1.28rem;
         }
 
         .gm-live-metric-value {
@@ -804,19 +805,35 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stForm"] {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
             margin-top: 0 !important;
             margin-bottom: 0 !important;
+            padding: 0 !important;
             width: 100% !important;
         }
 
         div[data-testid="stForm"] form {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
             margin-top: 0 !important;
+            padding: 0 !important;
             width: 100% !important;
         }
 
         div[data-testid="stForm"] form > div,
         div[data-testid="stForm"] [data-testid="stElementContainer"] {
             width: 100% !important;
+        }
+
+        div[data-testid="stForm"] form > div[data-testid="stVerticalBlock"] {
+            gap: 0.38rem !important;
+        }
+
+        div[data-testid="stForm"] form > div[data-testid="stVerticalBlock"] > div {
+            margin: 0 !important;
         }
 
         div[data-testid="stRadio"] {
@@ -869,6 +886,10 @@ def _apply_live_page_styles() -> None:
             width: 100% !important;
         }
 
+        div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
+            color: #dbeafe !important;
+        }
+
         div[data-testid="stRadio"] label[data-baseweb="radio"] * {
             color: #0f172a !important;
             opacity: 1 !important;
@@ -880,20 +901,25 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stRadio"] input[type="radio"] {
-            accent-color: #2563eb !important;
+            accent-color: #dbeafe !important;
+            cursor: pointer !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"] svg,
         div[data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] svg {
-            fill: #94a3b8 !important;
-            color: #94a3b8 !important;
-            stroke: #94a3b8 !important;
+            fill: #dbeafe !important;
+            color: #dbeafe !important;
+            stroke: #dbeafe !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
             background: #edf4ff;
             border-color: #93c5fd;
             box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
+        }
+
+        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) input[type="radio"] {
+            accent-color: #2563eb !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) * {
@@ -911,27 +937,16 @@ def _apply_live_page_styles() -> None:
             color: #475569 !important;
         }
 
-        div[data-testid="stButton"] button[kind="secondary"] {
+        div[data-testid="stButton"] button[kind="secondary"],
+        div[data-testid="stFormSubmitButton"] button {
             background: #edf4ff !important;
             border: 1px solid #93c5fd !important;
             color: #1d4ed8 !important;
             box-shadow: 0 10px 24px rgba(59, 130, 246, 0.1) !important;
         }
 
-        div[data-testid="stButton"] button[kind="secondary"]:hover {
-            background: #e2eeff !important;
-            border-color: #60a5fa !important;
-            color: #1d4ed8 !important;
-        }
-
-        div[data-testid="stForm"] form div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stFormSubmitButton"] button {
-            background: #edf4ff !important;
-            border: 1px solid #93c5fd !important;
-            color: #1d4ed8 !important;
-            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.1) !important;
-        }
-
-        div[data-testid="stForm"] form div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stFormSubmitButton"] button:hover {
+        div[data-testid="stButton"] button[kind="secondary"]:hover,
+        div[data-testid="stFormSubmitButton"] button:hover {
             background: #e2eeff !important;
             border-color: #60a5fa !important;
             color: #1d4ed8 !important;
