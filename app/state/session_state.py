@@ -12,6 +12,7 @@ from modules.utils.datetime_utils import utc_now
 SESSION_ID_KEY = "glipmath_session_id"
 AUTHENTICATED_USER_EMAIL_KEY = "glipmath_authenticated_user_email"
 AUTHENTICATED_USER_SCOPE_KEY = "glipmath_authenticated_user_scope"
+AUTHENTICATED_RUN_LOGGED_KEY = "glipmath_authenticated_run_logged"
 CURRENT_QUESTION_ID_KEY = "glipmath_current_question_id"
 CURRENT_QUESTION_KEY = "glipmath_current_question"
 CURRENT_ALTERNATIVES_KEY = "glipmath_current_alternatives"
@@ -36,6 +37,7 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(SESSION_ID_KEY, uuid4().hex)
     st.session_state.setdefault(AUTHENTICATED_USER_EMAIL_KEY, None)
     st.session_state.setdefault(AUTHENTICATED_USER_SCOPE_KEY, None)
+    st.session_state.setdefault(AUTHENTICATED_RUN_LOGGED_KEY, False)
     st.session_state.setdefault(CURRENT_QUESTION_ID_KEY, None)
     st.session_state.setdefault(CURRENT_QUESTION_KEY, None)
     st.session_state.setdefault(CURRENT_ALTERNATIVES_KEY, [])
@@ -73,6 +75,7 @@ def bind_authenticated_user(user: User) -> None:
 
     st.session_state[AUTHENTICATED_USER_EMAIL_KEY] = user.email
     st.session_state[AUTHENTICATED_USER_SCOPE_KEY] = user_scope
+    st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = False
     st.session_state[SESSION_ID_KEY] = uuid4().hex
     st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
     st.session_state[INVALID_QUESTION_IDS_KEY] = []
@@ -93,6 +96,20 @@ def has_loaded_user_answer_history(user_email: str) -> bool:
         st.session_state[AUTHENTICATED_USER_EMAIL_KEY] == user_email
         and bool(st.session_state[USER_ANSWER_HISTORY_LOADED_KEY])
     )
+
+
+def has_logged_authenticated_run() -> bool:
+    """Return whether the current authenticated session already emitted its startup log."""
+
+    initialize_session_state()
+    return bool(st.session_state[AUTHENTICATED_RUN_LOGGED_KEY])
+
+
+def mark_authenticated_run_logged() -> None:
+    """Mark the current authenticated session startup as already logged."""
+
+    initialize_session_state()
+    st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = True
 
 
 def set_user_answer_history(
@@ -461,6 +478,7 @@ def _bind_authenticated_user_email(user_email: str) -> None:
 
     st.session_state[AUTHENTICATED_USER_EMAIL_KEY] = user_email
     st.session_state[AUTHENTICATED_USER_SCOPE_KEY] = None
+    st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = False
     st.session_state[SESSION_ID_KEY] = uuid4().hex
     st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
     st.session_state[INVALID_QUESTION_IDS_KEY] = []

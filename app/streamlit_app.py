@@ -31,8 +31,10 @@ from app.state.session_state import (
     get_user_answer_history,
     get_user_answer_history_issues,
     has_loaded_user_answer_history,
+    has_logged_authenticated_run,
     initialize_session_state,
     mark_question_invalid,
+    mark_authenticated_run_logged,
     set_current_question,
     set_user_answer_history,
 )
@@ -87,12 +89,6 @@ def main() -> None:
         level="DEBUG" if settings.environment != "prod" else "INFO",
         log_file=base_dir / "logs" / "glipmath.log",
     )
-    logger.info(
-        "Starting app run | environment=%s | project_id=%s | location=%s",
-        settings.environment,
-        settings.gcp.project_id,
-        settings.gcp.location,
-    )
     apply_app_theme()
 
     identity = get_authenticated_identity()
@@ -111,6 +107,15 @@ def main() -> None:
             return
 
         bind_authenticated_user(authorized_user)
+        if not has_logged_authenticated_run():
+            logger.info(
+                "Starting authenticated app run | environment=%s | project_id=%s | location=%s | user_email=%s",
+                settings.environment,
+                settings.gcp.project_id,
+                settings.gcp.location,
+                authorized_user.email,
+            )
+            mark_authenticated_run_logged()
         project_options: list[str] = []
         project_option_issues: list[str] = []
         selected_project = None
