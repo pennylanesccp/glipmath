@@ -102,7 +102,7 @@ def test_submit_selected_answer_rejects_missing_option(monkeypatch) -> None:
         selected_option_id="option_b",
     )
 
-    assert warnings == ["Selecao invalida para a questao atual."]
+    assert warnings == ["Seleção inválida para a questão atual."]
 
 
 def test_resolve_current_question_reuses_loaded_snapshot(monkeypatch) -> None:
@@ -141,3 +141,39 @@ def test_resolve_current_question_reuses_loaded_snapshot(monkeypatch) -> None:
     assert resolved_question == question
     assert resolved_alternatives == alternatives
     assert issues == []
+
+
+def test_build_answer_review_card_html_uses_wrong_style_for_all_incorrect_options() -> None:
+    wrong_html = main_page._build_answer_review_card_html(
+        alternative=DisplayAlternative(
+            option_id="option_b",
+            alternative_text="6",
+            explanation="Se fossem 6 por prateleira, seriam 24 carrinhos.",
+            is_correct=False,
+        ),
+        selected_option_id="option_a",
+    )
+    correct_html = main_page._build_answer_review_card_html(
+        alternative=DisplayAlternative(
+            option_id="option_a",
+            alternative_text="4",
+            explanation="16 dividido por 4 é igual a 4.",
+            is_correct=True,
+        ),
+        selected_option_id="option_a",
+    )
+
+    assert "gm-live-answer-card--wrong" in wrong_html
+    assert "gm-live-answer-card--correct" in correct_html
+    assert "Sua resposta" in correct_html
+    assert "Gabarito" not in correct_html
+
+
+def test_build_answer_status_chip_html_matches_result_state() -> None:
+    correct_html = main_page._build_answer_status_chip_html(True)
+    wrong_html = main_page._build_answer_status_chip_html(False)
+
+    assert "Acertou" in correct_html
+    assert "gm-live-status-chip--correct" in correct_html
+    assert "Errou" in wrong_html
+    assert "gm-live-status-chip--wrong" in wrong_html

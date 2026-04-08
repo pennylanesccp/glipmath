@@ -89,8 +89,8 @@ def render_main_page(
     if current_question is None:
         st.html(
             _build_info_card_html(
-                "Nenhuma questao disponivel para esse filtro agora.<br><br>"
-                "Troque a disciplina acima ou carregue mais questoes."
+                "Nenhuma questão disponível para este filtro no momento.<br><br>"
+                "Troque a disciplina acima ou carregue mais questões."
             )
         )
         return
@@ -102,11 +102,7 @@ def render_main_page(
             alternatives=alternatives,
             selected_option_id=selected_option_id,
             answer_is_correct=answer_is_correct,
-            last_result=last_result,
         )
-        if st.button("Proxima questao", type="primary", use_container_width=True):
-            clear_current_question()
-            st.rerun()
         return
 
     _render_pending_state(
@@ -200,7 +196,7 @@ def _render_pending_state(
     selected_option_id: str | None,
 ) -> None:
     if not alternatives:
-        st.html(_build_info_card_html("Essa questao nao possui alternativas disponiveis."))
+        st.html(_build_info_card_html("Esta questão não possui alternativas disponíveis."))
         return
 
     option_ids = [alternative.option_id for alternative in alternatives]
@@ -225,7 +221,7 @@ def _render_pending_state(
         skip_col, verify_col = st.columns([1, 2], vertical_alignment="bottom")
         with skip_col:
             skip_clicked = st.form_submit_button(
-                "Pular questao",
+                "Pular questão",
                 use_container_width=True,
             )
         with verify_col:
@@ -249,7 +245,7 @@ def _render_pending_state(
         return
 
     if is_submission_in_progress():
-        st.info("Sua resposta ainda esta sendo enviada.")
+        st.info("Sua resposta ainda está sendo enviada.")
         return
 
     _submit_selected_answer(
@@ -266,25 +262,22 @@ def _render_answered_state(
     alternatives: list[DisplayAlternative],
     selected_option_id: str | None,
     answer_is_correct: bool,
-    last_result: dict[str, object] | None,
 ) -> None:
-    feedback_message = "Resposta registrada."
-    if last_result:
-        feedback_message = str(last_result.get("feedback_message") or feedback_message)
-
-    if answer_is_correct:
-        st.success(feedback_message)
-    else:
-        st.error(feedback_message)
-
     for alternative in alternatives:
         st.html(
             _build_answer_review_card_html(
                 alternative=alternative,
                 selected_option_id=selected_option_id,
-                answer_is_correct=answer_is_correct,
             )
         )
+
+    status_col, next_col = st.columns([1, 2], vertical_alignment="center")
+    with status_col:
+        st.html(_build_answer_status_chip_html(answer_is_correct))
+    with next_col:
+        if st.button("Próxima questão", type="primary", use_container_width=True):
+            clear_current_question()
+            st.rerun()
 
 
 def _submit_selected_answer(
@@ -297,7 +290,7 @@ def _submit_selected_answer(
 ) -> None:
     selected_alternative = find_display_alternative(alternatives, selected_option_id)
     if selected_alternative is None:
-        st.warning("Selecao invalida para a questao atual.")
+        st.warning("Seleção inválida para a questão atual.")
         return
 
     start_submission()
@@ -372,7 +365,7 @@ def _build_metrics_bar_html(
 def _build_question_card_html(statement: str) -> str:
     return (
         '<section class="gm-live-card gm-live-question-card">'
-        '<div class="gm-live-card-title">Questao</div>'
+        '<div class="gm-live-card-title">Questão</div>'
         f'<div class="gm-live-question-text">{_text_to_html(statement)}</div>'
         "</section>"
     )
@@ -390,19 +383,17 @@ def _build_answer_review_card_html(
     *,
     alternative: DisplayAlternative,
     selected_option_id: str | None,
-    answer_is_correct: bool,
 ) -> str:
     status_class = "gm-live-answer-card"
     badge_text = "Alternativa"
 
     if alternative.is_correct:
         status_class += " gm-live-answer-card--correct"
-        badge_text = "Resposta correta"
-    elif not answer_is_correct and alternative.option_id == selected_option_id:
+        badge_text = "Gabarito"
+    else:
         status_class += " gm-live-answer-card--wrong"
-        badge_text = "Sua resposta"
-    elif alternative.option_id == selected_option_id:
-        status_class += " gm-live-answer-card--selected"
+
+    if alternative.option_id == selected_option_id:
         badge_text = "Sua resposta"
 
     explanation_html = ""
@@ -419,6 +410,16 @@ def _build_answer_review_card_html(
         f'<div class="gm-live-answer-text">{_text_to_html(alternative.alternative_text)}</div>'
         f"{explanation_html}"
         "</section>"
+    )
+
+
+def _build_answer_status_chip_html(answer_is_correct: bool) -> str:
+    status_class = "gm-live-status-chip--correct" if answer_is_correct else "gm-live-status-chip--wrong"
+    status_text = "Acertou" if answer_is_correct else "Errou"
+    return (
+        f'<div class="gm-live-status-chip {status_class}">'
+        f"{escape(status_text)}"
+        "</div>"
     )
 
 
@@ -511,16 +512,16 @@ def _apply_live_page_styles() -> None:
 
         .block-container {
             max-width: 480px;
-            padding-top: 0.75rem;
-            padding-bottom: 1rem;
+            padding-top: 0.45rem;
+            padding-bottom: 0.75rem;
         }
 
         .gm-live-metrics-bar {
             align-items: center;
             display: flex;
-            gap: 0.95rem;
+            gap: 0.72rem;
             justify-content: flex-end;
-            min-height: 2.65rem;
+            min-height: 2.35rem;
             width: 100%;
         }
 
@@ -528,9 +529,9 @@ def _apply_live_page_styles() -> None:
             align-items: center;
             color: #1e3a8a;
             display: inline-flex;
-            font-size: 0.98rem;
+            font-size: 0.9rem;
             font-weight: 800;
-            gap: 0.45rem;
+            gap: 0.32rem;
             justify-content: flex-end;
             min-height: 0;
             padding: 0;
@@ -548,8 +549,8 @@ def _apply_live_page_styles() -> None:
         .gm-live-metric-icon {
             display: block;
             flex: 0 0 auto;
-            height: 1rem;
-            width: 1rem;
+            height: 0.88rem;
+            width: 0.88rem;
         }
 
         .gm-live-metric-value {
@@ -563,16 +564,16 @@ def _apply_live_page_styles() -> None:
             border: 1px solid #dbeafe;
             border-radius: 1.25rem;
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-            margin-bottom: 1rem;
-            padding: 1.1rem 1.15rem;
+            margin-bottom: 0.7rem;
+            padding: 1rem 1rem 0.95rem;
         }
 
         .gm-live-card-title {
             color: #475569;
-            font-size: 0.8rem;
+            font-size: 0.76rem;
             font-weight: 700;
             letter-spacing: 0.08em;
-            margin-bottom: 0.7rem;
+            margin-bottom: 0.45rem;
             text-transform: uppercase;
         }
 
@@ -581,21 +582,21 @@ def _apply_live_page_styles() -> None:
         .gm-live-answer-explanation,
         .gm-live-info-card {
             color: #0f172a;
-            font-size: 1rem;
-            line-height: 1.6;
+            font-size: 0.98rem;
+            line-height: 1.5;
         }
 
         .gm-live-answer-badge {
             color: #475569;
-            font-size: 0.8rem;
+            font-size: 0.74rem;
             font-weight: 700;
-            margin-bottom: 0.55rem;
+            margin-bottom: 0.45rem;
             text-transform: uppercase;
         }
 
         .gm-live-answer-card--correct {
-            background: #f0fdf4;
-            border-color: #bbf7d0;
+            background: #f3fff6;
+            border-color: #9ae6b4;
         }
 
         .gm-live-answer-card--correct .gm-live-answer-badge,
@@ -605,8 +606,8 @@ def _apply_live_page_styles() -> None:
         }
 
         .gm-live-answer-card--wrong {
-            background: #fef2f2;
-            border-color: #fecaca;
+            background: #fff4f4;
+            border-color: #f5a3a3;
         }
 
         .gm-live-answer-card--wrong .gm-live-answer-badge,
@@ -615,21 +616,33 @@ def _apply_live_page_styles() -> None:
             color: #b91c1c;
         }
 
-        .gm-live-answer-card--selected {
-            background: #eef2ff;
-            border-color: #c7d2fe;
-        }
-
-        .gm-live-answer-card--selected .gm-live-answer-badge,
-        .gm-live-answer-card--selected .gm-live-answer-text,
-        .gm-live-answer-card--selected .gm-live-answer-explanation {
-            color: #3730a3;
-        }
-
         .gm-live-answer-explanation {
             border-top: 1px solid rgba(148, 163, 184, 0.22);
-            margin-top: 0.7rem;
-            padding-top: 0.7rem;
+            margin-top: 0.55rem;
+            padding-top: 0.55rem;
+        }
+
+        .gm-live-status-chip {
+            align-items: center;
+            border-radius: 1rem;
+            display: flex;
+            font-size: 0.96rem;
+            font-weight: 800;
+            justify-content: center;
+            min-height: 3rem;
+            width: 100%;
+        }
+
+        .gm-live-status-chip--correct {
+            background: #f3fff6;
+            border: 1px solid #9ae6b4;
+            color: #166534;
+        }
+
+        .gm-live-status-chip--wrong {
+            background: #fff4f4;
+            border: 1px solid #f5a3a3;
+            color: #b91c1c;
         }
 
         div[data-testid="stSelectbox"] label p,
@@ -639,7 +652,7 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stSelectbox"] {
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
         }
 
         div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
@@ -647,7 +660,7 @@ def _apply_live_page_styles() -> None:
             border: 1px solid #cbd5e1 !important;
             border-radius: 999px !important;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
-            min-height: 2.65rem !important;
+            min-height: 2.55rem !important;
         }
 
         div[data-testid="stSelectbox"] [data-baseweb="select"] * {
@@ -684,7 +697,7 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stRadio"] > label {
             color: #0f172a;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.35rem;
         }
 
         div[data-testid="stRadio"] > div:first-of-type,
@@ -697,7 +710,7 @@ def _apply_live_page_styles() -> None:
             align-items: stretch !important;
             display: flex !important;
             flex-direction: column !important;
-            gap: 0.75rem !important;
+            gap: 0.55rem !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"] {
@@ -711,7 +724,7 @@ def _apply_live_page_styles() -> None:
             margin-bottom: 0 !important;
             max-width: 100% !important;
             min-width: 100% !important;
-            padding: 0.95rem 1rem;
+            padding: 0.9rem 1rem;
             width: 100% !important;
         }
 
@@ -784,7 +797,7 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stFormSubmitButton"] button {
             border-radius: 1rem;
             font-weight: 700;
-            min-height: 3rem;
+            min-height: 2.9rem;
         }
 
         div[data-testid="stAlert"] {

@@ -17,7 +17,7 @@ QUESTION_PREVIEW_LABELS = {
     "pending": "Resposta pendente",
     "correct": "Resposta correta",
     "wrong": "Resposta incorreta",
-    "empty": "Sem questoes",
+    "empty": "Sem questões",
 }
 PREVIEW_SHELL_STYLE = """
 <style>
@@ -63,7 +63,7 @@ def build_question_preview_html(
             timer_elapsed_seconds=0,
             timer_running=False,
             logout_href=NOOP_TARGET,
-            question_statement_html=text_to_html("Nenhuma questao disponivel para esse filtro agora."),
+            question_statement_html=text_to_html("Nenhuma questão disponível para esse filtro agora."),
             alternatives=[],
             selected_option_id=None,
             question_answered=False,
@@ -102,7 +102,7 @@ def build_question_preview_html(
         logout_href=NOOP_TARGET,
         question_statement_html=text_to_html(
             "Uma maquina produz 12 pecas em 3 minutos.\n"
-            "Mantendo o mesmo ritmo, quantas pecas ela produz em 8 minutos?"
+            "Mantendo o mesmo ritmo, quantas peças ela produz em 8 minutos?"
         ),
         alternatives=_build_question_alternatives(),
         selected_option_id=selected_option_id,
@@ -166,25 +166,25 @@ def main() -> None:
         initial_sidebar_state="collapsed",
     )
     _apply_preview_shell()
-    st.title("Preview das paginas HTML")
-    st.caption("Os links, formularios e botoes abaixo foram neutralizados de proposito.")
+    st.title("Preview das páginas HTML")
+    st.caption("Os links, formulários e botões abaixo foram neutralizados de propósito.")
 
     preview_page = st.radio(
         "Tela",
         options=["login", "question"],
-        format_func=lambda value: "Login" if value == "login" else "Sessao de questao",
+        format_func=lambda value: "Login" if value == "login" else "Sessão de questão",
         horizontal=True,
     )
 
     if preview_page == "login":
-        button_disabled = st.checkbox("Mostrar botao do Google desabilitado", value=False)
+        button_disabled = st.checkbox("Mostrar botão do Google desabilitado", value=False)
         html = build_login_preview_html(
             button_disabled=button_disabled,
         )
         preview_height = 760
     else:
         scenario = st.selectbox(
-            "Cenario",
+            "Cenário",
             options=list(QUESTION_PREVIEW_LABELS),
             format_func=QUESTION_PREVIEW_LABELS.get,
         )

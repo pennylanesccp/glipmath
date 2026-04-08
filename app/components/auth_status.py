@@ -7,9 +7,9 @@ def render_auth_setup_warning() -> None:
     """Render a setup warning when auth configuration is missing."""
 
     st.warning(
-        "A autenticacao Google ainda nao esta configurada. "
-        "Preencha `.streamlit/secrets.toml` com a secao `[auth]` localmente "
-        "ou configure a mesma secao de segredos no Streamlit Community Cloud."
+        "A autenticação Google ainda não está configurada. "
+        "Preencha `.streamlit/secrets.toml` com a seção `[auth]` localmente "
+        "ou configure a mesma seção de segredos no Streamlit Community Cloud."
     )
 
 
@@ -20,9 +20,9 @@ def render_auth_redirect_warning(
 ) -> None:
     """Render a warning when the deployed app points OAuth back to the wrong host."""
 
-    st.error("O login Google esta apontando para um callback diferente da URL publicada do app.")
+    st.error("O login Google está apontando para um callback diferente da URL publicada do app.")
     st.write(
-        "No Streamlit Community Cloud, `auth.redirect_uri` precisa usar o dominio atual do app "
+        "No Streamlit Community Cloud, `auth.redirect_uri` precisa usar o domínio atual do app "
         "e terminar com `/oauth2callback`."
     )
     if current_redirect_uri:
@@ -30,8 +30,8 @@ def render_auth_redirect_warning(
     if expected_redirect_uri:
         st.caption(f"redirect_uri esperado aqui: {expected_redirect_uri}")
     st.write(
-        "Esse valor vem da secao `[auth]` nas secrets do ambiente ativo. "
-        "Trocar o arquivo local nao altera o app publicado: atualize os segredos do Streamlit Cloud "
+        "Esse valor vem da seção `[auth]` nas secrets do ambiente ativo. "
+        "Trocar o arquivo local não altera o app publicado: atualize os segredos do Streamlit Cloud "
         "e confirme a mesma URL em `Authorized redirect URIs` no cliente OAuth do Google."
     )
 
@@ -39,10 +39,10 @@ def render_auth_redirect_warning(
 def render_access_message(email: str | None) -> None:
     """Render a generic access issue state."""
 
-    st.error("Nao foi possivel concluir o acesso.")
+    st.error("Não foi possível concluir o acesso.")
     st.write(
-        "O beta usa a configuracao do Google OAuth para controlar quem pode entrar. "
-        "Se o login funcionou, mas o app nao conseguiu continuar, confirme se a conta devolveu um email valido."
+        "O beta usa a configuração do Google OAuth para controlar quem pode entrar. "
+        "Se o login funcionou, mas o app não conseguiu continuar, confirme se a conta devolveu um e-mail válido."
     )
     if email:
-        st.caption(f"Email detectado: {email}")
+        st.caption(f"E-mail detectado: {email}")

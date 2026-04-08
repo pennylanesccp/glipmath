@@ -187,14 +187,14 @@ def _render_bottom_action_html(
 ) -> str:
     if question_answered:
         result_class = "gm-result-card gm-result-card--correct" if answer_is_correct else "gm-result-card"
-        result_text = "Voce acertou" if answer_is_correct else "Voce errou"
+        result_text = "Você acertou" if answer_is_correct else "Você errou"
         return (
             '<div class="gm-bottom-action">'
             '<div class="gm-bottom-action-row">'
             f'<div class="{result_class}">{result_text}</div>'
             f'<a href="{escape(build_page_href(subject=subject_filter, action="next"), quote=True)}" '
             'class="gm-link-button gm-link-button--primary" target="_self" rel="noopener noreferrer">'
-            "Proxima questao"
+            "Próxima questão"
             "</a>"
             "</div>"
             "</div>"
@@ -211,7 +211,7 @@ def _render_bottom_action_html(
         '<div class="gm-bottom-action-row">'
         f'<a href="{escape(build_page_href(subject=subject_filter, action="skip"), quote=True)}" '
         'class="gm-link-button gm-link-button--skip" target="_self" rel="noopener noreferrer">'
-        "Pular questao"
+        "Pular questão"
         "</a>"
         f'<a href="{escape(verify_href, quote=True)}" class="{verify_class}" '
         'target="_self" rel="noopener noreferrer">'
@@ -249,7 +249,7 @@ def _build_timer_html(
         pulse_html = '<span class="gm-inline-timer-pulse" aria-hidden="true"></span>'
 
     return (
-        '<div class="gm-inline-timer-chip" aria-label="Cronometro">'
+        '<div class="gm-inline-timer-chip" aria-label="Cronômetro">'
         f"{pulse_html}"
         '<svg class="gm-inline-timer-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
         '<path d="M12 8V12L14.8 14.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path>'
