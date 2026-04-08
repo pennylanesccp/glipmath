@@ -157,7 +157,7 @@ def _render_controls_bar(
         st.rerun()
 
     subject_col, metrics_col = st.columns(
-        [1.95, 1.45],
+        [1.8, 1.2],
         vertical_alignment="center",
     )
 
@@ -613,9 +613,9 @@ def _apply_live_page_styles() -> None:
         .gm-live-metrics-bar {
             align-items: center;
             display: flex;
-            gap: 0.8rem;
-            justify-content: flex-end;
-            min-height: 2.7rem;
+            gap: 0.62rem;
+            justify-content: flex-start;
+            min-height: 2.55rem;
             width: 100%;
         }
 
@@ -623,12 +623,12 @@ def _apply_live_page_styles() -> None:
             align-items: center;
             color: #1e3a8a;
             display: inline-flex;
-            font-size: 1.08rem;
+            font-size: 1.12rem;
             font-weight: 800;
-            gap: 0.48rem;
-            justify-content: flex-end;
+            gap: 0.36rem;
+            justify-content: flex-start;
             line-height: 1;
-            min-height: 2.7rem;
+            min-height: 2.55rem;
             padding: 0;
             width: auto;
         }
@@ -644,14 +644,25 @@ def _apply_live_page_styles() -> None:
         .gm-live-metric-icon {
             display: block;
             flex: 0 0 auto;
-            height: 1.28rem;
-            width: 1.28rem;
+            height: 1.42rem;
+            width: 1.42rem;
         }
 
         .gm-live-metric-value {
             color: #1e3a8a;
             font-weight: 800;
             white-space: nowrap;
+        }
+
+        div[data-testid="stElementContainer"]:has(.gm-live-metrics-bar) {
+            align-items: center;
+            display: flex;
+            min-height: 2.55rem;
+            width: 100%;
+        }
+
+        div[data-testid="stElementContainer"]:has(.gm-live-metrics-bar) > div {
+            width: 100%;
         }
 
         .gm-live-card {
@@ -696,6 +707,9 @@ def _apply_live_page_styles() -> None:
 
         .gm-live-answer-card {
             margin-bottom: 0 !important;
+            margin-right: auto;
+            max-width: 23rem;
+            width: min(100%, 23rem);
         }
 
         .gm-live-answer-card--correct .gm-live-answer-badge,
@@ -838,6 +852,7 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stRadio"] {
             display: block !important;
+            max-width: 23rem !important;
             width: 100% !important;
         }
 
@@ -858,7 +873,7 @@ def _apply_live_page_styles() -> None:
             align-items: stretch !important;
             display: flex !important;
             flex-direction: column !important;
-            gap: 0.55rem !important;
+            gap: 0.42rem !important;
             max-width: none !important;
             width: 100% !important;
         }
