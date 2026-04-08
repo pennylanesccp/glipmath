@@ -901,13 +901,26 @@ def _apply_live_page_styles() -> None:
             width: 100% !important;
         }
 
-        div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
-            color: #dbeafe !important;
-        }
-
         div[data-testid="stRadio"] label[data-baseweb="radio"] * {
             color: #0f172a !important;
             opacity: 1 !important;
+        }
+
+        div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child,
+        div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child > div {
+            align-items: center !important;
+            background: #eef4ff !important;
+            border: 1.5px solid #bfd4ff !important;
+            border-radius: 999px !important;
+            box-shadow: none !important;
+            color: #bfd4ff !important;
+            display: inline-flex !important;
+            flex: 0 0 auto !important;
+            height: 1rem !important;
+            justify-content: center !important;
+            min-height: 1rem !important;
+            min-width: 1rem !important;
+            width: 1rem !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"] > div:last-child {
@@ -921,10 +934,12 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"] svg,
-        div[data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] svg {
-            fill: #dbeafe !important;
-            color: #dbeafe !important;
-            stroke: #dbeafe !important;
+        div[data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] svg,
+        div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child *,
+        div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child > div * {
+            fill: #eef4ff !important;
+            color: #bfd4ff !important;
+            stroke: #bfd4ff !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
@@ -937,19 +952,24 @@ def _apply_live_page_styles() -> None:
             accent-color: #2563eb !important;
         }
 
+        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) > div:first-child,
+        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) > div:first-child > div {
+            background: #2563eb !important;
+            border-color: #2563eb !important;
+            color: #ffffff !important;
+        }
+
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) * {
             color: #1d4ed8 !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) svg,
-        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) [data-testid="stMarkdownContainer"] svg {
+        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) [data-testid="stMarkdownContainer"] svg,
+        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) > div:first-child *,
+        div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) > div:first-child > div * {
             fill: #2563eb !important;
             color: #2563eb !important;
             stroke: #2563eb !important;
-        }
-
-        div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
-            color: #475569 !important;
         }
 
         div[data-testid="stButton"] button[kind="secondary"],
