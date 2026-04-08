@@ -669,6 +669,14 @@ def _apply_live_page_styles() -> None:
             background: #eef2ff !important;
         }
 
+        div[data-testid="stForm"] {
+            width: 100% !important;
+        }
+
+        div[data-testid="stForm"] form {
+            width: 100% !important;
+        }
+
         div[data-testid="stRadio"] {
             width: 100% !important;
         }
@@ -686,6 +694,7 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stRadio"] [role="radiogroup"] {
+            align-items: stretch !important;
             display: flex !important;
             flex-direction: column !important;
             gap: 0.75rem !important;
@@ -700,6 +709,7 @@ def _apply_live_page_styles() -> None:
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
             display: flex !important;
             margin-bottom: 0 !important;
+            max-width: 100% !important;
             min-width: 100% !important;
             padding: 0.95rem 1rem;
             width: 100% !important;
@@ -727,8 +737,9 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
-            background: #eef2ff;
+            background: #edf4ff;
             border-color: #93c5fd;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) * {
@@ -756,10 +767,17 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stButton"] button[kind="secondary"],
         div[data-testid="stFormSubmitButton"] button[kind="secondary"] {
-            background: #eff6ff !important;
+            background: #edf4ff !important;
             border: 1px solid #93c5fd !important;
             color: #1d4ed8 !important;
-            box-shadow: none !important;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        div[data-testid="stButton"] button[kind="secondary"]:hover,
+        div[data-testid="stFormSubmitButton"] button[kind="secondary"]:hover {
+            background: #e2eeff !important;
+            border-color: #60a5fa !important;
+            color: #1d4ed8 !important;
         }
 
         div[data-testid="stButton"] button,
