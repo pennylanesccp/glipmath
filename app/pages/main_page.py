@@ -761,6 +761,8 @@ def _apply_live_page_styles() -> None:
             color: #0f172a !important;
         }
 
+        div[data-baseweb="popover"],
+        div[data-baseweb="popover"] > div,
         div[data-baseweb="popover"] [role="listbox"] {
             background: #ffffff !important;
             border: 1px solid #dbeafe !important;
@@ -768,8 +770,19 @@ def _apply_live_page_styles() -> None:
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12) !important;
         }
 
+        div[data-baseweb="popover"] ul,
+        div[data-baseweb="popover"] li,
+        div[data-baseweb="popover"] [role="option"] {
+            background: #ffffff !important;
+        }
+
+        div[data-baseweb="popover"] *,
         div[data-baseweb="popover"] [role="option"] * {
             color: #0f172a !important;
+        }
+
+        div[data-baseweb="popover"] [role="option"]:hover {
+            background: #f8fbff !important;
         }
 
         div[data-baseweb="popover"] [role="option"][aria-selected="true"] {
@@ -867,15 +880,8 @@ def _apply_live_page_styles() -> None:
             color: #475569 !important;
         }
 
-        div[data-testid="stButton"] button[kind="primary"],
-        div[data-testid="stFormSubmitButton"] button[kind="primary"] {
-            background: #1e40af !important;
-            border: 1px solid #1e3a8a !important;
-            color: #ffffff !important;
-            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22) !important;
-        }
-
         div[data-testid="stButton"] button[kind="secondary"],
+        div[data-testid="stFormSubmitButton"] button,
         div[data-testid="stFormSubmitButton"] button[kind="secondary"] {
             background: #edf4ff !important;
             border: 1px solid #93c5fd !important;
@@ -884,10 +890,19 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stButton"] button[kind="secondary"]:hover,
+        div[data-testid="stFormSubmitButton"] button:hover,
         div[data-testid="stFormSubmitButton"] button[kind="secondary"]:hover {
             background: #e2eeff !important;
             border-color: #60a5fa !important;
             color: #1d4ed8 !important;
+        }
+
+        div[data-testid="stButton"] button[kind="primary"],
+        div[data-testid="stFormSubmitButton"] button[kind="primary"] {
+            background: #1e40af !important;
+            border: 1px solid #1e3a8a !important;
+            color: #ffffff !important;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22) !important;
         }
 
         div[data-testid="stButton"] button,
