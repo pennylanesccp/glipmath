@@ -157,7 +157,7 @@ def _render_controls_bar(
         st.rerun()
 
     subject_col, metrics_col = st.columns(
-        [1.8, 1.2],
+        [1.65, 1.35],
         vertical_alignment="center",
     )
 
@@ -707,9 +707,10 @@ def _apply_live_page_styles() -> None:
 
         .gm-live-answer-card {
             margin-bottom: 0 !important;
+            margin-left: auto;
             margin-right: auto;
-            max-width: 23rem;
-            width: min(100%, 23rem);
+            max-width: 24.6rem;
+            width: min(100%, 24.6rem);
         }
 
         .gm-live-answer-card--correct .gm-live-answer-badge,
@@ -852,7 +853,9 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stRadio"] {
             display: block !important;
-            max-width: 23rem !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            max-width: 24.6rem !important;
             width: 100% !important;
         }
 
