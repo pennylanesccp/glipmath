@@ -24,7 +24,6 @@ from modules.services.question_authoring_service import (
     validate_draft_for_ai,
     validate_draft_for_submission,
 )
-from modules.services.question_service import format_project_label
 from modules.storage.bigquery_client import BigQueryError
 from modules.storage.question_repository import QuestionRepository
 from modules.utils.normalization import clean_optional_text
@@ -153,12 +152,6 @@ def _render_question_authoring_panel(
     _ensure_authoring_widget_defaults()
 
     with st.form("gm_professor_question_authoring_form", clear_on_submit=False):
-        st.text_input(
-            "Projeto",
-            value=format_project_label(normalized_project),
-            disabled=True,
-        )
-
         subject_col, topic_col = st.columns(2, gap="small")
         with subject_col:
             st.text_input(
@@ -425,30 +418,30 @@ def _apply_professor_page_styles() -> None:
             border-radius: 1.35rem;
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
             margin: 0;
-            padding: 1rem 1rem 0.95rem;
+            padding: 1.1rem 1.1rem 1rem;
         }
 
         .gm-professor-eyebrow {
             color: #475569;
-            font-size: 0.76rem;
+            font-size: 0.8rem;
             font-weight: 700;
             letter-spacing: 0.08em;
-            margin-bottom: 0.28rem;
+            margin-bottom: 0.34rem;
             text-transform: uppercase;
         }
 
         .gm-professor-title {
             color: #0f172a;
-            font-size: 1.28rem;
+            font-size: 1.52rem;
             font-weight: 800;
-            line-height: 1.1;
-            margin: 0 0 0.35rem;
+            line-height: 1.08;
+            margin: 0 0 0.45rem;
         }
 
         .gm-professor-copy {
             color: #475569;
-            font-size: 0.96rem;
-            line-height: 1.45;
+            font-size: 1.04rem;
+            line-height: 1.52;
             margin: 0;
         }
 
@@ -457,7 +450,7 @@ def _apply_professor_page_styles() -> None:
             border-radius: 1.4rem !important;
             display: flex;
             flex-direction: column;
-            font-size: 1.1rem !important;
+            font-size: 1.2rem !important;
             font-weight: 800 !important;
             gap: 0.45rem;
             justify-content: center;
@@ -468,7 +461,7 @@ def _apply_professor_page_styles() -> None:
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-hook) div[data-testid="stButton"] > button span[data-testid="stIconMaterial"] {
-            font-size: 2.35rem !important;
+            font-size: 2.55rem !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-hook) div[data-testid="stButton"] > button:disabled {
@@ -490,27 +483,77 @@ def _apply_professor_page_styles() -> None:
             border: 1px solid #dbeafe !important;
             border-radius: 1.35rem !important;
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08) !important;
-            padding: 1rem !important;
+            padding: 1.05rem !important;
         }
 
         div[data-testid="stForm"] form > div[data-testid="stVerticalBlock"] {
-            gap: 0.8rem !important;
+            gap: 0.88rem !important;
         }
 
         div[data-testid="stForm"] label p,
         div[data-testid="stForm"] label span {
             color: #334155 !important;
+            font-size: 1rem !important;
             font-weight: 700 !important;
+        }
+
+        div[data-testid="stForm"] [data-testid="InputInstructions"] {
+            display: none !important;
         }
 
         div[data-testid="stForm"] textarea,
         div[data-testid="stForm"] input {
             border-radius: 1rem !important;
+            font-size: 1rem !important;
         }
 
         div[data-testid="stForm"] [data-baseweb="base-input"],
         div[data-testid="stForm"] [data-baseweb="textarea"] {
             border-radius: 1rem !important;
+        }
+
+        div[data-testid="stForm"] input::placeholder,
+        div[data-testid="stForm"] textarea::placeholder {
+            color: #94a3b8 !important;
+            font-size: 0.98rem !important;
+        }
+
+        div[data-testid="stForm"] [data-baseweb="select"] span {
+            font-size: 1rem !important;
+        }
+
+        div[data-testid="stForm"] [data-testid="stMarkdownContainer"] p {
+            color: #0f172a !important;
+            font-size: 1.02rem !important;
+        }
+
+        div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button {
+            background: #edf4ff !important;
+            border: 1px solid #93c5fd !important;
+            border-radius: 1.12rem !important;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12) !important;
+            color: #1d4ed8 !important;
+            font-size: 1rem !important;
+            font-weight: 700 !important;
+        }
+
+        div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button:hover {
+            background: #e2eeff !important;
+            border-color: #60a5fa !important;
+            color: #1d4ed8 !important;
+        }
+
+        div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button[kind="primary"] {
+            background: #1e40af !important;
+            border-color: #1e3a8a !important;
+            box-shadow: 0 16px 30px rgba(30, 64, 175, 0.2) !important;
+            color: #ffffff !important;
+        }
+
+        div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button[kind="primary"]:hover {
+            background: #1d4ed8 !important;
+            border-color: #1d4ed8 !important;
+            color: #ffffff !important;
         }
         </style>
         """
