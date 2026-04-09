@@ -7,6 +7,8 @@
 # project
 data/db/
 data/raw/
+data/new/
+data/processed/
 trash/
 local/bq_seeds/
 tests/*
@@ -14,6 +16,7 @@ tests/*
 !tests/*.py
 tasks
 secrets/
+pytest-cache-files-*/
 
 # Terraform
 .terraform/
@@ -35,6 +38,7 @@ backend.hcl
 .env
 .env.*
 *.log
+logs/
 .streamlit/secrets.toml
 
 
