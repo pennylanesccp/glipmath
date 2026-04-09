@@ -49,6 +49,14 @@ class SubjectTopicGroup:
     topics: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class QuestionFilterSelection:
+    """Multi-select learner filter state across subjects and specific topics."""
+
+    subjects: tuple[str, ...] = ()
+    topics: tuple[tuple[str, str], ...] = ()
+
+
 def parse_question_bank_dataframe(
     dataframe: pd.DataFrame,
 ) -> tuple[list[Question], list[str]]:
@@ -367,6 +375,29 @@ def filter_question_ids_by_subject(
     ]
 
 
+def filter_question_ids_by_filters(
+    question_index: Sequence[QuestionIndexEntry],
+    filters: QuestionFilterSelection,
+) -> list[int]:
+    """Return active question IDs for the selected multi-filter state."""
+
+    if not filters.subjects and not filters.topics:
+        return [entry.id_question for entry in question_index]
+
+    selected_subjects = set(filters.subjects)
+    selected_topics = set(filters.topics)
+    return [
+        entry.id_question
+        for entry in question_index
+        if (entry.subject in selected_subjects)
+        or (
+            entry.subject is not None
+            and entry.topic is not None
+            and (entry.subject, entry.topic) in selected_topics
+        )
+    ]
+
+
 def normalize_question_filters(
     question_index: Sequence[QuestionIndexEntry],
     *,
@@ -391,6 +422,55 @@ def normalize_question_filters(
     if selected_topic not in available_topics:
         return selected_subject, None
     return selected_subject, selected_topic
+
+
+def normalize_multi_question_filters(
+    question_index: Sequence[QuestionIndexEntry],
+    *,
+    subjects: Sequence[str] | None,
+    topics: Sequence[tuple[str, str]] | None,
+) -> QuestionFilterSelection:
+    """Normalize one multi-select filter state against the active question index."""
+
+    subject_groups = build_subject_topic_groups(question_index)
+    available_topics_by_subject = {
+        group.subject: set(group.topics)
+        for group in subject_groups
+    }
+
+    normalized_subjects = tuple(
+        sorted(
+            {
+                normalized_subject
+                for subject in (subjects or [])
+                for normalized_subject in [clean_optional_text(subject)]
+                if normalized_subject in available_topics_by_subject
+            },
+            key=str.casefold,
+        )
+    )
+    selected_subject_set = set(normalized_subjects)
+
+    normalized_topics = tuple(
+        sorted(
+            {
+                (normalized_subject, normalized_topic)
+                for raw_topic in (topics or [])
+                if len(raw_topic) == 2
+                for normalized_subject in [clean_optional_text(raw_topic[0])]
+                for normalized_topic in [clean_optional_text(raw_topic[1])]
+                if normalized_subject in available_topics_by_subject
+                and normalized_subject not in selected_subject_set
+                and normalized_topic in available_topics_by_subject[normalized_subject]
+            },
+            key=lambda item: (item[0].casefold(), item[1].casefold()),
+        )
+    )
+
+    return QuestionFilterSelection(
+        subjects=normalized_subjects,
+        topics=normalized_topics,
+    )
 
 
 def format_project_label(project: str | None) -> str:
@@ -465,6 +545,20 @@ def format_subject_topic_filter_label(
     if not normalized_topic:
         return format_subject_label(normalized_subject)
     return f"{format_subject_label(normalized_subject)} · {format_topic_label(normalized_topic)}"
+
+
+def format_question_filter_label(filters: QuestionFilterSelection) -> str:
+    """Render one compact label for the current multi-select learner filter."""
+
+    selection_count = len(filters.subjects) + len(filters.topics)
+    if selection_count == 0:
+        return "Todas"
+    if len(filters.subjects) == 1 and not filters.topics:
+        return format_subject_label(filters.subjects[0])
+    if len(filters.topics) == 1 and not filters.subjects:
+        subject, topic = filters.topics[0]
+        return f"{format_subject_label(subject)} / {format_topic_label(topic)}"
+    return f"{selection_count} filtros"
 
 
 def find_question_by_id(

@@ -13,16 +13,16 @@ from app.state.session_state import (
     get_question_selection,
     get_question_started_at,
     get_session_id,
-    get_subject_filter,
-    get_topic_filter,
+    get_subject_filters,
+    get_topic_filters,
     initialize_session_state,
     is_current_question_answered,
     is_submission_in_progress,
     mark_question_answered,
     mark_question_skipped,
     set_question_selection,
-    set_subject_filter,
-    set_topic_filter,
+    set_subject_filters,
+    set_topic_filters,
     start_submission,
     finish_submission,
 )
@@ -52,8 +52,8 @@ def render_main_page(
     alternatives: list[DisplayAlternative],
     answer_service: AnswerService,
     subject_topic_groups: list[SubjectTopicGroup],
-    selected_subject: str | None,
-    selected_topic: str | None,
+    selected_subjects: tuple[str, ...],
+    selected_topics: tuple[tuple[str, str], ...],
     selected_filter_label: str,
     day_streak: int,
     question_streak: int,
@@ -80,8 +80,8 @@ def render_main_page(
 
     _render_controls_bar(
         subject_topic_groups=subject_topic_groups,
-        selected_subject=selected_subject,
-        selected_topic=selected_topic,
+        selected_subjects=selected_subjects,
+        selected_topics=selected_topics,
         selected_filter_label=selected_filter_label,
         streak_text=_format_streak_text(day_streak, question_streak),
         rank_text=_format_rank_text(leaderboard_position),
@@ -124,8 +124,8 @@ def render_main_page(
 def _render_controls_bar(
     *,
     subject_topic_groups: list[SubjectTopicGroup],
-    selected_subject: str | None,
-    selected_topic: str | None,
+    selected_subjects: tuple[str, ...],
+    selected_topics: tuple[tuple[str, str], ...],
     selected_filter_label: str,
     streak_text: str,
     rank_text: str,
@@ -142,10 +142,10 @@ def _render_controls_bar(
     )
 
     with subject_col:
-        _render_subject_topic_filter(
+        _render_subject_topic_filter_multiselect(
             subject_topic_groups=subject_topic_groups,
-            selected_subject=selected_subject,
-            selected_topic=selected_topic,
+            selected_subjects=selected_subjects,
+            selected_topics=selected_topics,
             selected_filter_label=selected_filter_label,
         )
 
@@ -161,11 +161,60 @@ def _render_controls_bar(
             timer_icon_data_uri=timer_icon_data_uri,
         )
 
+
+def _render_subject_topic_filter_multiselect(
+    *,
+    subject_topic_groups: list[SubjectTopicGroup],
+    selected_subjects: tuple[str, ...],
+    selected_topics: tuple[tuple[str, str], ...],
+    selected_filter_label: str,
+) -> None:
+    _sync_subject_topic_filter_widget_state(
+        subject_topic_groups=subject_topic_groups,
+        selected_subjects=selected_subjects,
+        selected_topics=selected_topics,
+    )
+
+    with st.popover(
+        f"{selected_filter_label} ▾",
+        use_container_width=True,
+        width="stretch",
+        key="gm_subject_topic_filter_popover",
+    ):
+        if selected_subjects or selected_topics:
+            if st.button(
+                "Limpar filtro",
+                key="gm_clear_subject_topic_filters",
+                type="tertiary",
+                use_container_width=True,
+            ):
+                _apply_subject_topic_filters(subjects=(), topics=())
+
+        for group in subject_topic_groups:
+            st.checkbox(
+                format_subject_label(group.subject),
+                key=_subject_checkbox_key(group.subject),
+                help=f"Seleciona toda a matéria {format_subject_label(group.subject)}.",
+                on_change=_toggle_subject_filter,
+                args=(group.subject,),
+            )
+
+            for topic in group.topics:
+                _, topic_col = st.columns([0.1, 0.9], gap="small")
+                with topic_col:
+                    st.checkbox(
+                        format_topic_label(topic),
+                        key=_topic_checkbox_key(group.subject, topic),
+                        disabled=group.subject in selected_subjects,
+                        on_change=_toggle_topic_filter,
+                        args=(group.subject, topic),
+                    )
+
 def _render_subject_topic_filter(
     *,
     subject_topic_groups: list[SubjectTopicGroup],
-    selected_subject: str | None,
-    selected_topic: str | None,
+    selected_subjects: tuple[str, ...],
+    selected_topics: tuple[tuple[str, str], ...],
     selected_filter_label: str,
 ) -> None:
     with st.popover(
@@ -367,12 +416,9 @@ def _build_metric_chip_html(
     is_timer: bool = False,
     timer_running: bool = False,
 ) -> str:
-    pulse_html = ""
     timer_class = ""
     if is_timer:
         timer_class = " gm-live-metric--timer"
-        if timer_running:
-            pulse_html = '<span class="gm-live-metric-dot" aria-hidden="true"></span>'
 
     icon_html = ""
     if icon_data_uri:
@@ -382,7 +428,6 @@ def _build_metric_chip_html(
 
     return (
         f'<div class="gm-live-metric{timer_class}">'
-        f"{pulse_html}"
         f"{icon_html}"
         f'<span class="gm-live-metric-value">{escape(value_text)}</span>'
         "</div>"
@@ -592,18 +637,85 @@ def _resolve_live_timer_text(
     return format_elapsed_time(live_elapsed_seconds)
 
 
+def _subject_checkbox_key(subject: str) -> str:
+    return f"gm_filter_subject_checkbox_{subject}"
+
+
+def _topic_checkbox_key(subject: str, topic: str) -> str:
+    return f"gm_filter_topic_checkbox_{subject}_{topic}"
+
+
+def _sync_subject_topic_filter_widget_state(
+    *,
+    subject_topic_groups: list[SubjectTopicGroup],
+    selected_subjects: tuple[str, ...],
+    selected_topics: tuple[tuple[str, str], ...],
+) -> None:
+    selected_subject_set = set(selected_subjects)
+    selected_topic_set = set(selected_topics)
+
+    for group in subject_topic_groups:
+        st.session_state[_subject_checkbox_key(group.subject)] = group.subject in selected_subject_set
+        for topic in group.topics:
+            st.session_state[_topic_checkbox_key(group.subject, topic)] = (group.subject, topic) in selected_topic_set
+
+
+def _toggle_subject_filter(subject: str) -> None:
+    selected_subjects = set(get_subject_filters())
+    selected_topics = {
+        topic_pair
+        for topic_pair in get_topic_filters()
+        if topic_pair[0] != subject
+    }
+
+    if bool(st.session_state.get(_subject_checkbox_key(subject))):
+        selected_subjects.add(subject)
+    else:
+        selected_subjects.discard(subject)
+
+    set_subject_filters(selected_subjects)
+    set_topic_filters(selected_topics)
+    clear_current_question()
+
+
+def _toggle_topic_filter(subject: str, topic: str) -> None:
+    selected_subjects = set(get_subject_filters())
+    selected_subjects.discard(subject)
+    selected_topics = set(get_topic_filters())
+    topic_pair = (subject, topic)
+
+    if bool(st.session_state.get(_topic_checkbox_key(subject, topic))):
+        selected_topics.add(topic_pair)
+    else:
+        selected_topics.discard(topic_pair)
+
+    set_subject_filters(selected_subjects)
+    set_topic_filters(selected_topics)
+    clear_current_question()
+
+
+def _apply_subject_topic_filters(
+    *,
+    subjects: tuple[str, ...],
+    topics: tuple[tuple[str, str], ...],
+) -> None:
+    if subjects == get_subject_filters() and topics == get_topic_filters():
+        return
+
+    set_subject_filters(subjects)
+    set_topic_filters(topics)
+    clear_current_question()
+    st.rerun()
+
+
 def _apply_subject_topic_filter(
     *,
     subject: str | None,
     topic: str | None,
 ) -> None:
-    if subject == get_subject_filter() and topic == get_topic_filter():
-        return
-
-    set_subject_filter(subject)
-    set_topic_filter(topic)
-    clear_current_question()
-    st.rerun()
+    subjects = (subject,) if subject else ()
+    topics = ((subject, topic),) if subject and topic else ()
+    _apply_subject_topic_filters(subjects=subjects, topics=topics)
 
 
 def _format_streak_text(day_streak: int, _question_streak: int) -> str:
@@ -677,14 +789,6 @@ def _apply_live_page_styles() -> None:
             min-height: 2.55rem;
             padding: 0;
             width: auto;
-        }
-
-        .gm-live-metric-dot {
-            background: #2563eb;
-            border-radius: 999px;
-            display: inline-block;
-            height: 0.58rem;
-            width: 0.58rem;
         }
 
         .gm-live-metric-icon {
@@ -922,6 +1026,31 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stPopover"] [data-testid="stButton"] > button * {
             text-align: left !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stCheckbox"] {
+            width: 100% !important;
+            margin: 0 !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stCheckbox"] label {
+            align-items: center !important;
+            cursor: pointer !important;
+            gap: 0.55rem !important;
+            justify-content: flex-start !important;
+            padding: 0.1rem 0 !important;
+            width: 100% !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stCheckbox"] [data-testid="stMarkdownContainer"] p {
+            color: #0f172a !important;
+            font-weight: 600 !important;
+            margin: 0 !important;
+            text-align: left !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stCheckbox"] input {
+            cursor: pointer !important;
         }
 
         div[data-testid="stPopover"] div[data-testid="stButton"] button[kind="tertiary"] {

@@ -33,8 +33,8 @@ from app.state.session_state import (
     get_question_pool,
     get_project_filter,
     get_skipped_question_ids,
-    get_subject_filter,
-    get_topic_filter,
+    get_subject_filters,
+    get_topic_filters,
     get_user_answer_history,
     get_user_answer_history_issues,
     has_loaded_user_answer_history,
@@ -49,8 +49,8 @@ from app.state.session_state import (
     set_leaderboard_position,
     set_project_filter,
     set_question_pool,
-    set_subject_filter,
-    set_topic_filter,
+    set_subject_filters,
+    set_topic_filters,
     set_user_answer_history,
 )
 from modules.auth.auth_service import get_authenticated_identity
@@ -63,10 +63,10 @@ from modules.services.question_service import (
     build_display_alternatives,
     format_project_label,
     build_subject_topic_groups,
-    filter_question_ids_by_subject,
-    format_subject_topic_filter_label,
+    filter_question_ids_by_filters,
+    format_question_filter_label,
     find_question_by_id,
-    normalize_question_filters,
+    normalize_multi_question_filters,
     parse_project_options_dataframe,
     parse_question_bank_dataframe,
     parse_question_index_dataframe,
@@ -185,14 +185,14 @@ def main() -> None:
             question_table_id,
             effective_project_scope,
         )
-        normalized_subject_filter, normalized_topic_filter = normalize_question_filters(
+        normalized_filters = normalize_multi_question_filters(
             question_index,
-            subject=get_subject_filter(),
-            topic=get_topic_filter(),
+            subjects=get_subject_filters(),
+            topics=get_topic_filters(),
         )
-        if normalized_subject_filter != get_subject_filter() or normalized_topic_filter != get_topic_filter():
-            set_subject_filter(normalized_subject_filter)
-            set_topic_filter(normalized_topic_filter)
+        if normalized_filters.subjects != get_subject_filters() or normalized_filters.topics != get_topic_filters():
+            set_subject_filters(normalized_filters.subjects)
+            set_topic_filters(normalized_filters.topics)
             clear_current_question()
             st.rerun()
         subject_topic_groups = build_subject_topic_groups(question_index)
@@ -217,11 +217,7 @@ def main() -> None:
             question_repository=context.question_repository,
             question_table_id=question_table_id,
             cohort_key=effective_project_scope,
-            active_question_ids=filter_question_ids_by_subject(
-                question_index,
-                normalized_subject_filter,
-                topic=normalized_topic_filter,
-            ),
+            active_question_ids=filter_question_ids_by_filters(question_index, normalized_filters),
             answered_question_ids=get_answered_question_ids(authorized_user.email),
         )
     except BigQueryError as exc:
@@ -250,12 +246,9 @@ def main() -> None:
         alternatives=current_alternatives,
         answer_service=context.answer_service,
         subject_topic_groups=subject_topic_groups,
-        selected_subject=normalized_subject_filter,
-        selected_topic=normalized_topic_filter,
-        selected_filter_label=format_subject_topic_filter_label(
-            normalized_subject_filter,
-            normalized_topic_filter,
-        ),
+        selected_subjects=normalized_filters.subjects,
+        selected_topics=normalized_filters.topics,
+        selected_filter_label=format_question_filter_label(normalized_filters),
         day_streak=compute_day_streak(answer_history, timezone_name=settings.timezone),
         question_streak=compute_question_streak(answer_history),
         leaderboard_position=_resolve_leaderboard_position(leaderboard_rank, leaderboard_total_users),
@@ -384,8 +377,8 @@ def _render_authenticated_shell(
     if project_choice != get_project_filter():
         st.session_state.pop("gm_subject_filter_select", None)
         set_project_filter(project_choice)
-        set_subject_filter(None)
-        set_topic_filter(None)
+        set_subject_filters(())
+        set_topic_filters(())
         clear_current_question()
         st.rerun()
 

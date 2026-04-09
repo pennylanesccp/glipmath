@@ -40,6 +40,8 @@ USER_ANSWER_HISTORY_LOADED_KEY = "glipmath_user_answer_history_loaded"
 USER_ANSWERED_QUESTION_IDS_KEY = "glipmath_user_answered_question_ids"
 SUBJECT_FILTER_KEY = "glipmath_subject_filter"
 TOPIC_FILTER_KEY = "glipmath_topic_filter"
+SUBJECT_FILTERS_KEY = "glipmath_subject_filters"
+TOPIC_FILTERS_KEY = "glipmath_topic_filters"
 PROJECT_FILTER_KEY = "glipmath_project_filter"
 
 
@@ -77,6 +79,8 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(USER_ANSWERED_QUESTION_IDS_KEY, [])
     st.session_state.setdefault(SUBJECT_FILTER_KEY, "Todas")
     st.session_state.setdefault(TOPIC_FILTER_KEY, None)
+    st.session_state.setdefault(SUBJECT_FILTERS_KEY, [])
+    st.session_state.setdefault(TOPIC_FILTERS_KEY, [])
     st.session_state.setdefault(PROJECT_FILTER_KEY, None)
 
 
@@ -120,6 +124,8 @@ def bind_authenticated_user(user: User) -> None:
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
     st.session_state[SUBJECT_FILTER_KEY] = "Todas"
     st.session_state[TOPIC_FILTER_KEY] = None
+    st.session_state[SUBJECT_FILTERS_KEY] = []
+    st.session_state[TOPIC_FILTERS_KEY] = []
     st.session_state[PROJECT_FILTER_KEY] = None
     st.session_state[QUESTION_POOL_KEY] = []
     st.session_state[QUESTION_POOL_SCOPE_KEY] = None
@@ -619,6 +625,10 @@ def clear_question_skip(id_question: int) -> None:
 def get_subject_filter() -> str | None:
     """Return the selected subject filter, or None for all subjects."""
 
+    subject_filters = get_subject_filters()
+    topic_filters = get_topic_filters()
+    if len(subject_filters) == 1 and not topic_filters:
+        return subject_filters[0]
     initialize_session_state()
     value = _string_or_none(st.session_state[SUBJECT_FILTER_KEY])
     if value is None or value == "Todas":
@@ -636,12 +646,19 @@ def set_subject_filter(subject: str | None) -> None:
     """Persist the selected subject filter."""
 
     initialize_session_state()
-    st.session_state[SUBJECT_FILTER_KEY] = _string_or_none(subject) or "Todas"
+    normalized_subject = _string_or_none(subject)
+    st.session_state[SUBJECT_FILTER_KEY] = normalized_subject or "Todas"
+    st.session_state[SUBJECT_FILTERS_KEY] = [normalized_subject] if normalized_subject else []
+    st.session_state[TOPIC_FILTERS_KEY] = []
 
 
 def get_topic_filter() -> str | None:
     """Return the selected topic filter, or None for all topics."""
 
+    topic_filters = get_topic_filters()
+    subject_filters = get_subject_filters()
+    if len(topic_filters) == 1 and not subject_filters:
+        return topic_filters[0][1]
     initialize_session_state()
     return _string_or_none(st.session_state[TOPIC_FILTER_KEY])
 
@@ -650,7 +667,91 @@ def set_topic_filter(topic: str | None) -> None:
     """Persist the selected topic filter."""
 
     initialize_session_state()
-    st.session_state[TOPIC_FILTER_KEY] = _string_or_none(topic)
+    normalized_topic = _string_or_none(topic)
+    st.session_state[TOPIC_FILTER_KEY] = normalized_topic
+    st.session_state[TOPIC_FILTERS_KEY] = []
+    if normalized_topic:
+        subject = get_subject_filter()
+        if subject:
+            st.session_state[TOPIC_FILTERS_KEY] = [(subject, normalized_topic)]
+    st.session_state[SUBJECT_FILTERS_KEY] = [get_subject_filter()] if get_subject_filter() else []
+
+
+def get_subject_filters() -> tuple[str, ...]:
+    """Return the selected full-subject filters for the learner screen."""
+
+    initialize_session_state()
+    raw_subjects = st.session_state[SUBJECT_FILTERS_KEY]
+    if not isinstance(raw_subjects, list):
+        return ()
+    normalized_subjects = sorted(
+        {
+            normalized_subject
+            for subject in raw_subjects
+            for normalized_subject in [_string_or_none(subject)]
+            if normalized_subject
+        },
+        key=str.casefold,
+    )
+    return tuple(normalized_subjects)
+
+
+def set_subject_filters(subjects: list[str] | tuple[str, ...] | set[str]) -> None:
+    """Persist the selected full-subject filters for the learner screen."""
+
+    initialize_session_state()
+    normalized_subjects = sorted(
+        {
+            normalized_subject
+            for subject in subjects
+            for normalized_subject in [_string_or_none(subject)]
+            if normalized_subject
+        },
+        key=str.casefold,
+    )
+    st.session_state[SUBJECT_FILTERS_KEY] = normalized_subjects
+    st.session_state[SUBJECT_FILTER_KEY] = normalized_subjects[0] if len(normalized_subjects) == 1 else "Todas"
+
+
+def get_topic_filters() -> tuple[tuple[str, str], ...]:
+    """Return the selected specific topic filters for the learner screen."""
+
+    initialize_session_state()
+    raw_topics = st.session_state[TOPIC_FILTERS_KEY]
+    if not isinstance(raw_topics, list):
+        return ()
+
+    normalized_topics = sorted(
+        {
+            (normalized_subject, normalized_topic)
+            for item in raw_topics
+            if isinstance(item, (list, tuple)) and len(item) == 2
+            for normalized_subject in [_string_or_none(item[0])]
+            for normalized_topic in [_string_or_none(item[1])]
+            if normalized_subject and normalized_topic
+        },
+        key=lambda item: (item[0].casefold(), item[1].casefold()),
+    )
+    return tuple(normalized_topics)
+
+
+def set_topic_filters(topics: list[tuple[str, str]] | tuple[tuple[str, str], ...] | set[tuple[str, str]]) -> None:
+    """Persist the selected topic-level filters for the learner screen."""
+
+    initialize_session_state()
+    normalized_topics = sorted(
+        {
+            (normalized_subject, normalized_topic)
+            for item in topics
+            if len(item) == 2
+            for normalized_subject in [_string_or_none(item[0])]
+            for normalized_topic in [_string_or_none(item[1])]
+            if normalized_subject and normalized_topic
+        },
+        key=lambda item: (item[0].casefold(), item[1].casefold()),
+    )
+    st.session_state[TOPIC_FILTERS_KEY] = normalized_topics
+    st.session_state[TOPIC_FILTER_KEY] = normalized_topics[0][1] if len(normalized_topics) == 1 else None
 
 
 def get_project_filter() -> str | None:
@@ -690,6 +791,8 @@ def _bind_authenticated_user_email(user_email: str) -> None:
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
     st.session_state[SUBJECT_FILTER_KEY] = "Todas"
     st.session_state[TOPIC_FILTER_KEY] = None
+    st.session_state[SUBJECT_FILTERS_KEY] = []
+    st.session_state[TOPIC_FILTERS_KEY] = []
     st.session_state[PROJECT_FILTER_KEY] = None
     st.session_state[QUESTION_POOL_KEY] = []
     st.session_state[QUESTION_POOL_SCOPE_KEY] = None

@@ -9,13 +9,17 @@ from modules.services.question_service import (
     build_project_options,
     build_subject_options,
     build_subject_topic_groups,
+    QuestionFilterSelection,
     filter_question_index_by_project,
+    filter_question_ids_by_filters,
     filter_question_ids_by_subject,
+    format_question_filter_label,
     format_project_label,
     format_subject_label,
     format_subject_topic_filter_label,
     format_topic_label,
     find_valid_question_bank_row_indexes,
+    normalize_multi_question_filters,
     normalize_question_filters,
     parse_question_bank_dataframe,
     parse_question_id_dataframe,
@@ -231,6 +235,48 @@ def test_subject_option_helpers_build_and_filter_active_ids() -> None:
         ("Matematica", ("divisao", "radiciacao")),
         ("Portugues", ("gramatica",)),
     ]
+
+
+def test_multi_question_filters_normalize_and_union_subjects_with_topics() -> None:
+    question_index = [
+        QuestionIndexEntry(id_question=1, subject="Matematica", topic="divisao", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=2, subject="Matematica", topic="radiciacao", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=3, subject="Portugues", topic="gramatica", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=4, subject="Ciencias", topic="ecologia", cohort_key="ano_1"),
+    ]
+
+    filters = normalize_multi_question_filters(
+        question_index,
+        subjects=["Portugues", "MateriaInvalida"],
+        topics=[("Matematica", "radiciacao"), ("Matematica", "topico_invalido"), ("Portugues", "gramatica")],
+    )
+
+    assert filters == QuestionFilterSelection(
+        subjects=("Portugues",),
+        topics=(("Matematica", "radiciacao"),),
+    )
+    assert filter_question_ids_by_filters(question_index, filters) == [2, 3]
+
+
+def test_format_question_filter_label_summarizes_multi_selection_state() -> None:
+    assert format_question_filter_label(QuestionFilterSelection()) == "Todas"
+    assert (
+        format_question_filter_label(QuestionFilterSelection(subjects=("Matematica",)))
+        == "Matemática"
+    )
+    assert (
+        format_question_filter_label(QuestionFilterSelection(topics=(("Matematica", "divisao"),)))
+        == "Matemática / Divisao"
+    )
+    assert (
+        format_question_filter_label(
+            QuestionFilterSelection(
+                subjects=("Portugues",),
+                topics=(("Matematica", "divisao"),),
+            )
+        )
+        == "2 filtros"
+    )
 
 
 def test_project_option_helpers_build_filter_and_format_labels() -> None:
