@@ -392,7 +392,7 @@ def _render_authenticated_shell(
             format_func=_format_workspace_label,
             key="gm_workspace_segmented_control",
             label_visibility="collapsed",
-            width="content",
+            width="stretch",
         )
         normalized_workspace = workspace_choice if workspace_choice in {"student", "professor"} else "student"
         if normalized_workspace != current_workspace:
@@ -830,12 +830,12 @@ def _apply_workspace_shell_styles() -> None:
 
         div[data-testid="stSegmentedControl"] {
             margin: 0.05rem 0 0.35rem;
-            width: fit-content !important;
+            width: 100% !important;
             max-width: 100% !important;
         }
 
         div[data-testid="stSegmentedControl"] > div {
-            width: fit-content !important;
+            width: 100% !important;
             max-width: 100% !important;
         }
 
@@ -845,7 +845,7 @@ def _apply_workspace_shell_styles() -> None:
             justify-content: flex-start !important;
             align-items: flex-end !important;
             gap: 1.6rem !important;
-            width: fit-content !important;
+            width: 100% !important;
             max-width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
@@ -868,7 +868,7 @@ def _apply_workspace_shell_styles() -> None:
         div[data-testid="stSegmentedControl"] [role="radio"],
         div[data-testid="stSegmentedControl"] button {
             position: relative !important;
-            flex: 0 0 auto !important;
+            flex: 1 1 0 !important;
             min-height: auto !important;
             padding: 0.1rem 0 0.78rem !important;
             margin: 0 !important;
@@ -879,9 +879,9 @@ def _apply_workspace_shell_styles() -> None:
             color: #7b8498 !important;
             font-size: 1rem !important;
             font-weight: 700 !important;
-            justify-content: flex-start !important;
+            justify-content: center !important;
             line-height: 1.15 !important;
-            text-align: left !important;
+            text-align: center !important;
         }
 
         div[data-testid="stSegmentedControl"] [role="radio"]:hover,

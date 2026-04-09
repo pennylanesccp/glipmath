@@ -112,7 +112,7 @@ def render_main_page(
         )
         return
 
-    _render_pending_state(
+    _render_pending_state_compact(
         user=user,
         current_question=current_question,
         alternatives=alternatives,
@@ -259,6 +259,99 @@ def _render_subject_topic_filter(
                         use_container_width=True,
                     ):
                         _apply_subject_topic_filter(subject=group.subject, topic=topic)
+
+
+def _render_pending_state_compact(
+    *,
+    user: User,
+    current_question: Question,
+    alternatives: list[DisplayAlternative],
+    answer_service: AnswerService,
+    selected_option_id: str | None,
+) -> None:
+    if not alternatives:
+        st.html(_build_info_card_html("Esta questÃ£o nÃ£o possui alternativas disponÃ­veis."))
+        return
+
+    _, content_col, _ = st.columns([0.03, 0.94, 0.03], vertical_alignment="top")
+    with content_col:
+        selected_option_id = _render_pending_alternative_picker_compact(
+            alternatives=alternatives,
+            selected_option_id=selected_option_id,
+        )
+
+        skip_col, verify_col = st.columns([1, 2], vertical_alignment="bottom")
+        with skip_col:
+            skip_clicked = st.button(
+                "Pular questÃ£o",
+                key=f"gm_skip_question_{current_question.id_question}",
+                use_container_width=True,
+            )
+        with verify_col:
+            verify_clicked = st.button(
+                "Verificar resposta",
+                key=f"gm_verify_question_{current_question.id_question}",
+                type="primary",
+                use_container_width=True,
+            )
+
+    if skip_clicked:
+        mark_question_skipped(current_question.id_question)
+        clear_current_question()
+        st.rerun()
+
+    if not verify_clicked:
+        return
+
+    pending_selection = get_question_selection() or selected_option_id
+    if pending_selection is None:
+        st.warning("Selecione uma alternativa antes de verificar.")
+        return
+
+    if is_submission_in_progress():
+        st.info("Sua resposta ainda estÃ¡ sendo enviada.")
+        return
+
+    set_question_selection(pending_selection)
+    _submit_selected_answer(
+        user=user,
+        current_question=current_question,
+        alternatives=alternatives,
+        answer_service=answer_service,
+        selected_option_id=pending_selection,
+    )
+
+
+def _render_pending_alternative_picker_compact(
+    *,
+    alternatives: list[DisplayAlternative],
+    selected_option_id: str | None,
+) -> str | None:
+    st.html('<div class="gm-live-pending-label">Escolha uma alternativa</div>')
+
+    for alternative in alternatives:
+        is_selected = alternative.option_id == selected_option_id
+        card_col, action_col = st.columns([4.3, 1.3], vertical_alignment="center")
+        with card_col:
+            st.html(
+                _build_pending_alternative_card_html_v2(
+                    alternative=alternative,
+                    is_selected=is_selected,
+                )
+            )
+        with action_col:
+            select_clicked = st.button(
+                "Escolhida" if is_selected else "Escolher",
+                key=f"gm_select_alternative_{alternative.option_id}",
+                type="primary" if is_selected else "secondary",
+                use_container_width=True,
+                help=f"Selecionar alternativa: {markdown_to_plain_text(alternative.alternative_text)}",
+            )
+        if select_clicked:
+            set_question_selection(alternative.option_id)
+            st.rerun()
+
+    return selected_option_id
 
 
 def _render_pending_state(
@@ -529,6 +622,27 @@ def _build_info_card_html(message_html: str) -> str:
     return (
         '<section class="gm-live-card gm-live-info-card">'
         f"<div>{message_html}</div>"
+        "</section>"
+    )
+
+
+def _build_pending_alternative_card_html_v2(
+    *,
+    alternative: DisplayAlternative,
+    is_selected: bool,
+) -> str:
+    card_class = "gm-live-card gm-live-pending-choice-card"
+    dot_class = "gm-live-pending-choice-dot"
+    if is_selected:
+        card_class += " gm-live-pending-choice-card--selected"
+        dot_class += " gm-live-pending-choice-dot--selected"
+
+    return (
+        f'<section class="{card_class}">'
+        '<div class="gm-live-pending-choice-row">'
+        f'<span class="{dot_class}" aria-hidden="true"></span>'
+        f'<div class="gm-live-answer-text">{_text_to_html(alternative.alternative_text)}</div>'
+        "</div>"
         "</section>"
     )
 
@@ -918,10 +1032,40 @@ def _apply_live_page_styles() -> None:
             width: calc(100% - 1.1rem);
         }
 
+        .gm-live-pending-label {
+            color: #7b8498;
+            font-size: 0.88rem;
+            font-weight: 600;
+            margin: 0.18rem 0 0.38rem;
+        }
+
         .gm-live-pending-choice-card {
             margin-bottom: 0 !important;
             max-width: none;
             width: 100%;
+        }
+
+        .gm-live-pending-choice-row {
+            align-items: flex-start;
+            display: flex;
+            gap: 0.62rem;
+        }
+
+        .gm-live-pending-choice-dot {
+            background: #eef4ff;
+            border: 1.5px solid #bfd4ff;
+            border-radius: 999px;
+            display: inline-block;
+            flex: 0 0 auto;
+            height: 1rem;
+            margin-top: 0.18rem;
+            width: 1rem;
+        }
+
+        .gm-live-pending-choice-dot--selected {
+            background: #2563eb;
+            border-color: #2563eb;
+            box-shadow: inset 0 0 0 0.18rem #ffffff;
         }
 
         .gm-live-pending-choice-card--selected {
@@ -1040,6 +1184,12 @@ def _apply_live_page_styles() -> None:
             justify-content: flex-start !important;
             padding: 0.1rem 0 !important;
             width: 100% !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stCheckbox"] label > div:last-child,
+        div[data-testid="stPopover"] [data-testid="stCheckbox"] [data-testid="stMarkdownContainer"] {
+            flex: 0 1 auto !important;
+            width: auto !important;
         }
 
         div[data-testid="stPopover"] [data-testid="stCheckbox"] [data-testid="stMarkdownContainer"] p {
