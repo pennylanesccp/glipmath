@@ -332,6 +332,22 @@ def test_build_question_card_html_renders_markdown_snippets() -> None:
     assert "SELECT 1" in html
 
 
+def test_build_pending_alternative_card_html_renders_markdown_and_selected_state() -> None:
+    html = main_page._build_pending_alternative_card_html(
+        alternative=DisplayAlternative(
+            option_id="option_sql",
+            alternative_text="```python\nprint('ok')\n```",
+            explanation=None,
+            is_correct=False,
+        ),
+        is_selected=True,
+    )
+
+    assert "gm-live-pending-choice-card--selected" in html
+    assert "<pre>" in html
+    assert "print('ok')" in html
+
+
 def test_build_answer_status_chip_html_matches_result_state() -> None:
     correct_html = main_page._build_answer_status_chip_html(True)
     wrong_html = main_page._build_answer_status_chip_html(False)

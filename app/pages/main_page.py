@@ -203,37 +203,25 @@ def _render_pending_state(
         st.html(_build_info_card_html("Esta questão não possui alternativas disponíveis."))
         return
 
-    option_ids = [alternative.option_id for alternative in alternatives]
-    option_labels = {
-        alternative.option_id: markdown_to_plain_text(alternative.alternative_text)
-        for alternative in alternatives
-    }
-    selected_index = _find_option_index(option_ids, selected_option_id)
+    selected_option_id = _render_pending_alternative_picker(
+        alternatives=alternatives,
+        selected_option_id=selected_option_id,
+    )
 
-    skip_clicked = False
-    verify_clicked = False
-    pending_selection: str | None = None
-
-    with st.form(key=f"gm_question_form_{current_question.id_question}", clear_on_submit=False):
-        pending_selection = st.radio(
-            "Escolha uma alternativa",
-            options=option_ids,
-            index=selected_index,
-            format_func=option_labels.get,
-            label_visibility="visible",
+    skip_col, verify_col = st.columns([1, 2], vertical_alignment="bottom")
+    with skip_col:
+        skip_clicked = st.button(
+            "Pular questão",
+            key=f"gm_skip_question_{current_question.id_question}",
+            use_container_width=True,
         )
-        skip_col, verify_col = st.columns([1, 2], vertical_alignment="bottom")
-        with skip_col:
-            skip_clicked = st.form_submit_button(
-                "Pular questão",
-                use_container_width=True,
-            )
-        with verify_col:
-            verify_clicked = st.form_submit_button(
-                "Verificar resposta",
-                type="primary",
-                use_container_width=True,
-            )
+    with verify_col:
+        verify_clicked = st.button(
+            "Verificar resposta",
+            key=f"gm_verify_question_{current_question.id_question}",
+            type="primary",
+            use_container_width=True,
+        )
 
     if skip_clicked:
         mark_question_skipped(current_question.id_question)
@@ -243,7 +231,7 @@ def _render_pending_state(
     if not verify_clicked:
         return
 
-    set_question_selection(pending_selection)
+    pending_selection = get_question_selection() or selected_option_id
     if pending_selection is None:
         st.warning("Selecione uma alternativa antes de verificar.")
         return
@@ -252,6 +240,7 @@ def _render_pending_state(
         st.info("Sua resposta ainda está sendo enviada.")
         return
 
+    set_question_selection(pending_selection)
     _submit_selected_answer(
         user=user,
         current_question=current_question,
@@ -259,6 +248,38 @@ def _render_pending_state(
         answer_service=answer_service,
         selected_option_id=pending_selection,
     )
+
+
+def _render_pending_alternative_picker(
+    *,
+    alternatives: list[DisplayAlternative],
+    selected_option_id: str | None,
+) -> str | None:
+    st.markdown("Escolha uma alternativa")
+
+    for alternative in alternatives:
+        is_selected = alternative.option_id == selected_option_id
+        card_col, action_col = st.columns([4.2, 1.35], vertical_alignment="center")
+        with card_col:
+            st.html(
+                _build_pending_alternative_card_html(
+                    alternative=alternative,
+                    is_selected=is_selected,
+                )
+            )
+        with action_col:
+            select_clicked = st.button(
+                "Escolhida" if is_selected else "Escolher",
+                key=f"gm_select_alternative_{alternative.option_id}",
+                type="primary" if is_selected else "secondary",
+                use_container_width=True,
+                help=f"Selecionar alternativa: {markdown_to_plain_text(alternative.alternative_text)}",
+            )
+        if select_clicked:
+            set_question_selection(alternative.option_id)
+            st.rerun()
+
+    return selected_option_id
 
 
 def _render_answered_state(
@@ -446,6 +467,22 @@ def _build_info_card_html(message_html: str) -> str:
     )
 
 
+def _build_pending_alternative_card_html(
+    *,
+    alternative: DisplayAlternative,
+    is_selected: bool,
+) -> str:
+    card_class = "gm-live-card gm-live-pending-choice-card"
+    if is_selected:
+        card_class += " gm-live-pending-choice-card--selected"
+
+    return (
+        f'<section class="{card_class}">'
+        f'<div class="gm-live-answer-text">{_text_to_html(alternative.alternative_text)}</div>'
+        "</section>"
+    )
+
+
 def _build_answer_review_card_html(
     *,
     alternative: DisplayAlternative,
@@ -488,15 +525,6 @@ def _build_answer_status_chip_html(answer_is_correct: bool) -> str:
         f"{escape(status_text)}"
         "</div>"
     )
-
-
-def _find_option_index(option_ids: list[str], selected_option_id: str | None) -> int | None:
-    if not selected_option_id:
-        return None
-    try:
-        return option_ids.index(selected_option_id)
-    except ValueError:
-        return None
 
 
 def _selected_option_id_for_render(current_question_id: int | None) -> str | None:
@@ -767,6 +795,22 @@ def _apply_live_page_styles() -> None:
             margin-right: auto;
             max-width: calc(100% - 1.1rem);
             width: calc(100% - 1.1rem);
+        }
+
+        .gm-live-pending-choice-card {
+            margin-bottom: 0 !important;
+            max-width: none;
+            width: 100%;
+        }
+
+        .gm-live-pending-choice-card--selected {
+            background: #edf4ff;
+            border-color: #93c5fd;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
+        }
+
+        .gm-live-pending-choice-card--selected .gm-live-answer-text {
+            color: #1d4ed8;
         }
 
         .gm-live-answer-card--correct .gm-live-answer-badge,
