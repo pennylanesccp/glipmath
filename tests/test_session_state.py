@@ -163,3 +163,28 @@ def test_leaderboard_position_round_trips_through_session_state(monkeypatch) -> 
 
     assert session_state.has_loaded_leaderboard_position("ana@example.com") is True
     assert session_state.get_leaderboard_position("ana@example.com") == (3, 14, ["lag temporary"])
+
+
+def test_professor_notice_round_trips_through_session_state(monkeypatch) -> None:
+    monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
+
+    session_state.set_professor_notice("success", "Questão enviada.")
+
+    assert session_state.get_professor_notice() == {
+        "kind": "success",
+        "message": "Questão enviada.",
+    }
+
+    session_state.clear_professor_notice()
+
+    assert session_state.get_professor_notice() is None
+
+
+def test_professor_authoring_ai_assisted_flag_round_trips(monkeypatch) -> None:
+    monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
+
+    session_state.set_professor_authoring_ai_assisted(True)
+    assert session_state.get_professor_authoring_ai_assisted() is True
+
+    session_state.set_professor_authoring_ai_assisted(False)
+    assert session_state.get_professor_authoring_ai_assisted() is False

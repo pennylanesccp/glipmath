@@ -22,7 +22,11 @@ from modules.services.question_service import (
     select_next_question,
     select_next_question_id,
 )
-from modules.services.user_service import resolve_effective_project_for_user, resolve_question_scope_for_user
+from modules.services.user_service import (
+    resolve_available_project_options,
+    resolve_effective_project_for_user,
+    resolve_question_scope_for_user,
+)
 from modules.storage.schema_validation import WorksheetValidationError
 
 
@@ -280,6 +284,55 @@ def test_resolve_effective_project_for_teacher_returns_selected_project() -> Non
     user = User(email="prof@example.com", role="teacher", cohort_key="all")
 
     assert resolve_effective_project_for_user(user, selected_project="crescer_e_conectar") == "crescer_e_conectar"
+
+
+def test_resolve_effective_project_for_multi_project_student_prefers_selected_project() -> None:
+    user = User(
+        email="ana@example.com",
+        role="student",
+        cohort_key="crescer_e_conectar",
+        accessible_cohort_keys=("crescer_e_conectar", "rumo_etec"),
+    )
+
+    assert resolve_effective_project_for_user(user, selected_project="rumo_etec") == "rumo_etec"
+    assert resolve_effective_project_for_user(user, selected_project="projeto_invalido") == "crescer_e_conectar"
+
+
+def test_resolve_available_project_options_uses_explicit_access_list_for_non_global_users() -> None:
+    user = User(
+        email="prof@example.com",
+        role="teacher",
+        cohort_key="crescer_e_conectar",
+        accessible_cohort_keys=("crescer_e_conectar", "rumo_etec"),
+    )
+
+    assert resolve_available_project_options(
+        user,
+        active_project_options=["certificacao_databricks", "rumo_etec", "crescer_e_conectar"],
+    ) == ["crescer_e_conectar", "rumo_etec"]
+
+
+def test_resolve_available_project_options_keeps_explicit_projects_even_without_active_questions() -> None:
+    user = User(
+        email="prof@example.com",
+        role="teacher",
+        cohort_key="crescer_e_conectar",
+        accessible_cohort_keys=("crescer_e_conectar", "rumo_etec"),
+    )
+
+    assert resolve_available_project_options(
+        user,
+        active_project_options=["crescer_e_conectar"],
+    ) == ["crescer_e_conectar", "rumo_etec"]
+
+
+def test_resolve_available_project_options_uses_active_projects_for_global_access() -> None:
+    user = User(email="admin@example.com", role="admin", cohort_key="all")
+
+    assert resolve_available_project_options(
+        user,
+        active_project_options=["certificacao_databricks", "rumo_etec", "crescer_e_conectar"],
+    ) == ["certificacao_databricks", "crescer_e_conectar", "rumo_etec"]
 
 
 def test_parse_single_question_dataframe_returns_single_question() -> None:

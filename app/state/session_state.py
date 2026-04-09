@@ -14,6 +14,10 @@ AUTHENTICATED_USER_EMAIL_KEY = "glipmath_authenticated_user_email"
 AUTHENTICATED_USER_SCOPE_KEY = "glipmath_authenticated_user_scope"
 AUTHENTICATED_USER_KEY = "glipmath_authenticated_user"
 AUTHENTICATED_RUN_LOGGED_KEY = "glipmath_authenticated_run_logged"
+CURRENT_WORKSPACE_KEY = "glipmath_current_workspace"
+CURRENT_PROFESSOR_TOOL_KEY = "glipmath_current_professor_tool"
+PROFESSOR_AUTHORING_AI_ASSISTED_KEY = "glipmath_professor_authoring_ai_assisted"
+PROFESSOR_NOTICE_KEY = "glipmath_professor_notice"
 CURRENT_QUESTION_ID_KEY = "glipmath_current_question_id"
 CURRENT_QUESTION_KEY = "glipmath_current_question"
 CURRENT_ALTERNATIVES_KEY = "glipmath_current_alternatives"
@@ -46,6 +50,10 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(AUTHENTICATED_USER_SCOPE_KEY, None)
     st.session_state.setdefault(AUTHENTICATED_USER_KEY, None)
     st.session_state.setdefault(AUTHENTICATED_RUN_LOGGED_KEY, False)
+    st.session_state.setdefault(CURRENT_WORKSPACE_KEY, "student")
+    st.session_state.setdefault(CURRENT_PROFESSOR_TOOL_KEY, None)
+    st.session_state.setdefault(PROFESSOR_AUTHORING_AI_ASSISTED_KEY, False)
+    st.session_state.setdefault(PROFESSOR_NOTICE_KEY, None)
     st.session_state.setdefault(CURRENT_QUESTION_ID_KEY, None)
     st.session_state.setdefault(CURRENT_QUESTION_KEY, None)
     st.session_state.setdefault(CURRENT_ALTERNATIVES_KEY, [])
@@ -94,8 +102,13 @@ def bind_authenticated_user(user: User) -> None:
         "name": user.name,
         "role": user.role,
         "cohort_key": user.cohort_key,
+        "accessible_cohort_keys": list(user.accessible_cohort_keys),
     }
     st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = False
+    st.session_state[CURRENT_WORKSPACE_KEY] = "student"
+    st.session_state[CURRENT_PROFESSOR_TOOL_KEY] = None
+    st.session_state[PROFESSOR_AUTHORING_AI_ASSISTED_KEY] = False
+    st.session_state[PROFESSOR_NOTICE_KEY] = None
     st.session_state[SESSION_ID_KEY] = uuid4().hex
     st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
     st.session_state[INVALID_QUESTION_IDS_KEY] = []
@@ -131,6 +144,11 @@ def get_authenticated_user() -> User | None:
         name=_string_or_none(raw_user.get("name")),
         role=_string_or_none(raw_user.get("role")) or "student",
         cohort_key=_string_or_none(raw_user.get("cohort_key")) or "all",
+        accessible_cohort_keys=tuple(
+            _string_or_none(value)
+            for value in raw_user.get("accessible_cohort_keys", [])
+            if _string_or_none(value)
+        ),
     )
 
 
@@ -156,6 +174,91 @@ def mark_authenticated_run_logged() -> None:
 
     initialize_session_state()
     st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = True
+
+
+def get_current_workspace() -> str:
+    """Return the selected authenticated workspace."""
+
+    initialize_session_state()
+    workspace = _string_or_none(st.session_state[CURRENT_WORKSPACE_KEY]) or "student"
+    if workspace not in {"student", "professor"}:
+        return "student"
+    return workspace
+
+
+def set_current_workspace(workspace: str | None) -> None:
+    """Persist the selected authenticated workspace."""
+
+    initialize_session_state()
+    normalized_workspace = _string_or_none(workspace) or "student"
+    if normalized_workspace not in {"student", "professor"}:
+        normalized_workspace = "student"
+    st.session_state[CURRENT_WORKSPACE_KEY] = normalized_workspace
+
+
+def get_current_professor_tool() -> str | None:
+    """Return the selected professor-space menu item."""
+
+    initialize_session_state()
+    return _string_or_none(st.session_state[CURRENT_PROFESSOR_TOOL_KEY])
+
+
+def set_current_professor_tool(tool_name: str | None) -> None:
+    """Persist the selected professor-space menu item."""
+
+    initialize_session_state()
+    st.session_state[CURRENT_PROFESSOR_TOOL_KEY] = _string_or_none(tool_name)
+
+
+def get_professor_authoring_ai_assisted() -> bool:
+    """Return whether the current professor draft was last polished with AI."""
+
+    initialize_session_state()
+    return bool(st.session_state[PROFESSOR_AUTHORING_AI_ASSISTED_KEY])
+
+
+def set_professor_authoring_ai_assisted(value: bool) -> None:
+    """Persist whether the current professor draft was AI-assisted."""
+
+    initialize_session_state()
+    st.session_state[PROFESSOR_AUTHORING_AI_ASSISTED_KEY] = bool(value)
+
+
+def get_professor_notice() -> dict[str, str] | None:
+    """Return the latest professor-space flash message."""
+
+    initialize_session_state()
+    value = st.session_state[PROFESSOR_NOTICE_KEY]
+    if not isinstance(value, dict):
+        return None
+
+    kind = _string_or_none(value.get("kind"))
+    message = _string_or_none(value.get("message"))
+    if not kind or not message:
+        return None
+    return {"kind": kind, "message": message}
+
+
+def set_professor_notice(kind: str, message: str) -> None:
+    """Persist one professor-space flash message."""
+
+    initialize_session_state()
+    normalized_kind = _string_or_none(kind) or "info"
+    normalized_message = _string_or_none(message)
+    if normalized_message is None:
+        st.session_state[PROFESSOR_NOTICE_KEY] = None
+        return
+    st.session_state[PROFESSOR_NOTICE_KEY] = {
+        "kind": normalized_kind,
+        "message": normalized_message,
+    }
+
+
+def clear_professor_notice() -> None:
+    """Clear any professor-space flash message."""
+
+    initialize_session_state()
+    st.session_state[PROFESSOR_NOTICE_KEY] = None
 
 
 def has_loaded_leaderboard_position(user_email: str) -> bool:
@@ -557,6 +660,10 @@ def _bind_authenticated_user_email(user_email: str) -> None:
     st.session_state[AUTHENTICATED_USER_SCOPE_KEY] = None
     st.session_state[AUTHENTICATED_USER_KEY] = None
     st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = False
+    st.session_state[CURRENT_WORKSPACE_KEY] = "student"
+    st.session_state[CURRENT_PROFESSOR_TOOL_KEY] = None
+    st.session_state[PROFESSOR_AUTHORING_AI_ASSISTED_KEY] = False
+    st.session_state[PROFESSOR_NOTICE_KEY] = None
     st.session_state[SESSION_ID_KEY] = uuid4().hex
     st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
     st.session_state[INVALID_QUESTION_IDS_KEY] = []

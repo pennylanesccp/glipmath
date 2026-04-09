@@ -66,6 +66,7 @@ class User:
     name: str | None = None
     role: str = "student"
     cohort_key: str = "all"
+    accessible_cohort_keys: tuple[str, ...] = ()
 
     @property
     def display_name(self) -> str:
@@ -78,6 +79,34 @@ class User:
         """Return whether the current user can access all cohorts."""
 
         return self.role == "teacher"
+
+    @property
+    def is_admin(self) -> bool:
+        """Return whether the current user has administrator privileges."""
+
+        return self.role == "admin"
+
+    @property
+    def can_access_professor_space(self) -> bool:
+        """Return whether the current user can open the teacher/admin workspace."""
+
+        return self.role in {"teacher", "admin"}
+
+    @property
+    def has_global_project_access(self) -> bool:
+        """Return whether the user can see every project in the app."""
+
+        return self.is_admin or self.cohort_key == "all"
+
+    @property
+    def project_keys(self) -> tuple[str, ...]:
+        """Return the normalized project keys the user can access explicitly."""
+
+        if self.accessible_cohort_keys:
+            return self.accessible_cohort_keys
+        if self.cohort_key and self.cohort_key != "all":
+            return (self.cohort_key,)
+        return ()
 
 
 @dataclass(frozen=True, slots=True)

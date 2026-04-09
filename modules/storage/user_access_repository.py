@@ -14,7 +14,7 @@ class UserAccessRepository:
         self._table_id = table_id
 
     def load_active_user_frame(self, user_email: str) -> pd.DataFrame:
-        """Load the active access row for one normalized email."""
+        """Load the active access rows for one normalized email."""
 
         query = f"""
             SELECT
@@ -29,7 +29,6 @@ class UserAccessRepository:
             WHERE LOWER(TRIM(user_email)) = @user_email
               AND is_active = TRUE
             ORDER BY updated_at_utc DESC NULLS LAST, created_at_utc DESC NULLS LAST
-            LIMIT 1
         """
         return self._bigquery_client.query_to_dataframe(
             query,

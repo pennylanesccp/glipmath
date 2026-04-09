@@ -17,9 +17,11 @@ import streamlit as st
 from app.components.theme import apply_app_theme
 from app.pages.login_page import render_login_page, render_not_authorized_page
 from app.pages.main_page import render_main_page
+from app.pages.professor_page import render_professor_page
 from app.state.session_state import (
     bind_authenticated_user,
     clear_current_question,
+    get_current_workspace,
     ensure_question_pool_scope,
     get_answered_question_ids,
     get_authenticated_user,
@@ -42,18 +44,23 @@ from app.state.session_state import (
     mark_question_invalid,
     mark_authenticated_run_logged,
     set_current_question,
+    set_current_professor_tool,
+    set_current_workspace,
     set_leaderboard_position,
+    set_project_filter,
     set_question_pool,
+    set_subject_filter,
     set_user_answer_history,
 )
 from modules.auth.auth_service import get_authenticated_identity
 from modules.auth.authorization_service import AuthorizationService
 from modules.config.settings import AppSettings, load_settings
-from modules.domain.models import AnswerAttempt, DisplayAlternative, Question, QuestionIndexEntry
+from modules.domain.models import AnswerAttempt, DisplayAlternative, Question, QuestionIndexEntry, User
 from modules.services.answer_service import AnswerService, parse_answers_dataframe
 from modules.services.leaderboard_service import parse_leaderboard_position_dataframe
 from modules.services.question_service import (
     build_display_alternatives,
+    format_project_label,
     build_subject_options,
     filter_question_ids_by_subject,
     find_question_by_id,
@@ -62,10 +69,12 @@ from modules.services.question_service import (
     parse_question_index_dataframe,
     parse_single_question_dataframe,
     select_question_batch_ids,
-    select_next_question_id,
 )
 from modules.services.streak_service import compute_day_streak, compute_question_streak
-from modules.services.user_service import resolve_effective_project_for_user
+from modules.services.user_service import (
+    resolve_available_project_options,
+    resolve_effective_project_for_user,
+)
 from modules.storage.answer_repository import AnswerRepository
 from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
@@ -130,48 +139,70 @@ def main() -> None:
                 authorized_user.email,
             )
             mark_authenticated_run_logged()
-        project_options: list[str] = []
-        project_option_issues: list[str] = []
-        selected_project = None
-        if authorized_user.is_teacher:
-            project_options, project_option_issues = load_active_project_options(
-                context.question_repository,
-                settings.bigquery.question_bank_table_id(settings.gcp.project_id),
-            )
-            selected_project = _resolve_selected_project_filter(project_options)
-        else:
-            selected_project = authorized_user.cohort_key
+        _apply_workspace_shell_styles()
+        question_table_id = settings.bigquery.question_bank_table_id(settings.gcp.project_id)
+        answers_table_id = settings.bigquery.answers_table_id(settings.gcp.project_id)
+        user_access_table_id = settings.bigquery.user_access_table_id(settings.gcp.project_id)
 
+        project_options, project_option_issues = _resolve_project_options_for_user(
+            user=authorized_user,
+            question_repository=context.question_repository,
+            question_table_id=question_table_id,
+        )
+        selected_project = _resolve_selected_project_for_user(
+            user=authorized_user,
+            project_options=project_options,
+        )
+        selected_project, current_workspace = _render_authenticated_shell(
+            user=authorized_user,
+            project_options=project_options,
+            selected_project=selected_project,
+        )
         effective_project_scope = resolve_effective_project_for_user(
             authorized_user,
             selected_project=selected_project,
         )
+
+        if current_workspace == "professor":
+            _render_diagnostics(
+                settings=settings,
+                question_issues=list(project_option_issues),
+                answer_issues=[],
+            )
+            render_professor_page(
+                selected_project=effective_project_scope,
+                question_repository=context.question_repository,
+                gemini_api_key=settings.gemini.api_key,
+                gemini_model=settings.gemini.model,
+            )
+            return
+
         question_index, question_index_issues = load_active_question_index(
             context.question_repository,
-            settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+            question_table_id,
             effective_project_scope,
         )
         subject_options = build_subject_options(question_index)
 
         _ensure_user_answer_history_loaded(
             answer_repository=context.answer_repository,
-            answers_table_id=settings.bigquery.answers_table_id(settings.gcp.project_id),
+            answers_table_id=answers_table_id,
             user_email=authorized_user.email,
         )
         answer_history = get_user_answer_history(authorized_user.email)
 
         leaderboard_rank, leaderboard_total_users, leaderboard_issues = _ensure_leaderboard_position_loaded(
             answer_repository=context.answer_repository,
-            answers_table_id=settings.bigquery.answers_table_id(settings.gcp.project_id),
-            user_access_table_id=settings.bigquery.user_access_table_id(settings.gcp.project_id),
+            answers_table_id=answers_table_id,
+            user_access_table_id=user_access_table_id,
             user_email=authorized_user.email,
             role=authorized_user.role,
-            cohort_key=authorized_user.cohort_key if not authorized_user.is_teacher else None,
+            cohort_key=effective_project_scope if not authorized_user.has_global_project_access else None,
         )
 
         current_question, current_alternatives, question_lookup_issues = resolve_current_question(
             question_repository=context.question_repository,
-            question_table_id=settings.bigquery.question_bank_table_id(settings.gcp.project_id),
+            question_table_id=question_table_id,
             cohort_key=effective_project_scope,
             active_question_ids=filter_question_ids_by_subject(
                 question_index,
@@ -204,8 +235,6 @@ def main() -> None:
         current_question=current_question,
         alternatives=current_alternatives,
         answer_service=context.answer_service,
-        project_options=project_options,
-        selected_project=selected_project if authorized_user.is_teacher else None,
         subject_options=subject_options,
         selected_subject=get_subject_filter_label(),
         day_streak=compute_day_streak(answer_history, timezone_name=settings.timezone),
@@ -277,6 +306,94 @@ def load_active_project_options(
         (perf_counter() - started_at) * 1000,
     )
     return project_options, issues
+
+
+def _resolve_project_options_for_user(
+    *,
+    user: User,
+    question_repository: QuestionRepository,
+    question_table_id: str,
+) -> tuple[list[str], list[str]]:
+    active_project_options: list[str] = []
+    issues: list[str] = []
+    if user.has_global_project_access:
+        active_project_options, issues = load_active_project_options(
+            question_repository,
+            question_table_id,
+        )
+
+    return resolve_available_project_options(user, active_project_options), issues
+
+
+def _resolve_selected_project_for_user(
+    *,
+    user: User,
+    project_options: list[str],
+) -> str | None:
+    selected_project = get_project_filter()
+    default_project = resolve_effective_project_for_user(
+        user,
+        selected_project=selected_project,
+    )
+
+    if project_options:
+        if selected_project in project_options:
+            return selected_project
+        if default_project in project_options:
+            return default_project
+        return project_options[0]
+    return default_project
+
+
+def _render_authenticated_shell(
+    *,
+    user: User,
+    project_options: list[str],
+    selected_project: str | None,
+) -> tuple[str | None, str]:
+    project_choice = selected_project
+    if len(project_options) > 1:
+        project_choice = st.selectbox(
+            "Projeto",
+            options=project_options,
+            index=project_options.index(selected_project) if selected_project in project_options else 0,
+            format_func=_format_project_option_label,
+            key="gm_global_project_filter_select",
+            label_visibility="collapsed",
+        )
+
+    if project_choice != get_project_filter():
+        st.session_state.pop("gm_subject_filter_select", None)
+        set_project_filter(project_choice)
+        set_subject_filter(None)
+        clear_current_question()
+        st.rerun()
+
+    current_workspace = "student"
+    if user.can_access_professor_space:
+        current_workspace = get_current_workspace()
+        workspace_choice = st.segmented_control(
+            "Espaço",
+            options=["student", "professor"],
+            default=current_workspace,
+            format_func=_format_workspace_label,
+            key="gm_workspace_segmented_control",
+            label_visibility="collapsed",
+            width="stretch",
+        )
+        normalized_workspace = workspace_choice if workspace_choice in {"student", "professor"} else "student"
+        if normalized_workspace != current_workspace:
+            set_current_workspace(normalized_workspace)
+            clear_current_question()
+            st.rerun()
+        current_workspace = normalized_workspace
+    else:
+        if get_current_workspace() != "student":
+            set_current_workspace("student")
+        if get_current_professor_tool() is not None:
+            set_current_professor_tool(None)
+
+    return project_choice, current_workspace
 
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -626,13 +743,84 @@ def _resolve_leaderboard_position(rank: int | None, total_users: int) -> str:
     return f"#{rank} / {total_users}"
 
 
-def _resolve_selected_project_filter(project_options: list[str]) -> str | None:
-    selected_project = get_project_filter()
-    if selected_project in project_options:
-        return selected_project
-    if not project_options:
-        return None
-    return project_options[0]
+def _format_project_option_label(project_key: str) -> str:
+    return format_project_label(project_key)
+
+
+def _format_workspace_label(workspace: str) -> str:
+    return "Espaço Professor" if workspace == "professor" else "Espaço Aluno"
+
+
+def _apply_workspace_shell_styles() -> None:
+    st.html(
+        """
+        <style>
+        div[data-testid="stSelectbox"] label p,
+        div[data-testid="stSelectbox"] label span {
+            color: #334155 !important;
+            font-weight: 700 !important;
+        }
+
+        div[data-testid="stSelectbox"] {
+            cursor: pointer !important;
+            margin-bottom: 0.2rem;
+        }
+
+        div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 999px !important;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+            cursor: pointer !important;
+            min-height: 2.55rem !important;
+        }
+
+        div[data-testid="stSelectbox"] [data-baseweb="select"],
+        div[data-testid="stSelectbox"] [data-baseweb="select"] *,
+        div[data-testid="stSelectbox"] [data-baseweb="select"] input {
+            cursor: pointer !important;
+        }
+
+        div[data-testid="stSelectbox"] [data-baseweb="select"] * {
+            color: #0f172a !important;
+        }
+
+        div[data-baseweb="popover"],
+        div[data-baseweb="popover"] > div,
+        div[data-baseweb="popover"] [role="listbox"] {
+            background: #ffffff !important;
+            border: 1px solid #dbeafe !important;
+            border-radius: 1rem !important;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12) !important;
+            cursor: pointer !important;
+        }
+
+        div[data-baseweb="popover"] ul,
+        div[data-baseweb="popover"] li,
+        div[data-baseweb="popover"] [role="option"] {
+            background: #ffffff !important;
+            cursor: pointer !important;
+        }
+
+        div[data-baseweb="popover"] *,
+        div[data-baseweb="popover"] [role="option"] * {
+            color: #0f172a !important;
+        }
+
+        div[data-baseweb="popover"] [role="option"]:hover {
+            background: #f8fbff !important;
+        }
+
+        div[data-baseweb="popover"] [role="option"][aria-selected="true"] {
+            background: #eef2ff !important;
+        }
+
+        div[data-testid="stSegmentedControl"] {
+            margin-bottom: 0.1rem;
+        }
+        </style>
+        """
+    )
 
 
 def _build_question_pool_scope_key(

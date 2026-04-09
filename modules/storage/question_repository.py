@@ -216,6 +216,14 @@ class QuestionRepository:
         """
         return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
 
+    def append_question_row(self, row: dict[str, object]) -> None:
+        """Append one canonical question-bank row."""
+
+        self._bigquery_client.insert_rows_json(
+            self._table_id,
+            [self._filter_row_for_table_schema(row)],
+        )
+
     def update_question_explanations(
         self,
         *,
@@ -281,3 +289,11 @@ class QuestionRepository:
             "LOWER(TRIM(cohort_key)) = @cohort_key",
             [bigquery.ScalarQueryParameter("cohort_key", "STRING", cohort_key.lower())],
         )
+
+    def _filter_row_for_table_schema(self, row: dict[str, object]) -> dict[str, object]:
+        available_columns = set(self._bigquery_client.get_table_column_names(self._table_id))
+        return {
+            key: value
+            for key, value in row.items()
+            if key in available_columns
+        }

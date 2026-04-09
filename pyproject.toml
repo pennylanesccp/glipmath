@@ -16,14 +16,12 @@ dependencies = [
     "pandas>=2.2,<3",
     "google-cloud-bigquery>=3.27,<4",
     "markdown>=3.7,<4",
+    "google-genai>=1,<2",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3,<9",
-]
-admin = [
-    "google-genai>=1,<2",
 ]
 
 [tool.setuptools.packages.find]

@@ -1,6 +1,7 @@
 import pandas as pd
 
 from app import streamlit_app
+from modules.domain.models import User
 
 
 class FakeQuestionRepository:
@@ -78,3 +79,23 @@ def test_load_active_project_options_reads_distinct_projects_for_teacher_filter(
 
     assert not issues
     assert project_options == ["ano_1", "crescer_e_conectar"]
+
+
+def test_resolve_project_options_for_non_global_user_avoids_project_catalog_query() -> None:
+    repository = FakeQuestionRepository(pd.DataFrame())
+    user = User(
+        email="prof@example.com",
+        role="teacher",
+        cohort_key="crescer_e_conectar",
+        accessible_cohort_keys=("crescer_e_conectar", "rumo_etec"),
+    )
+
+    project_options, issues = streamlit_app._resolve_project_options_for_user(
+        user=user,
+        question_repository=repository,
+        question_table_id="project.dataset.question_bank",
+    )
+
+    assert project_options == ["crescer_e_conectar", "rumo_etec"]
+    assert issues == []
+    assert repository.received_cohort_key == "unset"
