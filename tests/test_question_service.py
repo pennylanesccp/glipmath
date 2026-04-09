@@ -233,6 +233,11 @@ def test_project_option_helpers_build_filter_and_format_labels() -> None:
     assert format_subject_label("matematica") == "Matemática"
 
 
+def test_format_project_label_uses_explicit_accented_project_names() -> None:
+    assert format_project_label("certificacao_databricks") == "Certificação Databricks"
+    assert format_project_label("rumo_etec") == "Rumo à ETEC"
+
+
 def test_subject_filter_still_works_after_cohort_scoping() -> None:
     scoped_question_index = [
         QuestionIndexEntry(id_question=11, subject="Matematica", cohort_key="ano_2"),

@@ -25,6 +25,11 @@ QUESTION_REQUIRED_COLUMNS = [
     "correct_answer",
     "wrong_answers",
 ]
+PROJECT_LABEL_BY_KEY = {
+    "certificacao_databricks": "Certificação Databricks",
+    "crescer_e_conectar": "Crescer e Conectar",
+    "rumo_etec": "Rumo à ETEC",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -331,6 +336,10 @@ def format_project_label(project: str | None) -> str:
     normalized_project = _normalize_project_key(project)
     if normalized_project is None:
         return ""
+
+    explicit_label = PROJECT_LABEL_BY_KEY.get(normalized_project)
+    if explicit_label is not None:
+        return explicit_label
 
     words = normalized_project.replace("_", " ").split()
     if not words:
