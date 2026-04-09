@@ -399,7 +399,7 @@ def _render_authenticated_shell(
             format_func=_format_workspace_label,
             key="gm_workspace_segmented_control",
             label_visibility="collapsed",
-            width="stretch",
+            width="content",
         )
         normalized_workspace = workspace_choice if workspace_choice in {"student", "professor"} else "student"
         if normalized_workspace != current_workspace:
@@ -837,10 +837,13 @@ def _apply_workspace_shell_styles() -> None:
 
         div[data-testid="stSegmentedControl"] {
             margin: 0.05rem 0 0.35rem;
+            width: fit-content !important;
+            max-width: 100% !important;
         }
 
         div[data-testid="stSegmentedControl"] > div {
-            width: 100%;
+            width: fit-content !important;
+            max-width: 100% !important;
         }
 
         div[data-testid="stSegmentedControl"] [data-baseweb="button-group"],
@@ -849,7 +852,8 @@ def _apply_workspace_shell_styles() -> None:
             justify-content: flex-start !important;
             align-items: flex-end !important;
             gap: 1.6rem !important;
-            width: 100% !important;
+            width: fit-content !important;
+            max-width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
             background: transparent !important;
@@ -857,6 +861,15 @@ def _apply_workspace_shell_styles() -> None:
             border-bottom: 1px solid #dbe5f1 !important;
             border-radius: 0 !important;
             box-shadow: none !important;
+        }
+
+        div[data-testid="stSegmentedControl"] [data-baseweb="button-group"] > div,
+        div[data-testid="stSegmentedControl"] [role="radiogroup"] > div {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
 
         div[data-testid="stSegmentedControl"] [role="radio"],
@@ -873,7 +886,9 @@ def _apply_workspace_shell_styles() -> None:
             color: #7b8498 !important;
             font-size: 1rem !important;
             font-weight: 700 !important;
+            justify-content: flex-start !important;
             line-height: 1.15 !important;
+            text-align: left !important;
         }
 
         div[data-testid="stSegmentedControl"] [role="radio"]:hover,

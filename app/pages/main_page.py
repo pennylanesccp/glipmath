@@ -174,7 +174,6 @@ def _render_subject_topic_filter(
         width="stretch",
         key="gm_subject_topic_filter_popover",
     ):
-        st.caption("Escolha uma matéria inteira ou aprofunde em um tópico específico.")
         if st.button(
             "Todas as matérias",
             key="gm_filter_all_subjects",
@@ -895,12 +894,34 @@ def _apply_live_page_styles() -> None:
             justify-content: space-between !important;
             min-height: 2.55rem !important;
             padding-inline: 0.95rem !important;
+            text-align: left !important;
             width: 100% !important;
         }
 
         div[data-testid="stPopover"] > button * {
             color: #0f172a !important;
             font-weight: 500 !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stPopoverBody"] {
+            background: #ffffff !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stVerticalBlock"] {
+            align-items: stretch !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stButton"] {
+            width: 100% !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stButton"] > button {
+            justify-content: flex-start !important;
+            text-align: left !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stButton"] > button * {
+            text-align: left !important;
         }
 
         div[data-testid="stPopover"] div[data-testid="stButton"] button[kind="tertiary"] {
@@ -912,6 +933,7 @@ def _apply_live_page_styles() -> None:
             font-weight: 700 !important;
             justify-content: flex-start !important;
             min-height: 2.5rem !important;
+            text-align: left !important;
         }
 
         div[data-testid="stPopover"] div[data-testid="stButton"] button[kind="tertiary"]:hover {
@@ -919,16 +941,32 @@ def _apply_live_page_styles() -> None:
             border-color: #bfdbfe !important;
         }
 
+        div[data-testid="stPopover"] details,
+        div[data-testid="stPopover"] details > div,
+        div[data-testid="stPopover"] [data-testid="stExpander"],
+        div[data-testid="stPopover"] [data-testid="stExpander"] > details {
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 1rem !important;
+            box-shadow: none !important;
+        }
+
         div[data-testid="stPopover"] details {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 1rem;
             padding: 0.1rem 0.3rem;
         }
 
-        div[data-testid="stPopover"] summary {
+        div[data-testid="stPopover"] summary,
+        div[data-testid="stPopover"] summary * {
+            background: transparent !important;
             color: #0f172a !important;
             font-weight: 800 !important;
+            text-align: left !important;
+        }
+
+        div[data-testid="stPopover"] [data-testid="stExpanderToggleIcon"] svg {
+            fill: #64748b !important;
+            color: #64748b !important;
+            stroke: #64748b !important;
         }
 
         div[data-testid="stSelectbox"] {
