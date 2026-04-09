@@ -123,10 +123,14 @@ if (-not (Test-Path $LocalSecretsPath)) {
 }
 
 Push-Location $RepoRoot
+$OriginalFileWatcherType = $env:STREAMLIT_SERVER_FILE_WATCHER_TYPE
 try {
     if (Test-Path $VenvActivate) {
         . $VenvActivate
     }
+
+    # Keep local autoreload on even though the deployed app disables file watching.
+    $env:STREAMLIT_SERVER_FILE_WATCHER_TYPE = "auto"
 
     $NeedsEditableInstall = $ForceInstall -or (-not (Test-Path $EditableInstallMarker))
     if (-not $NeedsEditableInstall) {
@@ -153,6 +157,11 @@ try {
         & $VenvPython -m streamlit @streamlitArgs
     }
 } finally {
+    if ($null -eq $OriginalFileWatcherType) {
+        Remove-Item Env:STREAMLIT_SERVER_FILE_WATCHER_TYPE -ErrorAction SilentlyContinue
+    } else {
+        $env:STREAMLIT_SERVER_FILE_WATCHER_TYPE = $OriginalFileWatcherType
+    }
     Pop-Location
 }
 

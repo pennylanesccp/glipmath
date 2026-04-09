@@ -836,7 +836,76 @@ def _apply_workspace_shell_styles() -> None:
         }
 
         div[data-testid="stSegmentedControl"] {
-            margin-bottom: 0.1rem;
+            margin: 0.05rem 0 0.35rem;
+        }
+
+        div[data-testid="stSegmentedControl"] > div {
+            width: 100%;
+        }
+
+        div[data-testid="stSegmentedControl"] [data-baseweb="button-group"],
+        div[data-testid="stSegmentedControl"] [role="radiogroup"] {
+            display: flex !important;
+            justify-content: flex-start !important;
+            align-items: flex-end !important;
+            gap: 1.6rem !important;
+            width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            border-bottom: 1px solid #dbe5f1 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        div[data-testid="stSegmentedControl"] [role="radio"],
+        div[data-testid="stSegmentedControl"] button {
+            position: relative !important;
+            flex: 0 0 auto !important;
+            min-height: auto !important;
+            padding: 0.1rem 0 0.78rem !important;
+            margin: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            color: #7b8498 !important;
+            font-size: 1rem !important;
+            font-weight: 700 !important;
+            line-height: 1.15 !important;
+        }
+
+        div[data-testid="stSegmentedControl"] [role="radio"]:hover,
+        div[data-testid="stSegmentedControl"] button:hover {
+            color: #334155 !important;
+            background: transparent !important;
+        }
+
+        div[data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"],
+        div[data-testid="stSegmentedControl"] [role="radio"][aria-selected="true"],
+        div[data-testid="stSegmentedControl"] [role="radio"][aria-pressed="true"],
+        div[data-testid="stSegmentedControl"] button[aria-checked="true"],
+        div[data-testid="stSegmentedControl"] button[aria-selected="true"],
+        div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+            color: #0f172a !important;
+            background: transparent !important;
+        }
+
+        div[data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"]::after,
+        div[data-testid="stSegmentedControl"] [role="radio"][aria-selected="true"]::after,
+        div[data-testid="stSegmentedControl"] [role="radio"][aria-pressed="true"]::after,
+        div[data-testid="stSegmentedControl"] button[aria-checked="true"]::after,
+        div[data-testid="stSegmentedControl"] button[aria-selected="true"]::after,
+        div[data-testid="stSegmentedControl"] button[aria-pressed="true"]::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -1px;
+            height: 0.2rem;
+            background: #2563eb;
+            border-radius: 999px 999px 0 0;
         }
         </style>
         """
