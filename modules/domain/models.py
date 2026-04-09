@@ -47,6 +47,7 @@ class QuestionIndexEntry:
 
     id_question: int
     subject: str | None = None
+    topic: str | None = None
     cohort_key: str | None = None
 
 

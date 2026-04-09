@@ -34,7 +34,7 @@ from app.state.session_state import (
     get_project_filter,
     get_skipped_question_ids,
     get_subject_filter,
-    get_subject_filter_label,
+    get_topic_filter,
     get_user_answer_history,
     get_user_answer_history_issues,
     has_loaded_user_answer_history,
@@ -50,6 +50,7 @@ from app.state.session_state import (
     set_project_filter,
     set_question_pool,
     set_subject_filter,
+    set_topic_filter,
     set_user_answer_history,
 )
 from modules.auth.auth_service import get_authenticated_identity
@@ -61,9 +62,11 @@ from modules.services.leaderboard_service import parse_leaderboard_position_data
 from modules.services.question_service import (
     build_display_alternatives,
     format_project_label,
-    build_subject_options,
+    build_subject_topic_groups,
     filter_question_ids_by_subject,
+    format_subject_topic_filter_label,
     find_question_by_id,
+    normalize_question_filters,
     parse_project_options_dataframe,
     parse_question_bank_dataframe,
     parse_question_index_dataframe,
@@ -182,7 +185,17 @@ def main() -> None:
             question_table_id,
             effective_project_scope,
         )
-        subject_options = build_subject_options(question_index)
+        normalized_subject_filter, normalized_topic_filter = normalize_question_filters(
+            question_index,
+            subject=get_subject_filter(),
+            topic=get_topic_filter(),
+        )
+        if normalized_subject_filter != get_subject_filter() or normalized_topic_filter != get_topic_filter():
+            set_subject_filter(normalized_subject_filter)
+            set_topic_filter(normalized_topic_filter)
+            clear_current_question()
+            st.rerun()
+        subject_topic_groups = build_subject_topic_groups(question_index)
 
         _ensure_user_answer_history_loaded(
             answer_repository=context.answer_repository,
@@ -206,7 +219,8 @@ def main() -> None:
             cohort_key=effective_project_scope,
             active_question_ids=filter_question_ids_by_subject(
                 question_index,
-                get_subject_filter(),
+                normalized_subject_filter,
+                topic=normalized_topic_filter,
             ),
             answered_question_ids=get_answered_question_ids(authorized_user.email),
         )
@@ -235,8 +249,13 @@ def main() -> None:
         current_question=current_question,
         alternatives=current_alternatives,
         answer_service=context.answer_service,
-        subject_options=subject_options,
-        selected_subject=get_subject_filter_label(),
+        subject_topic_groups=subject_topic_groups,
+        selected_subject=normalized_subject_filter,
+        selected_topic=normalized_topic_filter,
+        selected_filter_label=format_subject_topic_filter_label(
+            normalized_subject_filter,
+            normalized_topic_filter,
+        ),
         day_streak=compute_day_streak(answer_history, timezone_name=settings.timezone),
         question_streak=compute_question_streak(answer_history),
         leaderboard_position=_resolve_leaderboard_position(leaderboard_rank, leaderboard_total_users),
@@ -366,6 +385,7 @@ def _render_authenticated_shell(
         st.session_state.pop("gm_subject_filter_select", None)
         set_project_filter(project_choice)
         set_subject_filter(None)
+        set_topic_filter(None)
         clear_current_question()
         st.rerun()
 

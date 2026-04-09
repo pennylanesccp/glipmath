@@ -13,6 +13,8 @@ from app.state.session_state import (
     get_question_selection,
     get_question_started_at,
     get_session_id,
+    get_subject_filter,
+    get_topic_filter,
     initialize_session_state,
     is_current_question_answered,
     is_submission_in_progress,
@@ -20,15 +22,20 @@ from app.state.session_state import (
     mark_question_skipped,
     set_question_selection,
     set_subject_filter,
+    set_topic_filter,
     start_submission,
     finish_submission,
 )
 from app.ui.markdown_renderer import markdown_to_html, markdown_to_plain_text
-from app.ui.question_session import format_elapsed_time, normalize_subject_filter
+from app.ui.question_session import format_elapsed_time
 from app.ui.template_renderer import asset_to_data_uri
 from modules.domain.models import DisplayAlternative, Question, User
 from modules.services.answer_service import AnswerService
-from modules.services.question_service import format_subject_label
+from modules.services.question_service import (
+    SubjectTopicGroup,
+    format_subject_label,
+    format_topic_label,
+)
 from modules.services.question_service import find_display_alternative
 from modules.storage.bigquery_client import BigQueryError
 from modules.utils.datetime_utils import utc_now
@@ -44,8 +51,10 @@ def render_main_page(
     current_question: Question | None,
     alternatives: list[DisplayAlternative],
     answer_service: AnswerService,
-    subject_options: list[str],
-    selected_subject: str,
+    subject_topic_groups: list[SubjectTopicGroup],
+    selected_subject: str | None,
+    selected_topic: str | None,
+    selected_filter_label: str,
     day_streak: int,
     question_streak: int,
     leaderboard_position: str,
@@ -59,7 +68,6 @@ def render_main_page(
     podium_icon_data_uri = _load_icon_data_uri(PODIUM_ICON_RELATIVE_PATH)
     timer_icon_data_uri = _load_icon_data_uri(TIMER_ICON_RELATIVE_PATH)
 
-    normalized_subject = _normalize_selected_subject(selected_subject, subject_options)
     question_answered = is_current_question_answered()
     last_result = get_last_answer_result()
     selected_option_id = _selected_option_id_for_render(current_question.id_question if current_question else None)
@@ -71,8 +79,10 @@ def render_main_page(
     timer_started_at = get_question_started_at()
 
     _render_controls_bar(
-        subject_options=subject_options,
-        selected_subject=normalized_subject,
+        subject_topic_groups=subject_topic_groups,
+        selected_subject=selected_subject,
+        selected_topic=selected_topic,
+        selected_filter_label=selected_filter_label,
         streak_text=_format_streak_text(day_streak, question_streak),
         rank_text=_format_rank_text(leaderboard_position),
         timer_elapsed_seconds=elapsed_seconds,
@@ -113,8 +123,10 @@ def render_main_page(
 
 def _render_controls_bar(
     *,
-    subject_options: list[str],
-    selected_subject: str,
+    subject_topic_groups: list[SubjectTopicGroup],
+    selected_subject: str | None,
+    selected_topic: str | None,
+    selected_filter_label: str,
     streak_text: str,
     rank_text: str,
     timer_elapsed_seconds: int,
@@ -130,13 +142,11 @@ def _render_controls_bar(
     )
 
     with subject_col:
-        chosen_subject = st.selectbox(
-            "Disciplina",
-            options=subject_options,
-            index=subject_options.index(selected_subject) if selected_subject in subject_options else 0,
-            format_func=format_subject_label,
-            key="gm_subject_filter_select",
-            label_visibility="collapsed",
+        _render_subject_topic_filter(
+            subject_topic_groups=subject_topic_groups,
+            selected_subject=selected_subject,
+            selected_topic=selected_topic,
+            selected_filter_label=selected_filter_label,
         )
 
     with metrics_col:
@@ -151,11 +161,56 @@ def _render_controls_bar(
             timer_icon_data_uri=timer_icon_data_uri,
         )
 
-    normalized_choice = _normalize_selected_subject(chosen_subject, subject_options)
-    if normalized_choice != selected_subject:
-        set_subject_filter(None if normalized_choice == "Todas" else normalized_choice)
-        clear_current_question()
-        st.rerun()
+def _render_subject_topic_filter(
+    *,
+    subject_topic_groups: list[SubjectTopicGroup],
+    selected_subject: str | None,
+    selected_topic: str | None,
+    selected_filter_label: str,
+) -> None:
+    with st.popover(
+        f"{selected_filter_label} ▾",
+        use_container_width=True,
+        width="stretch",
+        key="gm_subject_topic_filter_popover",
+    ):
+        st.caption("Escolha uma matéria inteira ou aprofunde em um tópico específico.")
+        if st.button(
+            "Todas as matérias",
+            key="gm_filter_all_subjects",
+            type="tertiary",
+            use_container_width=True,
+        ):
+            _apply_subject_topic_filter(subject=None, topic=None)
+
+        for group in subject_topic_groups:
+            expander_label = format_subject_label(group.subject)
+            with st.expander(
+                expander_label,
+                expanded=selected_subject == group.subject,
+            ):
+                if st.button(
+                    f"Toda {expander_label}",
+                    key=f"gm_filter_subject_{group.subject}",
+                    type="tertiary",
+                    use_container_width=True,
+                ):
+                    _apply_subject_topic_filter(subject=group.subject, topic=None)
+
+                for topic in group.topics:
+                    topic_label = format_topic_label(topic)
+                    button_label = (
+                        f"✓ {topic_label}"
+                        if selected_subject == group.subject and selected_topic == topic
+                        else topic_label
+                    )
+                    if st.button(
+                        button_label,
+                        key=f"gm_filter_topic_{group.subject}_{topic}",
+                        type="tertiary",
+                        use_container_width=True,
+                    ):
+                        _apply_subject_topic_filter(subject=group.subject, topic=topic)
 
 
 def _render_pending_state(
@@ -538,11 +593,18 @@ def _resolve_live_timer_text(
     return format_elapsed_time(live_elapsed_seconds)
 
 
-def _normalize_selected_subject(subject: str | None, subject_options: list[str]) -> str:
-    normalized_subject = normalize_subject_filter(subject)
-    if normalized_subject in subject_options:
-        return normalized_subject
-    return "Todas"
+def _apply_subject_topic_filter(
+    *,
+    subject: str | None,
+    topic: str | None,
+) -> None:
+    if subject == get_subject_filter() and topic == get_topic_filter():
+        return
+
+    set_subject_filter(subject)
+    set_topic_filter(topic)
+    clear_current_question()
+    st.rerun()
 
 
 def _format_streak_text(day_streak: int, _question_streak: int) -> str:
@@ -819,6 +881,54 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stSelectbox"] label span {
             color: #334155 !important;
             font-weight: 700 !important;
+        }
+
+        div[data-testid="stPopover"] > button {
+            align-items: center;
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 999px !important;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+            color: #0f172a !important;
+            cursor: pointer !important;
+            display: inline-flex !important;
+            justify-content: space-between !important;
+            min-height: 2.55rem !important;
+            padding-inline: 0.95rem !important;
+            width: 100% !important;
+        }
+
+        div[data-testid="stPopover"] > button * {
+            color: #0f172a !important;
+            font-weight: 500 !important;
+        }
+
+        div[data-testid="stPopover"] div[data-testid="stButton"] button[kind="tertiary"] {
+            background: #f8fbff !important;
+            border: 1px solid #dbeafe !important;
+            border-radius: 0.9rem !important;
+            box-shadow: none !important;
+            color: #1e3a8a !important;
+            font-weight: 700 !important;
+            justify-content: flex-start !important;
+            min-height: 2.5rem !important;
+        }
+
+        div[data-testid="stPopover"] div[data-testid="stButton"] button[kind="tertiary"]:hover {
+            background: #eef4ff !important;
+            border-color: #bfdbfe !important;
+        }
+
+        div[data-testid="stPopover"] details {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 0.1rem 0.3rem;
+        }
+
+        div[data-testid="stPopover"] summary {
+            color: #0f172a !important;
+            font-weight: 800 !important;
         }
 
         div[data-testid="stSelectbox"] {

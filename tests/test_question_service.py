@@ -8,11 +8,15 @@ from modules.services.question_service import (
     build_display_alternatives,
     build_project_options,
     build_subject_options,
+    build_subject_topic_groups,
     filter_question_index_by_project,
     filter_question_ids_by_subject,
     format_project_label,
     format_subject_label,
+    format_subject_topic_filter_label,
+    format_topic_label,
     find_valid_question_bank_row_indexes,
+    normalize_question_filters,
     parse_question_bank_dataframe,
     parse_question_id_dataframe,
     parse_question_index_dataframe,
@@ -195,8 +199,8 @@ def test_parse_question_id_dataframe_reads_integer_ids() -> None:
 def test_parse_question_index_dataframe_reads_subject_metadata() -> None:
     frame = pd.DataFrame(
         [
-            {"id_question": "10", "subject": "Matematica", "cohort_key": "Ano_1"},
-            {"id_question": 22, "subject": None, "cohort_key": None},
+            {"id_question": "10", "subject": "Matematica", "topic": "divisao", "cohort_key": "Ano_1"},
+            {"id_question": 22, "subject": None, "topic": None, "cohort_key": None},
         ]
     )
 
@@ -204,30 +208,37 @@ def test_parse_question_index_dataframe_reads_subject_metadata() -> None:
 
     assert issues == []
     assert entries == [
-        QuestionIndexEntry(id_question=10, subject="Matematica", cohort_key="ano_1"),
-        QuestionIndexEntry(id_question=22, subject=None, cohort_key=None),
+        QuestionIndexEntry(id_question=10, subject="Matematica", topic="divisao", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=22, subject=None, topic=None, cohort_key=None),
     ]
 
 
 def test_subject_option_helpers_build_and_filter_active_ids() -> None:
     question_index = [
-        QuestionIndexEntry(id_question=1, subject="Matematica", cohort_key="ano_1"),
-        QuestionIndexEntry(id_question=2, subject="Portugues", cohort_key="ano_1"),
-        QuestionIndexEntry(id_question=3, subject="Matematica", cohort_key="ano_1"),
-        QuestionIndexEntry(id_question=4, subject=None, cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=1, subject="Matematica", topic="divisao", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=2, subject="Portugues", topic="gramatica", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=3, subject="Matematica", topic="radiciacao", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=4, subject=None, topic=None, cohort_key="ano_1"),
     ]
 
     assert build_subject_options(question_index) == ["Todas", "Matematica", "Portugues"]
     assert filter_question_ids_by_subject(question_index, None) == [1, 2, 3, 4]
     assert filter_question_ids_by_subject(question_index, "Matematica") == [1, 3]
+    assert filter_question_ids_by_subject(question_index, "Matematica", topic="radiciacao") == [3]
+
+    subject_topic_groups = build_subject_topic_groups(question_index)
+    assert [(group.subject, group.topics) for group in subject_topic_groups] == [
+        ("Matematica", ("divisao", "radiciacao")),
+        ("Portugues", ("gramatica",)),
+    ]
 
 
 def test_project_option_helpers_build_filter_and_format_labels() -> None:
     question_index = [
-        QuestionIndexEntry(id_question=1, subject="Matematica", cohort_key="crescer_e_conectar"),
-        QuestionIndexEntry(id_question=2, subject="Portugues", cohort_key="ano_1"),
-        QuestionIndexEntry(id_question=3, subject="Matematica", cohort_key="crescer_e_conectar"),
-        QuestionIndexEntry(id_question=4, subject=None, cohort_key=None),
+        QuestionIndexEntry(id_question=1, subject="Matematica", topic="divisao", cohort_key="crescer_e_conectar"),
+        QuestionIndexEntry(id_question=2, subject="Portugues", topic="gramatica", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=3, subject="Matematica", topic="radiciacao", cohort_key="crescer_e_conectar"),
+        QuestionIndexEntry(id_question=4, subject=None, topic=None, cohort_key=None),
     ]
 
     assert build_project_options(question_index) == ["ano_1", "crescer_e_conectar"]
@@ -235,6 +246,8 @@ def test_project_option_helpers_build_filter_and_format_labels() -> None:
     assert format_project_label("crescer_e_conectar") == "Crescer e Conectar"
     assert format_project_label("ano_1") == "Ano 1"
     assert format_subject_label("matematica") == "Matemática"
+    assert format_topic_label("auto_loader") == "Auto Loader"
+    assert format_subject_topic_filter_label("matematica", "divisao") == "Matemática · Divisao"
 
 
 def test_format_project_label_uses_explicit_accented_project_names() -> None:
@@ -244,12 +257,17 @@ def test_format_project_label_uses_explicit_accented_project_names() -> None:
 
 def test_subject_filter_still_works_after_cohort_scoping() -> None:
     scoped_question_index = [
-        QuestionIndexEntry(id_question=11, subject="Matematica", cohort_key="ano_2"),
-        QuestionIndexEntry(id_question=12, subject="Portugues", cohort_key="ano_2"),
-        QuestionIndexEntry(id_question=13, subject="Matematica", cohort_key="ano_2"),
+        QuestionIndexEntry(id_question=11, subject="Matematica", topic="divisao", cohort_key="ano_2"),
+        QuestionIndexEntry(id_question=12, subject="Portugues", topic="gramatica", cohort_key="ano_2"),
+        QuestionIndexEntry(id_question=13, subject="Matematica", topic="radiciacao", cohort_key="ano_2"),
     ]
 
     assert filter_question_ids_by_subject(scoped_question_index, "Matematica") == [11, 13]
+    assert normalize_question_filters(
+        scoped_question_index,
+        subject="Matematica",
+        topic="topico_invalido",
+    ) == ("Matematica", None)
 
 
 def test_parse_project_options_dataframe_normalizes_and_deduplicates_values() -> None:

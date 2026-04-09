@@ -72,6 +72,7 @@ class QuestionRepository:
             SELECT
                 id_question,
                 subject,
+                topic,
                 cohort_key
             FROM `{self._table_id}`
             WHERE is_active = TRUE

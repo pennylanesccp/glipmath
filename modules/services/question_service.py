@@ -41,6 +41,14 @@ class QuestionRowIssue:
     message: str
 
 
+@dataclass(frozen=True, slots=True)
+class SubjectTopicGroup:
+    """One subject plus the active topics available under it."""
+
+    subject: str
+    topics: tuple[str, ...]
+
+
 def parse_question_bank_dataframe(
     dataframe: pd.DataFrame,
 ) -> tuple[list[Question], list[str]]:
@@ -111,6 +119,7 @@ def parse_question_index_dataframe(
                 QuestionIndexEntry(
                     id_question=_parse_required_int(row.get("id_question"), "id_question"),
                     subject=clean_optional_text(row.get("subject")),
+                    topic=clean_optional_text(row.get("topic")),
                     cohort_key=_parse_optional_cohort_key(row.get("cohort_key")),
                 )
             )
@@ -288,6 +297,30 @@ def build_subject_options(question_index: Sequence[QuestionIndexEntry]) -> list[
     return ["Todas", *subjects]
 
 
+def build_subject_topic_groups(
+    question_index: Sequence[QuestionIndexEntry],
+) -> list[SubjectTopicGroup]:
+    """Build sorted subject/topic groups for hierarchical filtering in the learner UI."""
+
+    topics_by_subject: dict[str, set[str]] = {}
+    for entry in question_index:
+        subject = clean_optional_text(entry.subject)
+        if not subject:
+            continue
+        topics_by_subject.setdefault(subject, set())
+        topic = clean_optional_text(entry.topic)
+        if topic:
+            topics_by_subject[subject].add(topic)
+
+    return [
+        SubjectTopicGroup(
+            subject=subject,
+            topics=tuple(sorted(topics, key=str.casefold)),
+        )
+        for subject, topics in sorted(topics_by_subject.items(), key=lambda item: item[0].casefold())
+    ]
+
+
 def build_project_options(question_index: Sequence[QuestionIndexEntry]) -> list[str]:
     """Build sorted project filter options for teacher users."""
 
@@ -319,15 +352,45 @@ def filter_question_index_by_project(
 def filter_question_ids_by_subject(
     question_index: Sequence[QuestionIndexEntry],
     subject: str | None,
+    *,
+    topic: str | None = None,
 ) -> list[int]:
-    """Return active question IDs for the selected subject filter."""
+    """Return active question IDs for the selected subject/topic filter."""
 
     selected_subject = clean_optional_text(subject)
+    selected_topic = clean_optional_text(topic)
     return [
         entry.id_question
         for entry in question_index
-        if selected_subject is None or entry.subject == selected_subject
+        if (selected_subject is None or entry.subject == selected_subject)
+        and (selected_topic is None or entry.topic == selected_topic)
     ]
+
+
+def normalize_question_filters(
+    question_index: Sequence[QuestionIndexEntry],
+    *,
+    subject: str | None,
+    topic: str | None,
+) -> tuple[str | None, str | None]:
+    """Normalize one subject/topic filter pair against the active question index."""
+
+    selected_subject = clean_optional_text(subject)
+    selected_topic = clean_optional_text(topic)
+    subject_groups = build_subject_topic_groups(question_index)
+    available_subjects = {group.subject for group in subject_groups}
+    if selected_subject not in available_subjects:
+        return None, None
+
+    available_topics = {
+        topic_name
+        for group in subject_groups
+        if group.subject == selected_subject
+        for topic_name in group.topics
+    }
+    if selected_topic not in available_topics:
+        return selected_subject, None
+    return selected_subject, selected_topic
 
 
 def format_project_label(project: str | None) -> str:
@@ -376,6 +439,32 @@ def format_subject_label(subject: str | None) -> str:
 
     words = normalized_subject.replace("_", " ").split()
     return " ".join(word.capitalize() for word in words)
+
+
+def format_topic_label(topic: str | None) -> str:
+    """Render one topic key as a readable Portuguese-BR label."""
+
+    normalized_topic = clean_optional_text(topic)
+    if not normalized_topic:
+        return ""
+
+    words = normalized_topic.replace("_", " ").split()
+    return " ".join(word.capitalize() for word in words)
+
+
+def format_subject_topic_filter_label(
+    subject: str | None,
+    topic: str | None,
+) -> str:
+    """Render the current hierarchical learner filter as one compact label."""
+
+    normalized_subject = clean_optional_text(subject)
+    normalized_topic = clean_optional_text(topic)
+    if not normalized_subject:
+        return "Todas"
+    if not normalized_topic:
+        return format_subject_label(normalized_subject)
+    return f"{format_subject_label(normalized_subject)} · {format_topic_label(normalized_topic)}"
 
 
 def find_question_by_id(

@@ -39,6 +39,7 @@ USER_ANSWER_HISTORY_ISSUES_KEY = "glipmath_user_answer_history_issues"
 USER_ANSWER_HISTORY_LOADED_KEY = "glipmath_user_answer_history_loaded"
 USER_ANSWERED_QUESTION_IDS_KEY = "glipmath_user_answered_question_ids"
 SUBJECT_FILTER_KEY = "glipmath_subject_filter"
+TOPIC_FILTER_KEY = "glipmath_topic_filter"
 PROJECT_FILTER_KEY = "glipmath_project_filter"
 
 
@@ -75,6 +76,7 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(USER_ANSWER_HISTORY_LOADED_KEY, False)
     st.session_state.setdefault(USER_ANSWERED_QUESTION_IDS_KEY, [])
     st.session_state.setdefault(SUBJECT_FILTER_KEY, "Todas")
+    st.session_state.setdefault(TOPIC_FILTER_KEY, None)
     st.session_state.setdefault(PROJECT_FILTER_KEY, None)
 
 
@@ -117,6 +119,7 @@ def bind_authenticated_user(user: User) -> None:
     st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = False
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
     st.session_state[SUBJECT_FILTER_KEY] = "Todas"
+    st.session_state[TOPIC_FILTER_KEY] = None
     st.session_state[PROJECT_FILTER_KEY] = None
     st.session_state[QUESTION_POOL_KEY] = []
     st.session_state[QUESTION_POOL_SCOPE_KEY] = None
@@ -636,6 +639,20 @@ def set_subject_filter(subject: str | None) -> None:
     st.session_state[SUBJECT_FILTER_KEY] = _string_or_none(subject) or "Todas"
 
 
+def get_topic_filter() -> str | None:
+    """Return the selected topic filter, or None for all topics."""
+
+    initialize_session_state()
+    return _string_or_none(st.session_state[TOPIC_FILTER_KEY])
+
+
+def set_topic_filter(topic: str | None) -> None:
+    """Persist the selected topic filter."""
+
+    initialize_session_state()
+    st.session_state[TOPIC_FILTER_KEY] = _string_or_none(topic)
+
+
 def get_project_filter() -> str | None:
     """Return the selected project filter, or None when unset."""
 
@@ -672,6 +689,7 @@ def _bind_authenticated_user_email(user_email: str) -> None:
     st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = False
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
     st.session_state[SUBJECT_FILTER_KEY] = "Todas"
+    st.session_state[TOPIC_FILTER_KEY] = None
     st.session_state[PROJECT_FILTER_KEY] = None
     st.session_state[QUESTION_POOL_KEY] = []
     st.session_state[QUESTION_POOL_SCOPE_KEY] = None
