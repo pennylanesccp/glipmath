@@ -271,7 +271,7 @@ def _render_pending_state_compact(
     selected_option_id: str | None,
 ) -> None:
     if not alternatives:
-        st.html(_build_info_card_html("Esta questÃ£o nÃ£o possui alternativas disponÃ­veis."))
+        st.html(_build_info_card_html("Esta questão não possui alternativas disponíveis."))
         return
 
     _, content_col, _ = st.columns([0.03, 0.94, 0.03], vertical_alignment="top")
@@ -284,7 +284,7 @@ def _render_pending_state_compact(
         skip_col, verify_col = st.columns([1, 2], vertical_alignment="bottom")
         with skip_col:
             skip_clicked = st.button(
-                "Pular questÃ£o",
+                "Pular questão",
                 key=f"gm_skip_question_{current_question.id_question}",
                 use_container_width=True,
             )
@@ -310,7 +310,7 @@ def _render_pending_state_compact(
         return
 
     if is_submission_in_progress():
-        st.info("Sua resposta ainda estÃ¡ sendo enviada.")
+        st.info("Sua resposta ainda está sendo enviada.")
         return
 
     set_question_selection(pending_selection)
