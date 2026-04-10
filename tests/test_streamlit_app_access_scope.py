@@ -7,6 +7,7 @@ from app.state.session_state import (
     set_current_professor_tool,
 )
 from modules.domain.models import User
+from modules.services.question_service import QuestionFilterSelection, SubjectTopicGroup
 
 
 class FakeQuestionRepository:
@@ -125,3 +126,12 @@ def test_render_authenticated_shell_clears_professor_tool_for_student_only_user(
     assert selected_project == "crescer_e_conectar"
     assert current_workspace == "student"
     assert get_current_professor_tool() is None
+
+
+def test_normalize_filters_for_subject_group_shape_clears_full_subject_selection_in_single_subject_mode() -> None:
+    normalized_filters = streamlit_app._normalize_filters_for_subject_group_shape(
+        normalized_filters=QuestionFilterSelection(subjects=("databricks",), topics=()),
+        subject_topic_groups=[SubjectTopicGroup(subject="databricks", topics=("structured streaming",))],
+    )
+
+    assert normalized_filters == QuestionFilterSelection(subjects=(), topics=())

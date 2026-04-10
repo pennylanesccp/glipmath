@@ -61,6 +61,8 @@ from modules.domain.models import AnswerAttempt, DisplayAlternative, Question, Q
 from modules.services.answer_service import AnswerService, parse_answers_dataframe
 from modules.services.leaderboard_service import parse_leaderboard_position_dataframe
 from modules.services.question_service import (
+    QuestionFilterSelection,
+    SubjectTopicGroup,
     build_display_alternatives,
     format_project_label,
     build_subject_topic_groups,
@@ -98,6 +100,19 @@ class RuntimeContext:
     answer_repository: AnswerRepository
     answer_service: AnswerService
     authorization_service: AuthorizationService
+
+
+def _normalize_filters_for_subject_group_shape(
+    *,
+    normalized_filters: QuestionFilterSelection,
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> QuestionFilterSelection:
+    if len(subject_topic_groups) != 1 or not normalized_filters.subjects:
+        return normalized_filters
+    return QuestionFilterSelection(
+        subjects=(),
+        topics=normalized_filters.topics,
+    )
 
 
 def main() -> None:
@@ -192,12 +207,16 @@ def main() -> None:
             subjects=get_subject_filters(),
             topics=get_topic_filters(),
         )
+        subject_topic_groups = build_subject_topic_groups(question_index)
+        normalized_filters = _normalize_filters_for_subject_group_shape(
+            normalized_filters=normalized_filters,
+            subject_topic_groups=subject_topic_groups,
+        )
         if normalized_filters.subjects != get_subject_filters() or normalized_filters.topics != get_topic_filters():
             set_subject_filters(normalized_filters.subjects)
             set_topic_filters(normalized_filters.topics)
             clear_current_question()
             st.rerun()
-        subject_topic_groups = build_subject_topic_groups(question_index)
 
         _ensure_user_answer_history_loaded(
             answer_repository=context.answer_repository,

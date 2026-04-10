@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from app import streamlit_app
 from app.pages import main_page
 from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative, Question, QuestionAlternative, User
+from modules.services.question_service import SubjectTopicGroup
 
 
 def test_submit_selected_answer_marks_question_answered(monkeypatch) -> None:
@@ -73,6 +74,24 @@ def test_submit_selected_answer_marks_question_answered(monkeypatch) -> None:
     assert ("clear_skip", 7) in calls
     assert ("mark_answered", 7, "option_a") in calls
     assert "rerun" in calls
+
+
+def test_use_topic_only_filter_is_enabled_for_single_subject_group() -> None:
+    assert (
+        main_page._use_topic_only_filter(
+            [SubjectTopicGroup(subject="databricks", topics=("structured streaming",))]
+        )
+        is True
+    )
+    assert (
+        main_page._use_topic_only_filter(
+            [
+                SubjectTopicGroup(subject="databricks", topics=("structured streaming",)),
+                SubjectTopicGroup(subject="matematica", topics=("divisao",)),
+            ]
+        )
+        is False
+    )
 
 
 def test_submit_selected_answer_rejects_missing_option(monkeypatch) -> None:

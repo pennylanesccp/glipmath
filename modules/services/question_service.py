@@ -40,6 +40,16 @@ SUBJECT_LABEL_BY_KEY = {
     "todas": "Tudo",
 }
 TOPIC_LABEL_BY_KEY = {
+    "autoloader e pipelines declarativas": "Data Ingestion & Acquisition",
+    "delta otimizacao e storage": "Cost & Performance Optimisation",
+    "delta sharing e federation": "Data Sharing and Federation",
+    "fundamentos notebooks jobs lakeflow": "Developing Code for Data Processing using Python and SQL",
+    "governanca catalogo e metadados": "Data Governance",
+    "jobs alertas e spark ui": "Monitoring and Alerting",
+    "medallion modelagem e dimensoes": "Data Modelling",
+    "seguranca views e secrets": "Ensuring Data Security and Compliance",
+    "structured streaming": "Data Transformation, Cleansing and Quality",
+    "troubleshooting e performance": "Debugging and Deploying",
     "adicao": "Adição",
     "aritmetica": "Aritmética",
     "divisao": "Divisão",

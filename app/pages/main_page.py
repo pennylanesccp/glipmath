@@ -172,6 +172,7 @@ def _render_subject_topic_filter_multiselect(
     selected_topics: tuple[tuple[str, str], ...],
     selected_filter_label: str,
 ) -> None:
+    single_subject_mode = _use_topic_only_filter(subject_topic_groups)
     _sync_subject_topic_filter_widget_state(
         subject_topic_groups=subject_topic_groups,
         selected_subjects=selected_subjects,
@@ -194,20 +195,24 @@ def _render_subject_topic_filter_multiselect(
                 _apply_subject_topic_filters(subjects=(), topics=())
 
         for group in subject_topic_groups:
-            st.checkbox(
-                format_subject_label(group.subject),
-                key=_subject_checkbox_key(group.subject),
-                on_change=_toggle_subject_filter,
-                args=(group.subject,),
-            )
+            if not single_subject_mode:
+                st.checkbox(
+                    format_subject_label(group.subject),
+                    key=_subject_checkbox_key(group.subject),
+                    on_change=_toggle_subject_filter,
+                    args=(group.subject,),
+                )
 
             with st.container():
-                st.html('<div class="gm-topic-filter-group-hook"></div>')
+                hook_class = "gm-topic-filter-group-hook"
+                if single_subject_mode:
+                    hook_class += " gm-topic-filter-group-hook--single-subject"
+                st.html(f'<div class="{hook_class}"></div>')
                 for topic in group.topics:
                     st.checkbox(
                         format_topic_label(topic),
                         key=_topic_checkbox_key(group.subject, topic),
-                        disabled=group.subject in selected_subjects,
+                        disabled=(not single_subject_mode) and group.subject in selected_subjects,
                         on_change=_toggle_topic_filter,
                         args=(group.subject, topic),
                     )
@@ -777,6 +782,10 @@ def _is_timer_warning(elapsed_seconds: int) -> bool:
     return int(elapsed_seconds) >= TIMER_WARNING_THRESHOLD_SECONDS
 
 
+def _use_topic_only_filter(subject_topic_groups: list[SubjectTopicGroup]) -> bool:
+    return len(subject_topic_groups) == 1
+
+
 def _subject_checkbox_key(subject: str) -> str:
     return f"gm_filter_subject_checkbox_{subject}"
 
@@ -1216,8 +1225,10 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stPopover"] [data-testid="stPopoverBody"] > div,
         div[data-testid="stPopover"] div[data-testid="stVerticalBlockBorderWrapper"],
         div[data-testid="stPopover"] div[data-testid="stVerticalBlockBorderWrapper"] > div,
-        div[data-testid="stPopover"] div[data-testid="stContainer"] {
-            background: transparent !important;
+        div[data-testid="stPopover"] div[data-testid="stContainer"],
+        div[data-testid="stPopover"] div[data-testid="stElementContainer"],
+        div[data-testid="stPopover"] div[data-testid="stElementContainer"] > div {
+            background: #ffffff !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
@@ -1249,6 +1260,11 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stVerticalBlock"]:has(.gm-topic-filter-group-hook) [data-testid="stCheckbox"] {
             margin-left: 1.75rem !important;
             width: calc(100% - 1.75rem) !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-topic-filter-group-hook--single-subject) [data-testid="stCheckbox"] {
+            margin-left: 0 !important;
+            width: 100% !important;
         }
 
         div[data-testid="stPopover"] [data-testid="stCheckbox"] label {

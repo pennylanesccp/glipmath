@@ -302,6 +302,22 @@ def test_format_project_label_uses_explicit_accented_project_names() -> None:
     assert format_project_label("rumo_etec") == "Rumo à ETEC"
 
 
+def test_format_topic_label_uses_english_databricks_topic_names() -> None:
+    assert (
+        format_topic_label("fundamentos_notebooks_jobs_lakeflow")
+        == "Developing Code for Data Processing using Python and SQL"
+    )
+    assert format_topic_label("autoloader_e_pipelines_declarativas") == "Data Ingestion & Acquisition"
+    assert format_topic_label("structured_streaming") == "Data Transformation, Cleansing and Quality"
+    assert format_topic_label("delta_sharing_e_federation") == "Data Sharing and Federation"
+    assert format_topic_label("jobs_alertas_e_spark_ui") == "Monitoring and Alerting"
+    assert format_topic_label("delta_otimizacao_e_storage") == "Cost & Performance Optimisation"
+    assert format_topic_label("seguranca_views_e_secrets") == "Ensuring Data Security and Compliance"
+    assert format_topic_label("governanca_catalogo_e_metadados") == "Data Governance"
+    assert format_topic_label("troubleshooting_e_performance") == "Debugging and Deploying"
+    assert format_topic_label("medallion_modelagem_e_dimensoes") == "Data Modelling"
+
+
 def test_subject_filter_still_works_after_cohort_scoping() -> None:
     scoped_question_index = [
         QuestionIndexEntry(id_question=11, subject="Matematica", topic="divisao", cohort_key="ano_2"),
