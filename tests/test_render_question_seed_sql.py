@@ -54,6 +54,8 @@ def test_render_seed_sql_uses_defaults_and_nested_structs() -> None:
     assert "STRUCT(" in sql
     assert "AS correct_answer" in sql
     assert "AS wrong_answers" in sql
+    assert "'matematica' AS subject" in sql
+    assert "'divisao' AS topic" in sql
     assert "CURRENT_TIMESTAMP() AS created_at_utc" in sql
     assert "CURRENT_TIMESTAMP() AS updated_at_utc" in sql
 

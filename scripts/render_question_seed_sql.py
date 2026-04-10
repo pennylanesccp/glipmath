@@ -2,8 +2,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Mapping
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from modules.utils.normalization import normalize_taxonomy_value
 
 DEFAULT_INPUT_DIR = Path("local/bq_seeds/source")
 DEFAULT_OUTPUT_DIR = Path("local/bq_seeds/sql")
@@ -188,8 +195,8 @@ def _render_question_select(question: Mapping[str, Any], *, row_label: str) -> s
             "    [",
             ",\n".join(wrong_answers),
             "    ] AS wrong_answers,",
-            f"    {_sql_literal(_require_string(question.get('subject'), f'{row_label}.subject'))} AS subject,",
-            f"    {_sql_literal(_require_string(question.get('topic'), f'{row_label}.topic'))} AS topic,",
+            f"    {_sql_literal(_require_taxonomy_string(question.get('subject'), f'{row_label}.subject'))} AS subject,",
+            f"    {_sql_literal(_require_taxonomy_string(question.get('topic'), f'{row_label}.topic'))} AS topic,",
             f"    {_sql_literal(_require_string(question.get('difficulty'), f'{row_label}.difficulty'))} AS difficulty,",
             f"    {_sql_literal(_require_string(question.get('source'), f'{row_label}.source'))} AS source,",
             f"    {_sql_literal(_require_string(question.get('cohort_key'), f'{row_label}.cohort_key'))} AS cohort_key,",
@@ -253,6 +260,13 @@ def _require_mapping(value: Any, field_name: str) -> Mapping[str, Any]:
 
 def _require_string(value: Any, field_name: str) -> str:
     text = _optional_string(value)
+    if text is None:
+        raise ValueError(f"{field_name} must be a non-empty string.")
+    return text
+
+
+def _require_taxonomy_string(value: Any, field_name: str) -> str:
+    text = normalize_taxonomy_value(value)
     if text is None:
         raise ValueError(f"{field_name} must be a non-empty string.")
     return text

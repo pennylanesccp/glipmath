@@ -114,6 +114,7 @@ def _render_menu_cards() -> None:
         first_col, second_col = st.columns(2, gap="small")
 
         with first_col:
+            st.html('<div class="gm-professor-menu-card-hook gm-professor-menu-card-hook--generate"></div>')
             if st.button(
                 "Gerar questões",
                 key="gm_professor_tool_generate_questions",
@@ -126,6 +127,7 @@ def _render_menu_cards() -> None:
                     st.rerun()
 
         with second_col:
+            st.html('<div class="gm-professor-menu-card-hook gm-professor-menu-card-hook--add-student"></div>')
             if st.button(
                 "Adicionar aluno",
                 key="gm_professor_tool_add_student",
@@ -544,30 +546,98 @@ def _apply_professor_page_styles() -> None:
             margin: 0;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-hook) div[data-testid="stButton"] > button {
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-hook) > div[data-testid="stHorizontalBlock"] {
+            align-items: stretch;
+            gap: 0.9rem;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] {
+            height: 100%;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button {
             align-items: center;
-            border-radius: 1.4rem !important;
+            border-radius: 1.3rem !important;
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08) !important;
             display: flex;
             flex-direction: column;
-            font-size: 1.2rem !important;
-            font-weight: 800 !important;
-            gap: 0.45rem;
+            gap: 0.42rem;
             justify-content: center;
-            min-height: 9.5rem !important;
-            padding: 1rem 0.9rem !important;
+            min-height: 7.7rem !important;
+            padding: 0.9rem 0.8rem !important;
             text-align: center;
             white-space: normal !important;
+            width: 100%;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-hook) div[data-testid="stButton"] > button span[data-testid="stIconMaterial"] {
-            font-size: 2.55rem !important;
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button [data-testid="stMarkdownContainer"] {
+            align-items: center;
+            display: flex;
+            justify-content: center;
+            width: 100%;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-hook) div[data-testid="stButton"] > button:disabled {
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button [data-testid="stMarkdownContainer"] p {
+            font-size: 1.02rem !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.01em;
+            line-height: 1.22 !important;
+            margin: 0 !important;
+            text-align: center !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button span[data-testid="stIconMaterial"] {
+            font-size: 1.82rem !important;
+            line-height: 1 !important;
+            margin: 0 !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button[kind="secondary"] {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
+            border: 1px solid #cfe0ff !important;
+            color: #1e3a8a !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button[kind="secondary"]:hover {
+            background: #f1f7ff !important;
+            border-color: #93c5fd !important;
+            box-shadow: 0 16px 30px rgba(59, 130, 246, 0.12) !important;
+            color: #1d4ed8 !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button[kind="primary"] {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+            border: 1px solid #1d4ed8 !important;
+            box-shadow: 0 18px 34px rgba(37, 99, 235, 0.22) !important;
+            color: #ffffff !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button[kind="primary"]:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+            border-color: #1e40af !important;
+            color: #ffffff !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button:disabled {
             background: #f8fafc !important;
             border-color: #e2e8f0 !important;
             color: #94a3b8 !important;
             opacity: 1 !important;
+        }
+
+        @media (max-width: 900px) {
+            div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button {
+                min-height: 7.15rem !important;
+                padding: 0.82rem 0.72rem !important;
+            }
+
+            div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button [data-testid="stMarkdownContainer"] p {
+                font-size: 0.97rem !important;
+            }
+
+            div[data-testid="stVerticalBlock"]:has(.gm-professor-menu-card-hook) div[data-testid="stButton"] > button span[data-testid="stIconMaterial"] {
+                font-size: 1.66rem !important;
+            }
         }
 
         div[data-testid="stForm"] {

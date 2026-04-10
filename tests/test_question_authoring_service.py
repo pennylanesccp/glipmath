@@ -76,8 +76,8 @@ def test_build_question_row_from_draft_returns_canonical_question_bank_row() -> 
         source=AI_POLISHED_QUESTION_SOURCE,
     )
 
-    assert row["subject"] == "Matemática"
-    assert row["topic"] == "divisão"
+    assert row["subject"] == "matematica"
+    assert row["topic"] == "divisao"
     assert row["difficulty"] == "2_facil"
     assert row["source"] == AI_POLISHED_QUESTION_SOURCE
     assert row["cohort_key"] == "crescer_e_conectar"

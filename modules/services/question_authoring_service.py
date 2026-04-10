@@ -8,7 +8,7 @@ import pandas as pd
 
 from modules.services.question_service import parse_question_bank_dataframe
 from modules.utils.datetime_utils import to_iso_timestamp, utc_now
-from modules.utils.normalization import clean_optional_text
+from modules.utils.normalization import clean_optional_text, normalize_taxonomy_value
 
 QUESTION_AUTHORING_RESPONSE_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -279,8 +279,8 @@ def build_question_row_from_draft(
             }
             for index, wrong_answer in enumerate(draft.wrong_answers)
         ],
-        "subject": _require_text(draft.subject, "subject"),
-        "topic": _require_text(draft.topic, "topic"),
+        "subject": _require_taxonomy_text(draft.subject, "subject"),
+        "topic": _require_taxonomy_text(draft.topic, "topic"),
         "difficulty": _require_text(
             normalize_difficulty_value(draft.difficulty),
             "difficulty",
@@ -340,6 +340,13 @@ def _ensure_unique_alternatives(
 
 def _require_text(value: Any, field_name: str) -> str:
     text = clean_optional_text(value)
+    if not text:
+        raise ValueError(f"{field_name} cannot be blank.")
+    return text
+
+
+def _require_taxonomy_text(value: Any, field_name: str) -> str:
+    text = normalize_taxonomy_value(value)
     if not text:
         raise ValueError(f"{field_name} cannot be blank.")
     return text

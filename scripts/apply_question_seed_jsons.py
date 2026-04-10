@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from modules.utils.normalization import normalize_taxonomy_value
 from scripts.bigquery_seed_utils import build_bigquery_client, load_rows_to_bigquery
 from scripts.render_question_seed_sql import load_seed_payload
 
@@ -67,8 +68,8 @@ def materialize_seed_payload(
                 merged_question.get("wrong_answers"),
                 field_name=f"questions[{index}].wrong_answers",
             ),
-            "subject": _optional_string(merged_question.get("subject")),
-            "topic": _optional_string(merged_question.get("topic")),
+            "subject": _optional_taxonomy_string(merged_question.get("subject")),
+            "topic": _optional_taxonomy_string(merged_question.get("topic")),
             "difficulty": _optional_string(merged_question.get("difficulty")),
             "source": _optional_string(merged_question.get("source")),
             "cohort_key": _optional_string(merged_question.get("cohort_key")),
@@ -217,6 +218,10 @@ def _optional_string(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _optional_taxonomy_string(value: Any) -> str | None:
+    return normalize_taxonomy_value(value)
 
 
 def _require_int(value: Any, field_name: str) -> int:

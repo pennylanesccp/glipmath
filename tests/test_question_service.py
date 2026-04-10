@@ -212,7 +212,7 @@ def test_parse_question_index_dataframe_reads_subject_metadata() -> None:
 
     assert issues == []
     assert entries == [
-        QuestionIndexEntry(id_question=10, subject="Matematica", topic="divisao", cohort_key="ano_1"),
+        QuestionIndexEntry(id_question=10, subject="matematica", topic="divisao", cohort_key="ano_1"),
         QuestionIndexEntry(id_question=22, subject=None, topic=None, cohort_key=None),
     ]
 
@@ -225,15 +225,15 @@ def test_subject_option_helpers_build_and_filter_active_ids() -> None:
         QuestionIndexEntry(id_question=4, subject=None, topic=None, cohort_key="ano_1"),
     ]
 
-    assert build_subject_options(question_index) == ["Todas", "Matematica", "Portugues"]
+    assert build_subject_options(question_index) == ["Todas", "matematica", "portugues"]
     assert filter_question_ids_by_subject(question_index, None) == [1, 2, 3, 4]
     assert filter_question_ids_by_subject(question_index, "Matematica") == [1, 3]
-    assert filter_question_ids_by_subject(question_index, "Matematica", topic="radiciacao") == [3]
+    assert filter_question_ids_by_subject(question_index, "Matemática", topic="Radiciação") == [3]
 
     subject_topic_groups = build_subject_topic_groups(question_index)
     assert [(group.subject, group.topics) for group in subject_topic_groups] == [
-        ("Matematica", ("divisao", "radiciacao")),
-        ("Portugues", ("gramatica",)),
+        ("matematica", ("divisao", "radiciacao")),
+        ("portugues", ("gramatica",)),
     ]
 
 
@@ -252,8 +252,8 @@ def test_multi_question_filters_normalize_and_union_subjects_with_topics() -> No
     )
 
     assert filters == QuestionFilterSelection(
-        subjects=("Portugues",),
-        topics=(("Matematica", "radiciacao"),),
+        subjects=("portugues",),
+        topics=(("matematica", "radiciacao"),),
     )
     assert filter_question_ids_by_filters(question_index, filters) == [2, 3]
 
@@ -261,18 +261,18 @@ def test_multi_question_filters_normalize_and_union_subjects_with_topics() -> No
 def test_format_question_filter_label_summarizes_multi_selection_state() -> None:
     assert format_question_filter_label(QuestionFilterSelection()) == "Todas"
     assert (
-        format_question_filter_label(QuestionFilterSelection(subjects=("Matematica",)))
+        format_question_filter_label(QuestionFilterSelection(subjects=("matematica",)))
         == "Matemática"
     )
     assert (
-        format_question_filter_label(QuestionFilterSelection(topics=(("Matematica", "divisao"),)))
-        == "Matemática / Divisao"
+        format_question_filter_label(QuestionFilterSelection(topics=(("matematica", "divisao"),)))
+        == "Matemática / Divisão"
     )
     assert (
         format_question_filter_label(
             QuestionFilterSelection(
-                subjects=("Portugues",),
-                topics=(("Matematica", "divisao"),),
+                subjects=("portugues",),
+                topics=(("matematica", "divisao"),),
             )
         )
         == "2 filtros"
@@ -293,7 +293,8 @@ def test_project_option_helpers_build_filter_and_format_labels() -> None:
     assert format_project_label("ano_1") == "Ano 1"
     assert format_subject_label("matematica") == "Matemática"
     assert format_topic_label("auto_loader") == "Auto Loader"
-    assert format_subject_topic_filter_label("matematica", "divisao") == "Matemática · Divisao"
+    assert format_topic_label("radiciacao") == "Radiciação"
+    assert format_subject_topic_filter_label("matematica", "divisao") == "Matemática · Divisão"
 
 
 def test_format_project_label_uses_explicit_accented_project_names() -> None:
@@ -313,7 +314,7 @@ def test_subject_filter_still_works_after_cohort_scoping() -> None:
         scoped_question_index,
         subject="Matematica",
         topic="topico_invalido",
-    ) == ("Matematica", None)
+    ) == ("matematica", None)
 
 
 def test_parse_project_options_dataframe_normalizes_and_deduplicates_values() -> None:

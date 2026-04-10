@@ -7,6 +7,7 @@ from google.cloud import bigquery
 
 from modules.domain.models import QuestionAlternative
 from modules.storage.bigquery_client import BigQueryClient
+from modules.utils.normalization import normalize_taxonomy_value
 
 
 class QuestionRepository:
@@ -293,8 +294,11 @@ class QuestionRepository:
 
     def _filter_row_for_table_schema(self, row: dict[str, object]) -> dict[str, object]:
         available_columns = set(self._bigquery_client.get_table_column_names(self._table_id))
+        normalized_row = dict(row)
+        normalized_row["subject"] = normalize_taxonomy_value(normalized_row.get("subject"))
+        normalized_row["topic"] = normalize_taxonomy_value(normalized_row.get("topic"))
         return {
             key: value
-            for key, value in row.items()
+            for key, value in normalized_row.items()
             if key in available_columns
         }

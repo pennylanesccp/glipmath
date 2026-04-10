@@ -66,7 +66,7 @@ def test_materialize_seed_payload_merges_defaults_and_sets_timestamps() -> None:
                     "explanation": "Resposta errada.",
                 }
             ],
-            "subject": "Databricks",
+            "subject": "databricks",
             "topic": "streaming",
             "difficulty": "easy",
             "source": "seed_v1",

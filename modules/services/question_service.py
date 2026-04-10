@@ -16,7 +16,7 @@ from modules.storage.schema_validation import (
     worksheet_row_number,
 )
 from modules.utils.datetime_utils import parse_timestamp
-from modules.utils.normalization import clean_optional_text, coerce_bool
+from modules.utils.normalization import clean_optional_text, coerce_bool, normalize_taxonomy_value
 
 QUESTION_RESOURCE_NAME = "question_bank"
 QUESTION_REQUIRED_COLUMNS = [
@@ -30,6 +30,28 @@ PROJECT_LABEL_BY_KEY = {
     "crescer_e_conectar": "Crescer e Conectar",
     "rumo_etec": "Rumo à ETEC",
 }
+SUBJECT_LABEL_BY_KEY = {
+    "ciencias": "Ciências",
+    "databricks": "Databricks",
+    "geografia": "Geografia",
+    "historia": "História",
+    "matematica": "Matemática",
+    "portugues": "Português",
+    "todas": "Todas",
+}
+TOPIC_LABEL_BY_KEY = {
+    "adicao": "Adição",
+    "aritmetica": "Aritmética",
+    "divisao": "Divisão",
+    "fracao": "Fração",
+    "fracoes": "Frações",
+    "multiplicacao": "Multiplicação",
+    "porcentagem": "Porcentagem",
+    "radiciacao": "Radiciação",
+    "subtracao": "Subtração",
+}
+LOWERCASE_LABEL_WORDS = {"a", "as", "com", "da", "das", "de", "do", "dos", "e", "em", "o", "os", "para", "por"}
+UPPERCASE_LABEL_WORDS = {"api", "bi", "cdc", "ci", "cli", "dbfs", "dlt", "etl", "ia", "sql", "ui"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,8 +148,8 @@ def parse_question_index_dataframe(
             entries.append(
                 QuestionIndexEntry(
                     id_question=_parse_required_int(row.get("id_question"), "id_question"),
-                    subject=clean_optional_text(row.get("subject")),
-                    topic=clean_optional_text(row.get("topic")),
+                    subject=normalize_taxonomy_value(row.get("subject")),
+                    topic=normalize_taxonomy_value(row.get("topic")),
                     cohort_key=_parse_optional_cohort_key(row.get("cohort_key")),
                 )
             )
@@ -297,7 +319,7 @@ def build_subject_options(question_index: Sequence[QuestionIndexEntry]) -> list[
         {
             subject
             for entry in question_index
-            for subject in [entry.subject]
+            for subject in [normalize_taxonomy_value(entry.subject)]
             if subject
         },
         key=str.casefold,
@@ -312,11 +334,11 @@ def build_subject_topic_groups(
 
     topics_by_subject: dict[str, set[str]] = {}
     for entry in question_index:
-        subject = clean_optional_text(entry.subject)
+        subject = normalize_taxonomy_value(entry.subject)
         if not subject:
             continue
         topics_by_subject.setdefault(subject, set())
-        topic = clean_optional_text(entry.topic)
+        topic = normalize_taxonomy_value(entry.topic)
         if topic:
             topics_by_subject[subject].add(topic)
 
@@ -365,13 +387,19 @@ def filter_question_ids_by_subject(
 ) -> list[int]:
     """Return active question IDs for the selected subject/topic filter."""
 
-    selected_subject = clean_optional_text(subject)
-    selected_topic = clean_optional_text(topic)
+    selected_subject = normalize_taxonomy_value(subject)
+    selected_topic = normalize_taxonomy_value(topic)
     return [
         entry.id_question
         for entry in question_index
-        if (selected_subject is None or entry.subject == selected_subject)
-        and (selected_topic is None or entry.topic == selected_topic)
+        if (
+            selected_subject is None
+            or normalize_taxonomy_value(entry.subject) == selected_subject
+        )
+        and (
+            selected_topic is None
+            or normalize_taxonomy_value(entry.topic) == selected_topic
+        )
     ]
 
 
@@ -389,11 +417,15 @@ def filter_question_ids_by_filters(
     return [
         entry.id_question
         for entry in question_index
-        if (entry.subject in selected_subjects)
+        if (normalize_taxonomy_value(entry.subject) in selected_subjects)
         or (
-            entry.subject is not None
-            and entry.topic is not None
-            and (entry.subject, entry.topic) in selected_topics
+            normalize_taxonomy_value(entry.subject) is not None
+            and normalize_taxonomy_value(entry.topic) is not None
+            and (
+                normalize_taxonomy_value(entry.subject),
+                normalize_taxonomy_value(entry.topic),
+            )
+            in selected_topics
         )
     ]
 
@@ -406,8 +438,8 @@ def normalize_question_filters(
 ) -> tuple[str | None, str | None]:
     """Normalize one subject/topic filter pair against the active question index."""
 
-    selected_subject = clean_optional_text(subject)
-    selected_topic = clean_optional_text(topic)
+    selected_subject = normalize_taxonomy_value(subject)
+    selected_topic = normalize_taxonomy_value(topic)
     subject_groups = build_subject_topic_groups(question_index)
     available_subjects = {group.subject for group in subject_groups}
     if selected_subject not in available_subjects:
@@ -443,7 +475,7 @@ def normalize_multi_question_filters(
             {
                 normalized_subject
                 for subject in (subjects or [])
-                for normalized_subject in [clean_optional_text(subject)]
+                for normalized_subject in [normalize_taxonomy_value(subject)]
                 if normalized_subject in available_topics_by_subject
             },
             key=str.casefold,
@@ -457,8 +489,8 @@ def normalize_multi_question_filters(
                 (normalized_subject, normalized_topic)
                 for raw_topic in (topics or [])
                 if len(raw_topic) == 2
-                for normalized_subject in [clean_optional_text(raw_topic[0])]
-                for normalized_topic in [clean_optional_text(raw_topic[1])]
+                for normalized_subject in [normalize_taxonomy_value(raw_topic[0])]
+                for normalized_topic in [normalize_taxonomy_value(raw_topic[1])]
                 if normalized_subject in available_topics_by_subject
                 and normalized_subject not in selected_subject_set
                 and normalized_topic in available_topics_by_subject[normalized_subject]
@@ -501,9 +533,14 @@ def format_project_label(project: str | None) -> str:
 def format_subject_label(subject: str | None) -> str:
     """Render one subject key as a readable Portuguese-BR label."""
 
-    normalized_subject = clean_optional_text(subject)
+    normalized_subject = normalize_taxonomy_value(subject)
     if not normalized_subject:
         return ""
+
+    explicit_label = SUBJECT_LABEL_BY_KEY.get(normalized_subject)
+    if explicit_label is not None:
+        return explicit_label
+    return _format_canonical_label(normalized_subject)
 
     accent_map = {
         "matematica": "Matemática",
@@ -524,9 +561,14 @@ def format_subject_label(subject: str | None) -> str:
 def format_topic_label(topic: str | None) -> str:
     """Render one topic key as a readable Portuguese-BR label."""
 
-    normalized_topic = clean_optional_text(topic)
+    normalized_topic = normalize_taxonomy_value(topic)
     if not normalized_topic:
         return ""
+
+    explicit_label = TOPIC_LABEL_BY_KEY.get(normalized_topic)
+    if explicit_label is not None:
+        return explicit_label
+    return _format_canonical_label(normalized_topic)
 
     words = normalized_topic.replace("_", " ").split()
     return " ".join(word.capitalize() for word in words)
@@ -538,8 +580,8 @@ def format_subject_topic_filter_label(
 ) -> str:
     """Render the current hierarchical learner filter as one compact label."""
 
-    normalized_subject = clean_optional_text(subject)
-    normalized_topic = clean_optional_text(topic)
+    normalized_subject = normalize_taxonomy_value(subject)
+    normalized_topic = normalize_taxonomy_value(topic)
     if not normalized_subject:
         return "Todas"
     if not normalized_topic:
@@ -636,8 +678,8 @@ def _parse_question_row(row: dict[str, object]) -> Question | None:
         statement=statement,
         correct_answer=correct_answer,
         wrong_answers=wrong_answers,
-        subject=clean_optional_text(row.get("subject")),
-        topic=clean_optional_text(row.get("topic")),
+        subject=normalize_taxonomy_value(row.get("subject")),
+        topic=normalize_taxonomy_value(row.get("topic")),
         difficulty=clean_optional_text(row.get("difficulty")),
         source=clean_optional_text(row.get("source")),
         cohort_key=_parse_optional_cohort_key(row.get("cohort_key")),
@@ -727,6 +769,19 @@ def _normalize_project_key(value: object) -> str | None:
     if not project:
         return None
     return project.lower()
+
+
+def _format_canonical_label(value: str) -> str:
+    words = value.split()
+    formatted_words: list[str] = []
+    for index, word in enumerate(words):
+        if word in UPPERCASE_LABEL_WORDS:
+            formatted_words.append(word.upper())
+        elif index > 0 and word in LOWERCASE_LABEL_WORDS:
+            formatted_words.append(word)
+        else:
+            formatted_words.append(word.capitalize())
+    return " ".join(formatted_words)
 
 
 def _find_duplicate_id_by_index(dataframe: pd.DataFrame) -> dict[int, int]:
