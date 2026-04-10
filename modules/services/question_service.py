@@ -37,7 +37,7 @@ SUBJECT_LABEL_BY_KEY = {
     "historia": "História",
     "matematica": "Matemática",
     "portugues": "Português",
-    "todas": "Todas",
+    "todas": "Tudo",
 }
 TOPIC_LABEL_BY_KEY = {
     "adicao": "Adição",
@@ -324,7 +324,7 @@ def build_subject_options(question_index: Sequence[QuestionIndexEntry]) -> list[
         },
         key=str.casefold,
     )
-    return ["Todas", *subjects]
+    return ["Tudo", *subjects]
 
 
 def build_subject_topic_groups(
@@ -548,7 +548,7 @@ def format_subject_label(subject: str | None) -> str:
         "historia": "História",
         "geografia": "Geografia",
         "ciencias": "Ciências",
-        "todas": "Todas",
+        "todas": "Tudo",
     }
     key = normalized_subject.lower()
     if key in accent_map:
@@ -583,7 +583,7 @@ def format_subject_topic_filter_label(
     normalized_subject = normalize_taxonomy_value(subject)
     normalized_topic = normalize_taxonomy_value(topic)
     if not normalized_subject:
-        return "Todas"
+        return "Tudo"
     if not normalized_topic:
         return format_subject_label(normalized_subject)
     return f"{format_subject_label(normalized_subject)} · {format_topic_label(normalized_topic)}"
@@ -594,7 +594,7 @@ def format_question_filter_label(filters: QuestionFilterSelection) -> str:
 
     selection_count = len(filters.subjects) + len(filters.topics)
     if selection_count == 0:
-        return "Todas"
+        return "Tudo"
     if len(filters.subjects) == 1 and not filters.topics:
         return format_subject_label(filters.subjects[0])
     if len(filters.topics) == 1 and not filters.subjects:

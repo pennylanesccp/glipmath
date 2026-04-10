@@ -44,6 +44,7 @@ from modules.utils.datetime_utils import utc_now
 FIRE_ICON_RELATIVE_PATH = "assets/icons/fire-svgrepo-com.svg"
 PODIUM_ICON_RELATIVE_PATH = "assets/icons/pedestal-podium-svgrepo-com.svg"
 TIMER_ICON_RELATIVE_PATH = "assets/icons/timer-outline-svgrepo-com.svg"
+TIMER_WARNING_THRESHOLD_SECONDS = 120
 FENCED_CODE_BLOCK_PATTERN = re.compile(r"```[^\n`]*\n(.*?)```", re.DOTALL)
 
 
@@ -200,9 +201,9 @@ def _render_subject_topic_filter_multiselect(
                 args=(group.subject,),
             )
 
-            for topic in group.topics:
-                _, topic_col = st.columns([0.1, 0.9], gap="small")
-                with topic_col:
+            with st.container():
+                st.html('<div class="gm-topic-filter-group-hook"></div>')
+                for topic in group.topics:
                     st.checkbox(
                         format_topic_label(topic),
                         key=_topic_checkbox_key(group.subject, topic),
@@ -524,11 +525,13 @@ def _build_metric_chip_html(
     icon_data_uri: str,
     *,
     is_timer: bool = False,
-    timer_running: bool = False,
+    timer_warning: bool = False,
 ) -> str:
     timer_class = ""
     if is_timer:
         timer_class = " gm-live-metric--timer"
+    if timer_warning:
+        timer_class += " gm-live-metric--timer-warning"
 
     icon_html = ""
     if icon_data_uri:
@@ -549,7 +552,7 @@ def _build_metrics_bar_html(
     streak_text: str,
     rank_text: str,
     timer_text: str,
-    timer_running: bool,
+    timer_warning: bool,
     fire_icon_data_uri: str,
     podium_icon_data_uri: str,
     timer_icon_data_uri: str,
@@ -558,7 +561,7 @@ def _build_metrics_bar_html(
         '<div class="gm-live-metrics-bar">'
         f"{_build_metric_chip_html(streak_text, fire_icon_data_uri)}"
         f"{_build_metric_chip_html(rank_text, podium_icon_data_uri)}"
-        f"{_build_metric_chip_html(timer_text, timer_icon_data_uri, is_timer=True, timer_running=timer_running)}"
+        f"{_build_metric_chip_html(timer_text, timer_icon_data_uri, is_timer=True, timer_warning=timer_warning)}"
         "</div>"
     )
 
@@ -591,7 +594,7 @@ def _render_metrics_bar(
             streak_text=streak_text,
             rank_text=rank_text,
             timer_text=format_elapsed_time(timer_elapsed_seconds),
-            timer_running=False,
+            timer_warning=_is_timer_warning(timer_elapsed_seconds),
             fire_icon_data_uri=fire_icon_data_uri,
             podium_icon_data_uri=podium_icon_data_uri,
             timer_icon_data_uri=timer_icon_data_uri,
@@ -610,15 +613,16 @@ def _render_live_metrics_bar_fragment(
     podium_icon_data_uri: str,
     timer_icon_data_uri: str,
 ) -> None:
+    live_elapsed_seconds = _resolve_live_timer_seconds(
+        timer_elapsed_seconds=timer_elapsed_seconds,
+        timer_started_at=timer_started_at,
+    )
     st.html(
         _build_metrics_bar_html(
             streak_text=streak_text,
             rank_text=rank_text,
-            timer_text=_resolve_live_timer_text(
-                timer_elapsed_seconds=timer_elapsed_seconds,
-                timer_started_at=timer_started_at,
-            ),
-            timer_running=True,
+            timer_text=format_elapsed_time(live_elapsed_seconds),
+            timer_warning=_is_timer_warning(live_elapsed_seconds),
             fire_icon_data_uri=fire_icon_data_uri,
             podium_icon_data_uri=podium_icon_data_uri,
             timer_icon_data_uri=timer_icon_data_uri,
@@ -745,15 +749,32 @@ def _resolve_live_timer_text(
     timer_elapsed_seconds: int,
     timer_started_at: datetime | None,
 ) -> str:
+    return format_elapsed_time(
+        _resolve_live_timer_seconds(
+            timer_elapsed_seconds=timer_elapsed_seconds,
+            timer_started_at=timer_started_at,
+        )
+    )
+
+
+def _resolve_live_timer_seconds(
+    *,
+    timer_elapsed_seconds: int,
+    timer_started_at: datetime | None,
+) -> int:
     if timer_started_at is None:
-        return format_elapsed_time(timer_elapsed_seconds)
+        return max(int(timer_elapsed_seconds), 0)
 
     live_elapsed_seconds = max(
         int((utc_now() - timer_started_at).total_seconds()),
         int(timer_elapsed_seconds),
         0,
     )
-    return format_elapsed_time(live_elapsed_seconds)
+    return live_elapsed_seconds
+
+
+def _is_timer_warning(elapsed_seconds: int) -> bool:
+    return int(elapsed_seconds) >= TIMER_WARNING_THRESHOLD_SECONDS
 
 
 def _subject_checkbox_key(subject: str) -> str:
@@ -921,6 +942,15 @@ def _apply_live_page_styles() -> None:
             color: #1e3a8a;
             font-weight: 800;
             white-space: nowrap;
+        }
+
+        .gm-live-metric--timer-warning,
+        .gm-live-metric--timer-warning .gm-live-metric-value {
+            color: #dc2626 !important;
+        }
+
+        .gm-live-metric--timer-warning .gm-live-metric-icon {
+            filter: brightness(0) saturate(100%) invert(24%) sepia(97%) saturate(2652%) hue-rotate(351deg) brightness(89%) contrast(95%);
         }
 
         div[data-testid="stElementContainer"]:has(.gm-live-metrics-bar) {
@@ -1183,6 +1213,17 @@ def _apply_live_page_styles() -> None:
             background: #ffffff !important;
         }
 
+        div[data-testid="stPopover"] [data-testid="stPopoverBody"] > div,
+        div[data-testid="stPopover"] div[data-testid="stVerticalBlockBorderWrapper"],
+        div[data-testid="stPopover"] div[data-testid="stVerticalBlockBorderWrapper"] > div,
+        div[data-testid="stPopover"] div[data-testid="stContainer"] {
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+
         div[data-testid="stPopover"] [data-testid="stVerticalBlock"] {
             align-items: stretch !important;
         }
@@ -1203,6 +1244,11 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stPopover"] [data-testid="stCheckbox"] {
             width: 100% !important;
             margin: 0 !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-topic-filter-group-hook) [data-testid="stCheckbox"] {
+            margin-left: 1.75rem !important;
+            width: calc(100% - 1.75rem) !important;
         }
 
         div[data-testid="stPopover"] [data-testid="stCheckbox"] label {
@@ -1281,7 +1327,6 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-baseweb="popover"],
-        div[data-baseweb="popover"] > div,
         div[data-baseweb="popover"] [role="listbox"] {
             background: #ffffff !important;
             border: 1px solid #dbeafe !important;

@@ -29,7 +29,7 @@ def render_question_session_template(
 ) -> str:
     """Render the authenticated question/session page from one HTML template."""
 
-    subject_filter = selected_subject if selected_subject in subject_options else "Todas"
+    subject_filter = selected_subject if selected_subject in subject_options else "Tudo"
     alternatives_html = empty_state_html or _render_alternatives_html(
         alternatives=alternatives,
         selected_option_id=selected_option_id,
@@ -94,7 +94,7 @@ def normalize_subject_filter(subject: str | None) -> str:
     """Normalize blank subject filters to the canonical all-subject label."""
 
     text = str(subject or "").strip()
-    return text or "Todas"
+    return text or "Tudo"
 
 
 def format_elapsed_time(total_seconds: float | int) -> str:

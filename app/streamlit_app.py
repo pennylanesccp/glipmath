@@ -801,7 +801,6 @@ def _apply_workspace_shell_styles() -> None:
         }
 
         div[data-baseweb="popover"],
-        div[data-baseweb="popover"] > div,
         div[data-baseweb="popover"] [role="listbox"] {
             background: #ffffff !important;
             border: 1px solid #dbeafe !important;

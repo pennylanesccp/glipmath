@@ -12,7 +12,7 @@ from app.ui.template_renderer import asset_to_data_uri, render_template
 from modules.domain.models import DisplayAlternative
 
 NOOP_TARGET = "#preview-static"
-SUBJECT_OPTIONS = ["Todas", "Matematica", "Portugues", "Ciencias"]
+SUBJECT_OPTIONS = ["Tudo", "Matematica", "Portugues", "Ciencias"]
 QUESTION_PREVIEW_LABELS = {
     "pending": "Resposta pendente",
     "correct": "Resposta correta",

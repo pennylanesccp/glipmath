@@ -396,3 +396,30 @@ def test_resolve_live_timer_text_falls_back_to_existing_elapsed_seconds() -> Non
     )
 
     assert timer_text == "01:52"
+
+
+def test_resolve_live_timer_seconds_uses_current_time_when_running(monkeypatch) -> None:
+    monkeypatch.setattr(
+        main_page,
+        "utc_now",
+        lambda: datetime(2026, 4, 8, 16, 2, 5, tzinfo=timezone.utc),
+    )
+
+    elapsed_seconds = main_page._resolve_live_timer_seconds(
+        timer_elapsed_seconds=40,
+        timer_started_at=datetime(2026, 4, 8, 16, 0, 0, tzinfo=timezone.utc),
+    )
+
+    assert elapsed_seconds == 125
+    assert main_page._is_timer_warning(elapsed_seconds) is True
+
+
+def test_build_metric_chip_html_marks_timer_as_warning_after_threshold() -> None:
+    html = main_page._build_metric_chip_html(
+        "02:00",
+        "",
+        is_timer=True,
+        timer_warning=True,
+    )
+
+    assert "gm-live-metric--timer-warning" in html

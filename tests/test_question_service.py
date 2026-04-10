@@ -225,7 +225,7 @@ def test_subject_option_helpers_build_and_filter_active_ids() -> None:
         QuestionIndexEntry(id_question=4, subject=None, topic=None, cohort_key="ano_1"),
     ]
 
-    assert build_subject_options(question_index) == ["Todas", "matematica", "portugues"]
+    assert build_subject_options(question_index) == ["Tudo", "matematica", "portugues"]
     assert filter_question_ids_by_subject(question_index, None) == [1, 2, 3, 4]
     assert filter_question_ids_by_subject(question_index, "Matematica") == [1, 3]
     assert filter_question_ids_by_subject(question_index, "Matemática", topic="Radiciação") == [3]
@@ -259,7 +259,7 @@ def test_multi_question_filters_normalize_and_union_subjects_with_topics() -> No
 
 
 def test_format_question_filter_label_summarizes_multi_selection_state() -> None:
-    assert format_question_filter_label(QuestionFilterSelection()) == "Todas"
+    assert format_question_filter_label(QuestionFilterSelection()) == "Tudo"
     assert (
         format_question_filter_label(QuestionFilterSelection(subjects=("matematica",)))
         == "Matemática"
