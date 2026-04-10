@@ -348,21 +348,20 @@ def test_build_pending_alternative_card_html_renders_markdown_and_selected_state
     assert "print('ok')" in html
 
 
-def test_build_pending_alternative_card_html_v2_wraps_card_in_clickable_link() -> None:
-    html = main_page._build_pending_alternative_card_html_v2(
-        alternative=DisplayAlternative(
-            option_id="option_sql",
-            alternative_text="`SELECT 1`",
-            explanation=None,
-            is_correct=False,
-        ),
-        is_selected=False,
-        selection_href="?gm_pending_pick=option_sql",
+def test_format_pending_widget_label_unwraps_fenced_code_blocks() -> None:
+    label = main_page._format_pending_widget_label(
+        "```sql\nSELECT *\nFROM bronze.orders\n```"
     )
 
-    assert 'class="gm-live-pending-choice-link"' in html
-    assert "?gm_pending_pick=option_sql" in html
-    assert "gm-live-pending-choice-dot" in html
+    assert label == "SELECT *\nFROM bronze.orders"
+
+
+def test_format_pending_widget_label_preserves_inline_markdown_when_possible() -> None:
+    label = main_page._format_pending_widget_label(
+        "Use `Type 1` and compare with `Type 2`."
+    )
+
+    assert label == "Use `Type 1` and compare with `Type 2`."
 
 
 def test_build_answer_status_chip_html_matches_result_state() -> None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from html import escape
-from urllib.parse import quote
+import re
 
 import streamlit as st
 
@@ -44,7 +44,7 @@ from modules.utils.datetime_utils import utc_now
 FIRE_ICON_RELATIVE_PATH = "assets/icons/fire-svgrepo-com.svg"
 PODIUM_ICON_RELATIVE_PATH = "assets/icons/pedestal-podium-svgrepo-com.svg"
 TIMER_ICON_RELATIVE_PATH = "assets/icons/timer-outline-svgrepo-com.svg"
-PENDING_SELECTION_QUERY_PARAM = "gm_pending_pick"
+FENCED_CODE_BLOCK_PATTERN = re.compile(r"```[^\n`]*\n(.*?)```", re.DOTALL)
 
 
 def render_main_page(
@@ -270,31 +270,50 @@ def _render_pending_state_compact(
     answer_service: AnswerService,
     selected_option_id: str | None,
 ) -> None:
+    _, content_col, _ = st.columns([0.03, 0.94, 0.03], vertical_alignment="top")
+    with content_col:
+        _render_pending_interaction_fragment(
+            user=user,
+            current_question=current_question,
+            alternatives=alternatives,
+            answer_service=answer_service,
+            selected_option_id=selected_option_id,
+        )
+
+
+@st.fragment
+def _render_pending_interaction_fragment(
+    *,
+    user: User,
+    current_question: Question,
+    alternatives: list[DisplayAlternative],
+    answer_service: AnswerService,
+    selected_option_id: str | None,
+) -> None:
     if not alternatives:
         st.html(_build_info_card_html("Esta questão não possui alternativas disponíveis."))
         return
 
-    _, content_col, _ = st.columns([0.03, 0.94, 0.03], vertical_alignment="top")
-    with content_col:
-        selected_option_id = _render_pending_alternative_picker_compact(
-            alternatives=alternatives,
-            selected_option_id=selected_option_id,
-        )
+    selected_option_id = _render_pending_alternative_radio(
+        current_question_id=current_question.id_question,
+        alternatives=alternatives,
+        selected_option_id=selected_option_id,
+    )
 
-        skip_col, verify_col = st.columns([1, 2], vertical_alignment="bottom")
-        with skip_col:
-            skip_clicked = st.button(
-                "Pular questão",
-                key=f"gm_skip_question_{current_question.id_question}",
-                use_container_width=True,
-            )
-        with verify_col:
-            verify_clicked = st.button(
-                "Verificar resposta",
-                key=f"gm_verify_question_{current_question.id_question}",
-                type="primary",
-                use_container_width=True,
-            )
+    skip_col, verify_col = st.columns([1, 2], vertical_alignment="bottom")
+    with skip_col:
+        skip_clicked = st.button(
+            "Pular questão",
+            key=f"gm_skip_question_{current_question.id_question}",
+            use_container_width=True,
+        )
+    with verify_col:
+        verify_clicked = st.button(
+            "Verificar resposta",
+            key=f"gm_verify_question_{current_question.id_question}",
+            type="primary",
+            use_container_width=True,
+        )
 
     if skip_clicked:
         mark_question_skipped(current_question.id_question)
@@ -323,28 +342,33 @@ def _render_pending_state_compact(
     )
 
 
-def _render_pending_alternative_picker_compact(
+def _render_pending_alternative_radio(
     *,
+    current_question_id: int,
     alternatives: list[DisplayAlternative],
     selected_option_id: str | None,
 ) -> str | None:
-    selected_option_id = _consume_pending_selection_query_param(
-        valid_option_ids={alternative.option_id for alternative in alternatives},
-        fallback_selected_option_id=selected_option_id,
-    )
     st.html('<div class="gm-live-pending-label">Escolha uma alternativa</div>')
 
-    for alternative in alternatives:
-        is_selected = alternative.option_id == selected_option_id
-        st.html(
-            _build_pending_alternative_card_html_v2(
-                alternative=alternative,
-                is_selected=is_selected,
-                selection_href=_build_pending_selection_href(alternative.option_id),
-            )
-        )
+    option_ids = [alternative.option_id for alternative in alternatives]
+    label_by_option_id = {
+        alternative.option_id: _format_pending_widget_label(alternative.alternative_text)
+        for alternative in alternatives
+    }
+    selection_index = option_ids.index(selected_option_id) if selected_option_id in option_ids else None
+    selected_option = st.radio(
+        "Escolha uma alternativa",
+        options=option_ids,
+        index=selection_index,
+        key=f"gm_pending_alternative_radio_{current_question_id}",
+        format_func=lambda option_id: label_by_option_id[option_id],
+        label_visibility="collapsed",
+    )
 
-    return selected_option_id
+    normalized_selection = str(selected_option).strip() if selected_option is not None else None
+    if normalized_selection != get_question_selection():
+        set_question_selection(normalized_selection)
+    return normalized_selection
 
 
 def _render_pending_state(
@@ -619,60 +643,6 @@ def _build_info_card_html(message_html: str) -> str:
     )
 
 
-def _build_pending_selection_href(option_id: str) -> str:
-    return f"?{PENDING_SELECTION_QUERY_PARAM}={quote(option_id, safe='')}"
-
-
-def _consume_pending_selection_query_param(
-    *,
-    valid_option_ids: set[str],
-    fallback_selected_option_id: str | None,
-) -> str | None:
-    raw_value = st.query_params.get(PENDING_SELECTION_QUERY_PARAM)
-    if isinstance(raw_value, list):
-        raw_value = raw_value[0] if raw_value else None
-
-    selected_option_id = str(raw_value).strip() if raw_value is not None else None
-    if not selected_option_id:
-        return fallback_selected_option_id
-
-    try:
-        del st.query_params[PENDING_SELECTION_QUERY_PARAM]
-    except Exception:
-        pass
-
-    if selected_option_id not in valid_option_ids:
-        return fallback_selected_option_id
-
-    set_question_selection(selected_option_id)
-    return selected_option_id
-
-
-def _build_pending_alternative_card_html_v2(
-    *,
-    alternative: DisplayAlternative,
-    is_selected: bool,
-    selection_href: str,
-) -> str:
-    card_class = "gm-live-card gm-live-pending-choice-card"
-    dot_class = "gm-live-pending-choice-dot"
-    if is_selected:
-        card_class += " gm-live-pending-choice-card--selected"
-        dot_class += " gm-live-pending-choice-dot--selected"
-
-    return (
-        f'<a class="gm-live-pending-choice-link" href="{escape(selection_href, quote=True)}" '
-        f'aria-label="{escape(markdown_to_plain_text(alternative.alternative_text), quote=True)}">'
-        f'<section class="{card_class}">'
-        '<div class="gm-live-pending-choice-row">'
-        f'<span class="{dot_class}" aria-hidden="true"></span>'
-        f'<div class="gm-live-answer-text">{_text_to_html(alternative.alternative_text)}</div>'
-        "</div>"
-        "</section>"
-        "</a>"
-    )
-
-
 def _build_pending_alternative_card_html(
     *,
     alternative: DisplayAlternative,
@@ -742,6 +712,15 @@ def _selected_option_id_for_render(current_question_id: int | None) -> str | Non
             selected = str(last_result.get("selected_option_id") or "").strip()
             return selected or None
     return get_question_selection()
+
+
+def _format_pending_widget_label(markdown_text: str) -> str:
+    unwrapped_text = FENCED_CODE_BLOCK_PATTERN.sub(
+        lambda match: match.group(1).strip(),
+        markdown_text,
+    )
+    normalized_text = unwrapped_text.strip()
+    return normalized_text or markdown_to_plain_text(markdown_text)
 
 
 def _resolve_elapsed_seconds(
