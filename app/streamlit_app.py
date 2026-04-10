@@ -21,6 +21,7 @@ from app.pages.professor_page import render_professor_page
 from app.state.session_state import (
     bind_authenticated_user,
     clear_current_question,
+    get_current_professor_tool,
     get_current_workspace,
     ensure_question_pool_scope,
     get_answered_question_ids,

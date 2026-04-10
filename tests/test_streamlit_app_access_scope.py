@@ -1,6 +1,11 @@
 import pandas as pd
 
 from app import streamlit_app
+from app.state.session_state import (
+    get_current_professor_tool,
+    initialize_session_state,
+    set_current_professor_tool,
+)
 from modules.domain.models import User
 
 
@@ -99,3 +104,24 @@ def test_resolve_project_options_for_non_global_user_avoids_project_catalog_quer
     assert project_options == ["crescer_e_conectar", "rumo_etec"]
     assert issues == []
     assert repository.received_cohort_key == "unset"
+
+
+def test_render_authenticated_shell_clears_professor_tool_for_student_only_user() -> None:
+    initialize_session_state()
+    set_current_professor_tool("add_student")
+    user = User(
+        email="aluno@example.com",
+        role="student",
+        cohort_key="crescer_e_conectar",
+        accessible_cohort_keys=("crescer_e_conectar",),
+    )
+
+    selected_project, current_workspace = streamlit_app._render_authenticated_shell(
+        user=user,
+        project_options=["crescer_e_conectar"],
+        selected_project="crescer_e_conectar",
+    )
+
+    assert selected_project == "crescer_e_conectar"
+    assert current_workspace == "student"
+    assert get_current_professor_tool() is None
