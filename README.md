@@ -32,13 +32,14 @@ glipmath/
 |- infrastructure/terraform/
 |- sql/
 |- scripts/
+|- local/
 |- docs/
 |- tests/
 |- README.md
 |- requirements.txt
 |- pyproject.toml
 |- run_terraform.ps1
-|- run_streamlit.ps1
+|- local/run_streamlit.ps1
 ```
 
 ## Architecture Summary
@@ -145,7 +146,7 @@ The app combines the correct answer and wrong answers in memory, assigns stable 
 10. Run the app:
 
    ```powershell
-   .\run_streamlit.ps1
+   .\local\run_streamlit.ps1
    ```
 
 ## Streamlit Community Cloud Deployment

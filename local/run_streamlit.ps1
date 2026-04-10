@@ -8,7 +8,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path (Join-Path $ScriptDirectory "..")).Path
 $AppPath = Join-Path $RepoRoot "app\streamlit_app.py"
 $VenvPath = Join-Path $RepoRoot "venv"
 $VenvActivate = Join-Path $RepoRoot "venv\Scripts\Activate.ps1"

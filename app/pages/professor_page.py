@@ -54,6 +54,7 @@ AUTHORING_WRONG_EXPLANATION_KEYS = (
 )
 AUTHORING_PROJECT_SCOPE_KEY = "gm_prof_authoring_project_scope"
 ADD_STUDENT_EMAIL_KEY = "gm_prof_add_student_email"
+ADD_STUDENT_EMAIL_RESET_REQUEST_KEY = "gm_prof_add_student_email_reset_requested"
 USER_ACCESS_WRITE_PERMISSION_ERROR_HINT = (
     "O login Google já devolveu um e-mail para o app; esse erro não é do OAuth. "
     "A service account configurada no Streamlit Cloud não tem permissão de escrita em "
@@ -366,6 +367,7 @@ def _render_add_student_panel(
         st.warning("Selecione um projeto acima para liberar o cadastro de alunos.")
         return
 
+    _consume_add_student_email_reset_request()
     st.session_state.setdefault(ADD_STUDENT_EMAIL_KEY, "")
 
     with st.container():
@@ -430,7 +432,7 @@ def _handle_add_student(
         st.error(_format_add_student_error(exc))
         return
 
-    st.session_state[ADD_STUDENT_EMAIL_KEY] = ""
+    st.session_state[ADD_STUDENT_EMAIL_RESET_REQUEST_KEY] = True
     set_professor_notice(
         "success",
         f"Acesso liberado para {email} neste projeto.",
@@ -451,6 +453,12 @@ def _is_user_access_write_permission_error(message: str) -> bool:
         "user_access" in normalized_message
         and "updatedata denied" in normalized_message
     )
+
+
+def _consume_add_student_email_reset_request() -> None:
+    should_reset = bool(st.session_state.pop(ADD_STUDENT_EMAIL_RESET_REQUEST_KEY, False))
+    if should_reset:
+        st.session_state[ADD_STUDENT_EMAIL_KEY] = ""
 
 
 def _build_current_authoring_draft(*, project_key: str | None) -> QuestionAuthoringDraft:
