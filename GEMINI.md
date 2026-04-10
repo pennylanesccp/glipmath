@@ -1,4 +1,4 @@
-# AGENTS.md - GlipMath repo instructions for Codex
+# GEMINI.md - GlipMath repo instructions for Gemini
 
 Role: Senior Python, Streamlit, BigQuery, and Terraform engineer.
 

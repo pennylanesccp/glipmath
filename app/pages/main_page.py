@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from html import escape
+from urllib.parse import quote
 
 import streamlit as st
 
@@ -43,6 +44,7 @@ from modules.utils.datetime_utils import utc_now
 FIRE_ICON_RELATIVE_PATH = "assets/icons/fire-svgrepo-com.svg"
 PODIUM_ICON_RELATIVE_PATH = "assets/icons/pedestal-podium-svgrepo-com.svg"
 TIMER_ICON_RELATIVE_PATH = "assets/icons/timer-outline-svgrepo-com.svg"
+PENDING_SELECTION_QUERY_PARAM = "gm_pending_pick"
 
 
 def render_main_page(
@@ -176,7 +178,7 @@ def _render_subject_topic_filter_multiselect(
     )
 
     with st.popover(
-        f"{selected_filter_label} ▾",
+        selected_filter_label,
         use_container_width=True,
         width="stretch",
         key="gm_subject_topic_filter_popover",
@@ -194,7 +196,6 @@ def _render_subject_topic_filter_multiselect(
             st.checkbox(
                 format_subject_label(group.subject),
                 key=_subject_checkbox_key(group.subject),
-                help=f"Seleciona toda a matéria {format_subject_label(group.subject)}.",
                 on_change=_toggle_subject_filter,
                 args=(group.subject,),
             )
@@ -218,7 +219,7 @@ def _render_subject_topic_filter(
     selected_filter_label: str,
 ) -> None:
     with st.popover(
-        f"{selected_filter_label} ▾",
+        selected_filter_label,
         use_container_width=True,
         width="stretch",
         key="gm_subject_topic_filter_popover",
@@ -327,29 +328,21 @@ def _render_pending_alternative_picker_compact(
     alternatives: list[DisplayAlternative],
     selected_option_id: str | None,
 ) -> str | None:
+    selected_option_id = _consume_pending_selection_query_param(
+        valid_option_ids={alternative.option_id for alternative in alternatives},
+        fallback_selected_option_id=selected_option_id,
+    )
     st.html('<div class="gm-live-pending-label">Escolha uma alternativa</div>')
 
     for alternative in alternatives:
         is_selected = alternative.option_id == selected_option_id
-        card_col, action_col = st.columns([4.3, 1.3], vertical_alignment="center")
-        with card_col:
-            st.html(
-                _build_pending_alternative_card_html_v2(
-                    alternative=alternative,
-                    is_selected=is_selected,
-                )
+        st.html(
+            _build_pending_alternative_card_html_v2(
+                alternative=alternative,
+                is_selected=is_selected,
+                selection_href=_build_pending_selection_href(alternative.option_id),
             )
-        with action_col:
-            select_clicked = st.button(
-                "Escolhida" if is_selected else "Escolher",
-                key=f"gm_select_alternative_{alternative.option_id}",
-                type="primary" if is_selected else "secondary",
-                use_container_width=True,
-                help=f"Selecionar alternativa: {markdown_to_plain_text(alternative.alternative_text)}",
-            )
-        if select_clicked:
-            set_question_selection(alternative.option_id)
-            st.rerun()
+        )
 
     return selected_option_id
 
@@ -626,10 +619,40 @@ def _build_info_card_html(message_html: str) -> str:
     )
 
 
+def _build_pending_selection_href(option_id: str) -> str:
+    return f"?{PENDING_SELECTION_QUERY_PARAM}={quote(option_id, safe='')}"
+
+
+def _consume_pending_selection_query_param(
+    *,
+    valid_option_ids: set[str],
+    fallback_selected_option_id: str | None,
+) -> str | None:
+    raw_value = st.query_params.get(PENDING_SELECTION_QUERY_PARAM)
+    if isinstance(raw_value, list):
+        raw_value = raw_value[0] if raw_value else None
+
+    selected_option_id = str(raw_value).strip() if raw_value is not None else None
+    if not selected_option_id:
+        return fallback_selected_option_id
+
+    try:
+        del st.query_params[PENDING_SELECTION_QUERY_PARAM]
+    except Exception:
+        pass
+
+    if selected_option_id not in valid_option_ids:
+        return fallback_selected_option_id
+
+    set_question_selection(selected_option_id)
+    return selected_option_id
+
+
 def _build_pending_alternative_card_html_v2(
     *,
     alternative: DisplayAlternative,
     is_selected: bool,
+    selection_href: str,
 ) -> str:
     card_class = "gm-live-card gm-live-pending-choice-card"
     dot_class = "gm-live-pending-choice-dot"
@@ -638,12 +661,15 @@ def _build_pending_alternative_card_html_v2(
         dot_class += " gm-live-pending-choice-dot--selected"
 
     return (
+        f'<a class="gm-live-pending-choice-link" href="{escape(selection_href, quote=True)}" '
+        f'aria-label="{escape(markdown_to_plain_text(alternative.alternative_text), quote=True)}">'
         f'<section class="{card_class}">'
         '<div class="gm-live-pending-choice-row">'
         f'<span class="{dot_class}" aria-hidden="true"></span>'
         f'<div class="gm-live-answer-text">{_text_to_html(alternative.alternative_text)}</div>'
         "</div>"
         "</section>"
+        "</a>"
     )
 
 
@@ -1045,6 +1071,29 @@ def _apply_live_page_styles() -> None:
             width: 100%;
         }
 
+        .gm-live-pending-choice-link {
+            color: inherit !important;
+            cursor: pointer !important;
+            display: block;
+            margin: 0;
+            text-decoration: none !important;
+            width: 100%;
+        }
+
+        .gm-live-pending-choice-link:hover .gm-live-pending-choice-card {
+            border-color: #93c5fd;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
+        }
+
+        .gm-live-pending-choice-link:focus-visible {
+            outline: none;
+        }
+
+        .gm-live-pending-choice-link:focus-visible .gm-live-pending-choice-card {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 0.18rem rgba(96, 165, 250, 0.26);
+        }
+
         .gm-live-pending-choice-row {
             align-items: flex-start;
             display: flex;
@@ -1203,6 +1252,14 @@ def _apply_live_page_styles() -> None:
             cursor: pointer !important;
         }
 
+        div[data-testid="stPopover"] [data-testid="stHorizontalBlock"],
+        div[data-testid="stPopover"] [data-testid="stHorizontalBlock"] > div {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+
         div[data-testid="stPopover"] div[data-testid="stButton"] button[kind="tertiary"] {
             background: #f8fbff !important;
             border: 1px solid #dbeafe !important;
@@ -1218,34 +1275,6 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stPopover"] div[data-testid="stButton"] button[kind="tertiary"]:hover {
             background: #eef4ff !important;
             border-color: #bfdbfe !important;
-        }
-
-        div[data-testid="stPopover"] details,
-        div[data-testid="stPopover"] details > div,
-        div[data-testid="stPopover"] [data-testid="stExpander"],
-        div[data-testid="stPopover"] [data-testid="stExpander"] > details {
-            background: #ffffff !important;
-            border: 1px solid #e2e8f0 !important;
-            border-radius: 1rem !important;
-            box-shadow: none !important;
-        }
-
-        div[data-testid="stPopover"] details {
-            padding: 0.1rem 0.3rem;
-        }
-
-        div[data-testid="stPopover"] summary,
-        div[data-testid="stPopover"] summary * {
-            background: transparent !important;
-            color: #0f172a !important;
-            font-weight: 800 !important;
-            text-align: left !important;
-        }
-
-        div[data-testid="stPopover"] [data-testid="stExpanderToggleIcon"] svg {
-            fill: #64748b !important;
-            color: #64748b !important;
-            stroke: #64748b !important;
         }
 
         div[data-testid="stSelectbox"] {
