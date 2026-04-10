@@ -4,7 +4,7 @@ import pandas as pd
 
 from modules.domain.models import User, UserAccessEntry
 from modules.storage.schema_validation import prepare_dataframe, require_columns, worksheet_row_number
-from modules.utils.datetime_utils import parse_timestamp
+from modules.utils.datetime_utils import parse_timestamp, to_iso_timestamp, utc_now
 from modules.utils.normalization import clean_optional_text, coerce_bool, normalize_email
 
 USER_ACCESS_RESOURCE_NAME = "user_access"
@@ -227,6 +227,49 @@ def resolve_available_project_options(
     if explicit_projects:
         return explicit_projects
     return normalized_active_projects
+
+
+def build_student_access_row(
+    email: str | None,
+    *,
+    cohort_key: str,
+    display_name: str | None = None,
+) -> dict[str, object]:
+    """Build one canonical active student-access row for BigQuery inserts."""
+
+    normalized_email = normalize_email(email)
+    if not normalized_email:
+        raise ValueError("Informe um e-mail válido.")
+
+    normalized_cohort_key = _normalize_cohort_key(cohort_key)
+    if normalized_cohort_key == "all":
+        raise ValueError("O aluno precisa ser vinculado a um projeto específico.")
+
+    created_at = utc_now()
+    return {
+        "user_email": normalized_email,
+        "role": "student",
+        "cohort_key": normalized_cohort_key,
+        "is_active": True,
+        "display_name": clean_optional_text(display_name),
+        "created_at_utc": to_iso_timestamp(created_at),
+        "updated_at_utc": to_iso_timestamp(created_at),
+    }
+
+
+def has_active_project_access(
+    access_entries: list[UserAccessEntry] | tuple[UserAccessEntry, ...],
+    *,
+    cohort_key: str,
+) -> bool:
+    """Return whether the email already has active access to the target project."""
+
+    normalized_cohort_key = _normalize_cohort_key(cohort_key)
+    return any(
+        entry.is_active
+        and _normalize_cohort_key(entry.cohort_key) in {"all", normalized_cohort_key}
+        for entry in access_entries
+    )
 
 
 def _normalize_role(value: object) -> str:

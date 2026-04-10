@@ -24,11 +24,18 @@ from modules.services.question_authoring_service import (
     validate_draft_for_ai,
     validate_draft_for_submission,
 )
+from modules.services.user_service import (
+    build_student_access_row,
+    has_active_project_access,
+    parse_user_access_dataframe,
+)
 from modules.storage.bigquery_client import BigQueryError
 from modules.storage.question_repository import QuestionRepository
+from modules.storage.user_access_repository import UserAccessRepository
 from modules.utils.normalization import clean_optional_text
 
 PROFESSOR_TOOL_GENERATE_QUESTIONS = "generate_questions"
+PROFESSOR_TOOL_ADD_STUDENT = "add_student"
 AUTHORING_SUBJECT_KEY = "gm_prof_authoring_subject"
 AUTHORING_TOPIC_KEY = "gm_prof_authoring_topic"
 AUTHORING_DIFFICULTY_KEY = "gm_prof_authoring_difficulty"
@@ -46,12 +53,14 @@ AUTHORING_WRONG_EXPLANATION_KEYS = (
     "gm_prof_authoring_wrong_explanation_3",
 )
 AUTHORING_PROJECT_SCOPE_KEY = "gm_prof_authoring_project_scope"
+ADD_STUDENT_EMAIL_KEY = "gm_prof_add_student_email"
 
 
 def render_professor_page(
     *,
     selected_project: str | None,
     question_repository: QuestionRepository,
+    user_access_repository: UserAccessRepository,
     gemini_api_key: str | None,
     gemini_model: str,
 ) -> None:
@@ -62,7 +71,7 @@ def render_professor_page(
     _render_menu_cards()
 
     current_tool = get_current_professor_tool() or PROFESSOR_TOOL_GENERATE_QUESTIONS
-    if current_tool != PROFESSOR_TOOL_GENERATE_QUESTIONS:
+    if current_tool not in {PROFESSOR_TOOL_GENERATE_QUESTIONS, PROFESSOR_TOOL_ADD_STUDENT}:
         set_current_professor_tool(PROFESSOR_TOOL_GENERATE_QUESTIONS)
         current_tool = PROFESSOR_TOOL_GENERATE_QUESTIONS
 
@@ -72,6 +81,11 @@ def render_professor_page(
             question_repository=question_repository,
             gemini_api_key=gemini_api_key,
             gemini_model=gemini_model,
+        )
+    elif current_tool == PROFESSOR_TOOL_ADD_STUDENT:
+        _render_add_student_panel(
+            selected_project=selected_project,
+            user_access_repository=user_access_repository,
         )
 
 
@@ -112,13 +126,16 @@ def _render_menu_cards() -> None:
                     st.rerun()
 
         with second_col:
-            st.button(
-                "Em breve",
-                key="gm_professor_tool_coming_soon",
-                icon=":material/grid_view:",
-                disabled=True,
+            if st.button(
+                "Adicionar aluno",
+                key="gm_professor_tool_add_student",
+                icon=":material/person_add:",
+                type="primary" if current_tool == PROFESSOR_TOOL_ADD_STUDENT else "secondary",
                 use_container_width=True,
-            )
+            ):
+                if current_tool != PROFESSOR_TOOL_ADD_STUDENT:
+                    set_current_professor_tool(PROFESSOR_TOOL_ADD_STUDENT)
+                    st.rerun()
 
 
 def _render_question_authoring_panel(
@@ -321,6 +338,88 @@ def _handle_submit_question(
     set_professor_notice(
         "success",
         f"Questão {row['id_question']} enviada com sucesso para o banco.",
+    )
+    st.rerun()
+
+
+def _render_add_student_panel(
+    *,
+    selected_project: str | None,
+    user_access_repository: UserAccessRepository,
+) -> None:
+    normalized_project = clean_optional_text(selected_project)
+    if normalized_project is None:
+        st.warning("Selecione um projeto acima para liberar o cadastro de alunos.")
+        return
+
+    st.session_state.setdefault(ADD_STUDENT_EMAIL_KEY, "")
+
+    with st.container():
+        st.html(
+            """
+            <section class="gm-professor-card">
+              <div class="gm-professor-eyebrow">Espaço Professor</div>
+              <h2 class="gm-professor-title">Adicionar aluno</h2>
+              <p class="gm-professor-copy">
+                Informe o e-mail do aluno para liberar acesso a este projeto.
+              </p>
+            </section>
+            """
+        )
+
+    with st.form("gm_professor_add_student_form", clear_on_submit=False):
+        st.text_input(
+            "E-mail do aluno",
+            key=ADD_STUDENT_EMAIL_KEY,
+            placeholder="aluno@exemplo.com",
+        )
+        submitted = st.form_submit_button(
+            "Adicionar aluno",
+            type="primary",
+            use_container_width=True,
+        )
+
+    if submitted:
+        _handle_add_student(
+            email=clean_optional_text(st.session_state.get(ADD_STUDENT_EMAIL_KEY)),
+            project_key=normalized_project,
+            user_access_repository=user_access_repository,
+        )
+
+
+def _handle_add_student(
+    *,
+    email: str | None,
+    project_key: str,
+    user_access_repository: UserAccessRepository,
+) -> None:
+    try:
+        existing_access_frame = user_access_repository.load_active_user_frame(email or "")
+        existing_access_entries, issues = parse_user_access_dataframe(existing_access_frame)
+        if issues:
+            raise ValueError("Nao foi possivel validar os acessos atuais desse e-mail.")
+
+        if has_active_project_access(existing_access_entries, cohort_key=project_key):
+            set_professor_notice(
+                "warning",
+                "Esse e-mail já possui acesso ativo a este projeto.",
+            )
+            st.rerun()
+
+        user_access_repository.append_access_row(
+            build_student_access_row(
+                email,
+                cohort_key=project_key,
+            )
+        )
+    except (BigQueryError, ValueError) as exc:
+        st.error(str(exc))
+        return
+
+    st.session_state[ADD_STUDENT_EMAIL_KEY] = ""
+    set_professor_notice(
+        "success",
+        f"Acesso liberado para {email} neste projeto.",
     )
     st.rerun()
 

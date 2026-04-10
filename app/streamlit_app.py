@@ -175,6 +175,7 @@ def main() -> None:
             render_professor_page(
                 selected_project=effective_project_scope,
                 question_repository=context.question_repository,
+                user_access_repository=context.user_access_repository,
                 gemini_api_key=settings.gemini.api_key,
                 gemini_model=settings.gemini.model,
             )

@@ -34,3 +34,19 @@ class UserAccessRepository:
             query,
             parameters=[bigquery.ScalarQueryParameter("user_email", "STRING", user_email)],
         )
+
+    def append_access_row(self, row: dict[str, object]) -> None:
+        """Append one canonical user-access row."""
+
+        self._bigquery_client.insert_rows_json(
+            self._table_id,
+            [self._filter_row_for_table_schema(row)],
+        )
+
+    def _filter_row_for_table_schema(self, row: dict[str, object]) -> dict[str, object]:
+        available_columns = set(self._bigquery_client.get_table_column_names(self._table_id))
+        return {
+            key: value
+            for key, value in row.items()
+            if key in available_columns
+        }
