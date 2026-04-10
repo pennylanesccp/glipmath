@@ -83,10 +83,10 @@ resource "google_project_iam_member" "runtime_bigquery_job_user" {
   member  = "serviceAccount:${module.service_accounts.runtime_email}"
 }
 
-resource "google_bigquery_dataset_iam_member" "runtime_core_viewer" {
+resource "google_bigquery_dataset_iam_member" "runtime_core_editor" {
   project    = var.project_id
   dataset_id = module.bigquery.core_dataset_id
-  role       = "roles/bigquery.dataViewer"
+  role       = "roles/bigquery.dataEditor"
   member     = "serviceAccount:${module.service_accounts.runtime_email}"
 }
 

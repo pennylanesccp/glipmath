@@ -55,14 +55,15 @@ The `answers` table is day-partitioned by `answered_at_utc` and clustered by `us
 The Streamlit runtime service account gets:
 
 - `roles/bigquery.jobUser` on the project
-- `roles/bigquery.dataViewer` on `glipmath_core`
+- `roles/bigquery.dataEditor` on `glipmath_core`
 - `roles/bigquery.dataEditor` on `glipmath_events`
 - `roles/bigquery.dataViewer` on `glipmath_analytics`
 
 These permissions cover:
 
 - reading questions
-- reading `user_access`
+- inserting teacher-authored questions into `question_bank`
+- reading and updating `user_access`
 - inserting answers
 - reading leaderboard analytics
 

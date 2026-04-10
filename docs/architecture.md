@@ -41,6 +41,9 @@ GlipMath is a small but production-minded Streamlit application deployed on Stre
    - question streak
    - leaderboard position
 7. Submitting an answer appends one row to `glipmath_events.answers`.
+8. In `Espaço Professor`, admin and teacher actions can also append rows to
+   - `glipmath_core.question_bank`
+   - `glipmath_core.user_access`
 
 ## Offline Enrichment Flow
 
@@ -93,5 +96,7 @@ The authorization service remains as a boundary so the page layer still does not
 - App hosting: Streamlit Community Cloud
 - BigQuery access: service account JSON stored in Streamlit secrets
 - Infrastructure: Terraform for BigQuery, IAM, and the runtime service account
+
+Because the professor workspace now writes teacher-authored questions and student-access rows, the runtime service account needs write access on `glipmath_core` in addition to `glipmath_events`.
 
 There is no Docker, Cloud Run, Artifact Registry, or Secret Manager runtime dependency in the MVP.

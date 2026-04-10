@@ -38,6 +38,7 @@ The values are not identical across environments:
 - local development should keep `auth.redirect_uri = http://localhost:8501/oauth2callback`
 - Streamlit Community Cloud must use the deployed app URL, for example `https://glipmath.streamlit.app/oauth2callback`
 - `auth.redirect_uri`, `auth.client_id`, and `auth.server_metadata_url` are public in practice, but Streamlit auth still requires them under `[auth]` in secrets
+- keep `auth.client_kwargs = { "scope" = "openid profile email", "prompt" = "select_account" }` explicit so the deployed app reliably receives the authenticated email claim
 - Streamlit Community Cloud cannot fall back to metadata-server ADC for BigQuery credentials, so `[gcp_service_account]` is required there
 
 ## Runtime Notes
@@ -48,11 +49,13 @@ The values are not identical across environments:
 - no local filesystem persistence is used
 - BigQuery access uses the service account JSON stored in Streamlit secrets
 - when `[gcp_service_account]` is missing, the app now fails fast with a configuration error instead of falling back to metadata-based ADC lookup
+- if teachers should add learners through the app, the same service account also needs write access on `glipmath_core.user_access`, including `bigquery.tables.updateData`
 
 ## Verification Checklist
 
 - login page loads
 - Google login succeeds
+- if the Google Auth app is still in `Testing`, the signed-in email is listed in `Google Auth Platform` > `Audience` > `Test users`
 - one question renders with randomized alternatives
 - submitting an answer writes one row to `glipmath_events.answers`
 - day streak, question streak, and leaderboard position render without errors

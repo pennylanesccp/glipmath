@@ -74,6 +74,7 @@ Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
 Populate:
 
 - Google OAuth values under `[auth]`
+- explicit `auth.client_kwargs = { "scope" = "openid profile email", "prompt" = "select_account" }` so the app always receives the authenticated email
 - optional Gemini API key under `[ai]` if you want to run explanation enrichment
 - the service account JSON fields under `[gcp_service_account]`
 
@@ -89,6 +90,8 @@ Required shape:
 - teachers: `role = teacher` and `cohort_key = all`
 
 The app resolves access from authenticated email to this table. Users do not choose cohort in the UI.
+
+If you want teachers to add students through the in-app `Espaço Professor`, the runtime service account also needs write access on `glipmath_core.user_access`, including `bigquery.tables.updateData`. Granting `BigQuery Data Editor` on the dataset or on the specific table is the simplest path.
 
 ## 10. Prepare the Question Bank Input
 
@@ -130,7 +133,9 @@ python scripts/enrich_question_explanations.py --limit 50
 - paste the same secrets sections used locally into Streamlit Cloud secrets
 - include the real `[gcp_service_account]` block in the deployed app secrets because Streamlit Community Cloud cannot use metadata-server ADC for BigQuery
 - change `auth.redirect_uri` from the local `http://localhost:8501/oauth2callback` value to `https://glipmath.streamlit.app/oauth2callback`
+- keep `auth.client_kwargs = { "scope" = "openid profile email", "prompt" = "select_account" }` in the deployed secrets as well
 - confirm the same published callback URL is present in the Google OAuth client's `Authorized redirect URIs`
+- if the Google Auth app is still in `Testing`, add every allowed teacher or learner e-mail under `Google Auth Platform` > `Audience` > `Test users`
 - remember that changing the local `.streamlit/secrets.toml` file does not update the deployed Streamlit Cloud app
 
 ## 12. Deploy and Verify

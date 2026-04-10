@@ -54,6 +54,18 @@ AUTHORING_WRONG_EXPLANATION_KEYS = (
 )
 AUTHORING_PROJECT_SCOPE_KEY = "gm_prof_authoring_project_scope"
 ADD_STUDENT_EMAIL_KEY = "gm_prof_add_student_email"
+USER_ACCESS_WRITE_PERMISSION_ERROR_HINT = (
+    "O login Google já devolveu um e-mail para o app; esse erro não é do OAuth. "
+    "A service account configurada no Streamlit Cloud não tem permissão de escrita em "
+    "`glipmath_core.user_access`.\n\n"
+    "Para liberar o cadastro de alunos:\n"
+    "1. Dê à service account do app permissão `bigquery.tables.updateData` na tabela "
+    "ou no dataset `glipmath_core`.\n"
+    "2. Na prática, o caminho mais simples é conceder `BigQuery Data Editor` no dataset "
+    "ou na tabela `user_access`.\n"
+    "3. Se o app ainda estiver em modo `Testing` no Google Auth Platform, adicione o "
+    "e-mail do aluno em `Audience` > `Test users` para ele conseguir fazer login depois."
+)
 
 
 def render_professor_page(
@@ -399,7 +411,7 @@ def _handle_add_student(
         existing_access_frame = user_access_repository.load_active_user_frame(email or "")
         existing_access_entries, issues = parse_user_access_dataframe(existing_access_frame)
         if issues:
-            raise ValueError("Nao foi possivel validar os acessos atuais desse e-mail.")
+            raise ValueError("Não foi possível validar os acessos atuais desse e-mail.")
 
         if has_active_project_access(existing_access_entries, cohort_key=project_key):
             set_professor_notice(
@@ -415,7 +427,7 @@ def _handle_add_student(
             )
         )
     except (BigQueryError, ValueError) as exc:
-        st.error(str(exc))
+        st.error(_format_add_student_error(exc))
         return
 
     st.session_state[ADD_STUDENT_EMAIL_KEY] = ""
@@ -424,6 +436,21 @@ def _handle_add_student(
         f"Acesso liberado para {email} neste projeto.",
     )
     st.rerun()
+
+
+def _format_add_student_error(exc: BigQueryError | ValueError) -> str:
+    message = str(exc).strip()
+    if _is_user_access_write_permission_error(message):
+        return USER_ACCESS_WRITE_PERMISSION_ERROR_HINT
+    return message
+
+
+def _is_user_access_write_permission_error(message: str) -> bool:
+    normalized_message = message.casefold()
+    return (
+        "user_access" in normalized_message
+        and "updatedata denied" in normalized_message
+    )
 
 
 def _build_current_authoring_draft(*, project_key: str | None) -> QuestionAuthoringDraft:

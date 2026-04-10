@@ -40,9 +40,18 @@ def render_access_message(email: str | None) -> None:
     """Render a generic access issue state."""
 
     st.error("Não foi possível concluir o acesso.")
-    st.write(
-        "O beta usa a configuração do Google OAuth para controlar quem pode entrar. "
-        "Se o login funcionou, mas o app não conseguiu continuar, confirme se a conta devolveu um e-mail válido."
-    )
     if email:
+        st.write(
+            "O beta usa a configuração do Google OAuth para controlar quem pode entrar. "
+            "Se o login funcionou, mas o app não conseguiu continuar, confirme se existe "
+            "uma linha ativa para esse e-mail em `glipmath_core.user_access`."
+        )
         st.caption(f"E-mail detectado: {email}")
+        return
+
+    st.write(
+        "O login aconteceu, mas o provedor não devolveu um e-mail utilizável para o app. "
+        "Confirme se o OAuth está pedindo os escopos `openid profile email` e, se o app "
+        "ainda estiver em modo de teste, adicione a conta em `Audience` > `Test users` "
+        "no Google Auth Platform."
+    )

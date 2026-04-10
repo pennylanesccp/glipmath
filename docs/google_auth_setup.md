@@ -32,8 +32,11 @@ Put these values into `.streamlit/secrets.toml` locally and into the Streamlit C
 - `auth.client_id`
 - `auth.client_secret`
 - `auth.server_metadata_url`
+- `auth.client_kwargs = { "scope" = "openid profile email", "prompt" = "select_account" }`
 
 Even though `auth.redirect_uri`, `auth.client_id`, and `auth.server_metadata_url` are not confidential by themselves, Streamlit's built-in `st.login()` reads them from `[auth]` in `secrets.toml`, so they still need to stay there.
+
+Google login needs the `email` scope for the app to receive `st.user.email`. Streamlit already defaults to `openid profile email`, but keeping the scope explicit in secrets avoids ambiguity when debugging authentication issues.
 
 Important:
 
@@ -56,8 +59,16 @@ The Google OAuth app still controls who can authenticate at all:
 - configured test users
 - any domain or consent-screen restrictions you choose to apply
 
+If the Google Auth app is still in `Testing`, every new learner or teacher email must also be added manually under `Google Auth Platform` > `Audience` > `Test users` before that person can log in.
+
 After authentication, the app normalizes the email and looks up one active `user_access` row:
 
 - students need `role = student` and one specific `cohort_key`
 - teachers need `role = teacher` and `cohort_key = all`
 - if there is no active row, the app shows the not-authorized screen
+
+Important distinction:
+
+- missing Google test-user access blocks login itself
+- missing `user_access` rows blocks authorization after login
+- missing `bigquery.tables.updateData` on `glipmath_core.user_access` blocks the in-app "Adicionar aluno" flow even when login is already working
