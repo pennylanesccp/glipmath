@@ -81,11 +81,13 @@ def render_main_page(
     answer_is_correct = bool(last_result.get("is_correct")) if last_result else False
     timer_started_at = get_question_started_at()
 
-    _render_controls_bar(
+    _render_sidebar_subject_topic_filters(
         subject_topic_groups=subject_topic_groups,
         selected_subjects=selected_subjects,
         selected_topics=selected_topics,
         selected_filter_label=selected_filter_label,
+    )
+    _render_metrics_bar(
         streak_text=_format_streak_text(day_streak, question_streak),
         rank_text=_format_rank_text(leaderboard_position),
         timer_elapsed_seconds=elapsed_seconds,
@@ -100,7 +102,7 @@ def render_main_page(
         st.html(
             _build_info_card_html(
                 "Nenhuma questão disponível para este filtro no momento.<br><br>"
-                "Troque a disciplina acima ou carregue mais questões."
+                "Abra a barra lateral para ajustar projeto, espaço, disciplina ou tópico."
             )
         )
         return
@@ -163,6 +165,63 @@ def _render_controls_bar(
             podium_icon_data_uri=podium_icon_data_uri,
             timer_icon_data_uri=timer_icon_data_uri,
         )
+
+
+def _render_sidebar_subject_topic_filters(
+    *,
+    subject_topic_groups: list[SubjectTopicGroup],
+    selected_subjects: tuple[str, ...],
+    selected_topics: tuple[tuple[str, str], ...],
+    selected_filter_label: str,
+) -> None:
+    if not subject_topic_groups:
+        return
+
+    single_subject_mode = _use_topic_only_filter(subject_topic_groups)
+    _sync_subject_topic_filter_widget_state(
+        subject_topic_groups=subject_topic_groups,
+        selected_subjects=selected_subjects,
+        selected_topics=selected_topics,
+    )
+
+    with st.sidebar:
+        st.divider()
+        st.caption("Disciplina e tópico")
+        st.markdown(f"**{selected_filter_label}**")
+
+        if selected_subjects or selected_topics:
+            if st.button(
+                "Limpar filtros",
+                key="gm_sidebar_clear_subject_topic_filters",
+                type="secondary",
+                use_container_width=True,
+            ):
+                _apply_subject_topic_filters(subjects=(), topics=())
+
+        for group in subject_topic_groups:
+            if single_subject_mode:
+                st.caption(format_subject_label(group.subject))
+            else:
+                st.checkbox(
+                    format_subject_label(group.subject),
+                    key=_subject_checkbox_key(group.subject),
+                    on_change=_toggle_subject_filter,
+                    args=(group.subject,),
+                )
+
+            with st.container():
+                hook_class = "gm-sidebar-topic-filter-group-hook"
+                if single_subject_mode:
+                    hook_class += " gm-sidebar-topic-filter-group-hook--single-subject"
+                st.html(f'<div class="{hook_class}"></div>')
+                for topic in group.topics:
+                    st.checkbox(
+                        format_topic_label(topic),
+                        key=_topic_checkbox_key(group.subject, topic),
+                        disabled=(not single_subject_mode) and group.subject in selected_subjects,
+                        on_change=_toggle_topic_filter,
+                        args=(group.subject, topic),
+                    )
 
 
 def _render_subject_topic_filter_multiselect(
@@ -306,20 +365,22 @@ def _render_pending_interaction_fragment(
         selected_option_id=selected_option_id,
     )
 
-    skip_col, verify_col = st.columns([1, 2], vertical_alignment="bottom")
-    with skip_col:
-        skip_clicked = st.button(
-            "Pular questão",
-            key=f"gm_skip_question_{current_question.id_question}",
-            use_container_width=True,
-        )
-    with verify_col:
-        verify_clicked = st.button(
-            "Verificar resposta",
-            key=f"gm_verify_question_{current_question.id_question}",
-            type="primary",
-            use_container_width=True,
-        )
+    with st.container():
+        st.html('<div class="gm-pending-actions-hook"></div>')
+        skip_col, verify_col = st.columns(2, gap="small", vertical_alignment="bottom")
+        with skip_col:
+            skip_clicked = st.button(
+                "Pular",
+                key=f"gm_skip_question_{current_question.id_question}",
+                use_container_width=True,
+            )
+        with verify_col:
+            verify_clicked = st.button(
+                "Verificar resposta",
+                key=f"gm_verify_question_{current_question.id_question}",
+                type="primary",
+                use_container_width=True,
+            )
 
     if skip_clicked:
         mark_question_skipped(current_question.id_question)
@@ -394,20 +455,22 @@ def _render_pending_state(
         selected_option_id=selected_option_id,
     )
 
-    skip_col, verify_col = st.columns([1, 2], vertical_alignment="bottom")
-    with skip_col:
-        skip_clicked = st.button(
-            "Pular questão",
-            key=f"gm_skip_question_{current_question.id_question}",
-            use_container_width=True,
-        )
-    with verify_col:
-        verify_clicked = st.button(
-            "Verificar resposta",
-            key=f"gm_verify_question_{current_question.id_question}",
-            type="primary",
-            use_container_width=True,
-        )
+    with st.container():
+        st.html('<div class="gm-pending-actions-hook"></div>')
+        skip_col, verify_col = st.columns(2, gap="small", vertical_alignment="bottom")
+        with skip_col:
+            skip_clicked = st.button(
+                "Pular",
+                key=f"gm_skip_question_{current_question.id_question}",
+                use_container_width=True,
+            )
+        with verify_col:
+            verify_clicked = st.button(
+                "Verificar resposta",
+                key=f"gm_verify_question_{current_question.id_question}",
+                type="primary",
+                use_container_width=True,
+            )
 
     if skip_clicked:
         mark_question_skipped(current_question.id_question)
@@ -901,7 +964,7 @@ def _apply_live_page_styles() -> None:
 
         .block-container {
             max-width: 480px;
-            padding-top: 0.45rem;
+            padding-top: 0.1rem;
             padding-bottom: 0.75rem;
         }
 
@@ -915,6 +978,36 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stHorizontalBlock"] {
             gap: 0.55rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] p {
+            color: #0f172a;
+        }
+
+        section[data-testid="stSidebar"] [data-testid="stButton"] > button {
+            border-radius: 1rem;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook) [data-testid="stCheckbox"] {
+            margin-left: 1.35rem !important;
+            width: calc(100% - 1.35rem) !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook--single-subject) [data-testid="stCheckbox"] {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] {
+            flex-wrap: nowrap !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div {
+            min-width: 0 !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) [data-testid="stButton"] > button {
+            white-space: nowrap !important;
         }
 
         .gm-live-metrics-bar {

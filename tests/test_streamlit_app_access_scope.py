@@ -1,4 +1,5 @@
 import pandas as pd
+from types import SimpleNamespace
 
 from app import streamlit_app
 from app.state.session_state import (
@@ -107,7 +108,7 @@ def test_resolve_project_options_for_non_global_user_avoids_project_catalog_quer
     assert repository.received_cohort_key == "unset"
 
 
-def test_render_authenticated_shell_clears_professor_tool_for_student_only_user() -> None:
+def test_render_authenticated_shell_clears_professor_tool_for_student_only_user(monkeypatch) -> None:
     initialize_session_state()
     set_current_professor_tool("add_student")
     user = User(
@@ -117,7 +118,23 @@ def test_render_authenticated_shell_clears_professor_tool_for_student_only_user(
         accessible_cohort_keys=("crescer_e_conectar",),
     )
 
-    selected_project, current_workspace = streamlit_app._render_authenticated_shell(
+    class FakeSidebar:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    fake_st = SimpleNamespace(
+        sidebar=FakeSidebar(),
+        session_state={},
+        rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
+    )
+
+    monkeypatch.setattr(streamlit_app, "st", fake_st)
+    monkeypatch.setattr(streamlit_app, "get_project_filter", lambda: "crescer_e_conectar")
+
+    selected_project, current_workspace = streamlit_app._render_authenticated_shell_sidebar(
         user=user,
         project_options=["crescer_e_conectar"],
         selected_project="crescer_e_conectar",
@@ -126,6 +143,45 @@ def test_render_authenticated_shell_clears_professor_tool_for_student_only_user(
     assert selected_project == "crescer_e_conectar"
     assert current_workspace == "student"
     assert get_current_professor_tool() is None
+
+
+def test_render_authenticated_shell_sidebar_reads_current_sidebar_choices_without_rerun(monkeypatch) -> None:
+    initialize_session_state()
+    user = User(
+        email="prof@example.com",
+        role="teacher",
+        cohort_key="crescer_e_conectar",
+        accessible_cohort_keys=("crescer_e_conectar", "rumo_etec"),
+    )
+
+    class FakeSidebar:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    fake_st = SimpleNamespace(
+        sidebar=FakeSidebar(),
+        session_state={},
+        caption=lambda *args, **kwargs: None,
+        selectbox=lambda *args, **kwargs: "rumo_etec",
+        segmented_control=lambda *args, **kwargs: "student",
+        rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
+    )
+
+    monkeypatch.setattr(streamlit_app, "st", fake_st)
+    monkeypatch.setattr(streamlit_app, "get_project_filter", lambda: "rumo_etec")
+    monkeypatch.setattr(streamlit_app, "get_current_workspace", lambda: "student")
+
+    selected_project, current_workspace = streamlit_app._render_authenticated_shell_sidebar(
+        user=user,
+        project_options=["crescer_e_conectar", "rumo_etec"],
+        selected_project="rumo_etec",
+    )
+
+    assert selected_project == "rumo_etec"
+    assert current_workspace == "student"
 
 
 def test_normalize_filters_for_subject_group_shape_clears_full_subject_selection_in_single_subject_mode() -> None:

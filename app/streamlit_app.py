@@ -172,7 +172,7 @@ def main() -> None:
             user=authorized_user,
             project_options=project_options,
         )
-        selected_project, current_workspace = _render_authenticated_shell(
+        selected_project, current_workspace = _render_authenticated_shell_sidebar(
             user=authorized_user,
             project_options=project_options,
             selected_project=selected_project,
@@ -426,6 +426,62 @@ def _render_authenticated_shell(
             set_current_workspace("student")
         if get_current_professor_tool() is not None:
             set_current_professor_tool(None)
+
+    return project_choice, current_workspace
+
+
+def _render_authenticated_shell_sidebar(
+    *,
+    user: User,
+    project_options: list[str],
+    selected_project: str | None,
+) -> tuple[str | None, str]:
+    project_choice = selected_project
+    current_workspace = "student"
+
+    with st.sidebar:
+        if len(project_options) > 1:
+            st.caption("Projeto")
+            project_choice = st.selectbox(
+                "Projeto",
+                options=project_options,
+                index=project_options.index(selected_project) if selected_project in project_options else 0,
+                format_func=_format_project_option_label,
+                key="gm_global_project_filter_select",
+                label_visibility="collapsed",
+            )
+
+        if user.can_access_professor_space:
+            st.caption("Espaço")
+            current_workspace = get_current_workspace()
+            workspace_choice = st.segmented_control(
+                "Espaço",
+                options=["student", "professor"],
+                default=current_workspace,
+                format_func=_format_workspace_label,
+                key="gm_workspace_segmented_control",
+                label_visibility="collapsed",
+                width="stretch",
+            )
+            normalized_workspace = workspace_choice if workspace_choice in {"student", "professor"} else "student"
+            if normalized_workspace != current_workspace:
+                set_current_workspace(normalized_workspace)
+                clear_current_question()
+                st.rerun()
+            current_workspace = normalized_workspace
+        else:
+            if get_current_workspace() != "student":
+                set_current_workspace("student")
+            if get_current_professor_tool() is not None:
+                set_current_professor_tool(None)
+
+    if project_choice != get_project_filter():
+        st.session_state.pop("gm_subject_filter_select", None)
+        set_project_filter(project_choice)
+        set_subject_filters(())
+        set_topic_filters(())
+        clear_current_question()
+        st.rerun()
 
     return project_choice, current_workspace
 
@@ -852,6 +908,18 @@ def _apply_workspace_shell_styles() -> None:
             margin: 0.05rem 0 0.35rem;
             width: 100% !important;
             max-width: 100% !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stCaptionContainer"] {
+            margin-top: 0.1rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stCaptionContainer"] p {
+            color: #475569 !important;
+            font-size: 0.76rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.08em !important;
+            text-transform: uppercase !important;
         }
 
         div[data-testid="stSegmentedControl"] > div {
