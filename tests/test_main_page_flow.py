@@ -393,6 +393,32 @@ def test_build_answer_status_chip_html_matches_result_state() -> None:
     assert "gm-live-status-chip--wrong" in wrong_html
 
 
+def test_build_metrics_bar_html_orders_day_and_question_streak_icons() -> None:
+    html = main_page._build_metrics_bar_html(
+        day_streak_text="5",
+        question_streak_text="3",
+        rank_text="#1",
+        timer_text="00:12",
+        timer_warning=False,
+        calendar_icon_data_uri="calendar-uri",
+        fire_icon_data_uri="fire-uri",
+        podium_icon_data_uri="podium-uri",
+        timer_icon_data_uri="timer-uri",
+    )
+
+    assert html.index("calendar-uri") < html.index("fire-uri")
+    assert html.index("fire-uri") < html.index("podium-uri")
+    assert ">5<" in html
+    assert ">3<" in html
+
+
+def test_streak_text_helpers_use_day_and_question_values_independently() -> None:
+    assert main_page._format_day_streak_text(4) == "4"
+    assert main_page._format_day_streak_text(-1) == "0"
+    assert main_page._format_question_streak_text(7) == "7"
+    assert main_page._format_question_streak_text(-2) == "0"
+
+
 def test_resolve_live_timer_text_uses_current_time_when_running(monkeypatch) -> None:
     monkeypatch.setattr(
         main_page,

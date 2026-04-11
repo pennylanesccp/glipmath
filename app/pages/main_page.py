@@ -41,6 +41,7 @@ from modules.services.question_service import find_display_alternative
 from modules.storage.bigquery_client import BigQueryError
 from modules.utils.datetime_utils import utc_now
 
+CALENDAR_ICON_RELATIVE_PATH = "assets/icons/calendar.svg"
 FIRE_ICON_RELATIVE_PATH = "assets/icons/fire-svgrepo-com.svg"
 PODIUM_ICON_RELATIVE_PATH = "assets/icons/pedestal-podium-svgrepo-com.svg"
 TIMER_ICON_RELATIVE_PATH = "assets/icons/timer-outline-svgrepo-com.svg"
@@ -67,6 +68,7 @@ def render_main_page(
     initialize_session_state()
     _apply_live_page_styles()
 
+    calendar_icon_data_uri = _load_icon_data_uri(CALENDAR_ICON_RELATIVE_PATH)
     fire_icon_data_uri = _load_icon_data_uri(FIRE_ICON_RELATIVE_PATH)
     podium_icon_data_uri = _load_icon_data_uri(PODIUM_ICON_RELATIVE_PATH)
     timer_icon_data_uri = _load_icon_data_uri(TIMER_ICON_RELATIVE_PATH)
@@ -88,11 +90,13 @@ def render_main_page(
         selected_filter_label=selected_filter_label,
     )
     _render_metrics_bar(
-        streak_text=_format_streak_text(day_streak, question_streak),
+        day_streak_text=_format_day_streak_text(day_streak),
+        question_streak_text=_format_question_streak_text(question_streak),
         rank_text=_format_rank_text(leaderboard_position),
         timer_elapsed_seconds=elapsed_seconds,
         timer_started_at=timer_started_at,
         timer_running=not question_answered and current_question is not None,
+        calendar_icon_data_uri=calendar_icon_data_uri,
         fire_icon_data_uri=fire_icon_data_uri,
         podium_icon_data_uri=podium_icon_data_uri,
         timer_icon_data_uri=timer_icon_data_uri,
@@ -617,17 +621,20 @@ def _build_metric_chip_html(
 
 def _build_metrics_bar_html(
     *,
-    streak_text: str,
+    day_streak_text: str,
+    question_streak_text: str,
     rank_text: str,
     timer_text: str,
     timer_warning: bool,
+    calendar_icon_data_uri: str,
     fire_icon_data_uri: str,
     podium_icon_data_uri: str,
     timer_icon_data_uri: str,
 ) -> str:
     return (
         '<div class="gm-live-metrics-bar">'
-        f"{_build_metric_chip_html(streak_text, fire_icon_data_uri)}"
+        f"{_build_metric_chip_html(day_streak_text, calendar_icon_data_uri)}"
+        f"{_build_metric_chip_html(question_streak_text, fire_icon_data_uri)}"
         f"{_build_metric_chip_html(rank_text, podium_icon_data_uri)}"
         f"{_build_metric_chip_html(timer_text, timer_icon_data_uri, is_timer=True, timer_warning=timer_warning)}"
         "</div>"
@@ -636,21 +643,25 @@ def _build_metrics_bar_html(
 
 def _render_metrics_bar(
     *,
-    streak_text: str,
+    day_streak_text: str,
+    question_streak_text: str,
     rank_text: str,
     timer_elapsed_seconds: int,
     timer_started_at: datetime | None,
     timer_running: bool,
+    calendar_icon_data_uri: str,
     fire_icon_data_uri: str,
     podium_icon_data_uri: str,
     timer_icon_data_uri: str,
 ) -> None:
     if timer_running:
         _render_live_metrics_bar_fragment(
-            streak_text=streak_text,
+            day_streak_text=day_streak_text,
+            question_streak_text=question_streak_text,
             rank_text=rank_text,
             timer_elapsed_seconds=timer_elapsed_seconds,
             timer_started_at=timer_started_at,
+            calendar_icon_data_uri=calendar_icon_data_uri,
             fire_icon_data_uri=fire_icon_data_uri,
             podium_icon_data_uri=podium_icon_data_uri,
             timer_icon_data_uri=timer_icon_data_uri,
@@ -659,10 +670,12 @@ def _render_metrics_bar(
 
     st.html(
         _build_metrics_bar_html(
-            streak_text=streak_text,
+            day_streak_text=day_streak_text,
+            question_streak_text=question_streak_text,
             rank_text=rank_text,
             timer_text=format_elapsed_time(timer_elapsed_seconds),
             timer_warning=_is_timer_warning(timer_elapsed_seconds),
+            calendar_icon_data_uri=calendar_icon_data_uri,
             fire_icon_data_uri=fire_icon_data_uri,
             podium_icon_data_uri=podium_icon_data_uri,
             timer_icon_data_uri=timer_icon_data_uri,
@@ -673,10 +686,12 @@ def _render_metrics_bar(
 @st.fragment(run_every="1s")
 def _render_live_metrics_bar_fragment(
     *,
-    streak_text: str,
+    day_streak_text: str,
+    question_streak_text: str,
     rank_text: str,
     timer_elapsed_seconds: int,
     timer_started_at: datetime | None,
+    calendar_icon_data_uri: str,
     fire_icon_data_uri: str,
     podium_icon_data_uri: str,
     timer_icon_data_uri: str,
@@ -687,10 +702,12 @@ def _render_live_metrics_bar_fragment(
     )
     st.html(
         _build_metrics_bar_html(
-            streak_text=streak_text,
+            day_streak_text=day_streak_text,
+            question_streak_text=question_streak_text,
             rank_text=rank_text,
             timer_text=format_elapsed_time(live_elapsed_seconds),
             timer_warning=_is_timer_warning(live_elapsed_seconds),
+            calendar_icon_data_uri=calendar_icon_data_uri,
             fire_icon_data_uri=fire_icon_data_uri,
             podium_icon_data_uri=podium_icon_data_uri,
             timer_icon_data_uri=timer_icon_data_uri,
@@ -930,8 +947,12 @@ def _apply_subject_topic_filter(
     _apply_subject_topic_filters(subjects=subjects, topics=topics)
 
 
-def _format_streak_text(day_streak: int, _question_streak: int) -> str:
+def _format_day_streak_text(day_streak: int) -> str:
     return str(max(day_streak, 0))
+
+
+def _format_question_streak_text(question_streak: int) -> str:
+    return str(max(question_streak, 0))
 
 
 def _format_rank_text(leaderboard_position: str) -> str:
