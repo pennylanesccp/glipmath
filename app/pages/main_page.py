@@ -355,28 +355,26 @@ def _render_pending_alternative_radio(
     selected_option_id: str | None,
 ) -> str | None:
     st.html('<div class="gm-live-pending-label">Escolha uma alternativa</div>')
-    current_selection = get_question_selection() or selected_option_id
-    with st.container():
-        st.html('<div class="gm-live-pending-options-list-hook"></div>')
-        for alternative in alternatives:
-            is_selected = alternative.option_id == current_selection
-            with st.container():
-                hook_class = "gm-live-pending-option-hook"
-                if is_selected:
-                    hook_class += " gm-live-pending-option-hook--selected"
-                st.html(f'<div class="{hook_class}"></div>')
-                if st.button(
-                    _format_pending_widget_label(alternative.alternative_text),
-                    key=f"gm_pending_alternative_button_{current_question_id}_{alternative.option_id}",
-                    icon=":material/radio_button_checked:" if is_selected else ":material/radio_button_unchecked:",
-                    type="secondary",
-                    use_container_width=True,
-                ):
-                    if alternative.option_id != get_question_selection():
-                        set_question_selection(alternative.option_id)
-                    st.rerun()
 
-    return get_question_selection() or current_selection
+    option_ids = [alternative.option_id for alternative in alternatives]
+    label_by_option_id = {
+        alternative.option_id: _format_pending_widget_label(alternative.alternative_text)
+        for alternative in alternatives
+    }
+    selection_index = option_ids.index(selected_option_id) if selected_option_id in option_ids else None
+    selected_option = st.radio(
+        "Escolha uma alternativa",
+        options=option_ids,
+        index=selection_index,
+        key=f"gm_pending_alternative_radio_{current_question_id}",
+        format_func=lambda option_id: label_by_option_id[option_id],
+        label_visibility="collapsed",
+    )
+
+    normalized_selection = str(selected_option).strip() if selected_option is not None else None
+    if normalized_selection != get_question_selection():
+        set_question_selection(normalized_selection)
+    return normalized_selection
 
 
 def _render_pending_state(
@@ -1145,81 +1143,6 @@ def _apply_live_page_styles() -> None:
 
         .gm-live-pending-choice-card--selected .gm-live-answer-text {
             color: #1d4ed8;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-list-hook) {
-            gap: 0.48rem !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) {
-            gap: 0 !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] {
-            width: 100% !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button {
-            align-items: flex-start !important;
-            background: #ffffff !important;
-            border: 1px solid #dbeafe !important;
-            border-radius: 1rem !important;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05) !important;
-            color: #0f172a !important;
-            display: grid !important;
-            gap: 0.72rem !important;
-            grid-template-columns: 1rem minmax(0, 1fr) !important;
-            justify-content: flex-start !important;
-            min-height: 4.35rem !important;
-            padding: 0.95rem 1rem !important;
-            text-align: left !important;
-            white-space: normal !important;
-            width: 100% !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button:hover {
-            background: #ffffff !important;
-            border-color: #93c5fd !important;
-            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12) !important;
-            color: #0f172a !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook--selected) div[data-testid="stButton"] > button {
-            background: #edf4ff !important;
-            border-color: #93c5fd !important;
-            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12) !important;
-            color: #1d4ed8 !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook--selected) div[data-testid="stButton"] > button:hover {
-            background: #edf4ff !important;
-            border-color: #60a5fa !important;
-            color: #1d4ed8 !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button span[data-testid="stIconMaterial"] {
-            color: #bfd4ff !important;
-            font-size: 1rem !important;
-            line-height: 1 !important;
-            margin-top: 0.08rem !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook--selected) div[data-testid="stButton"] > button span[data-testid="stIconMaterial"] {
-            color: #2563eb !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button [data-testid="stMarkdownContainer"] {
-            width: 100% !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button [data-testid="stMarkdownContainer"] p {
-            color: inherit !important;
-            font-size: 1rem !important;
-            font-weight: 500 !important;
-            line-height: 1.42 !important;
-            margin: 0 !important;
-            text-align: left !important;
-            white-space: normal !important;
         }
 
         .gm-live-answer-card--correct .gm-live-answer-badge,
