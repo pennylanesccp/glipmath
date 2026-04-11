@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from modules.domain.models import User, UserAccessEntry
-from modules.storage.schema_validation import prepare_dataframe, require_columns, worksheet_row_number
+from modules.storage.schema_validation import iter_dataframe_rows, prepare_dataframe, require_columns, worksheet_row_number
 from modules.utils.datetime_utils import parse_timestamp, to_iso_timestamp, utc_now
 from modules.utils.normalization import clean_optional_text, coerce_bool, normalize_email
 
@@ -152,7 +152,7 @@ def parse_user_access_dataframe(
 
     entries: list[UserAccessEntry] = []
     issues: list[str] = []
-    for index, row in prepared.iterrows():
+    for index, row in iter_dataframe_rows(prepared):
         row_number = worksheet_row_number(index)
         try:
             user_email = normalize_email(row.get("user_email"))

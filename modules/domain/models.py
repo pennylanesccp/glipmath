@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from modules.utils.datetime_utils import to_bigquery_datetime_string, to_iso_timestamp
 
@@ -165,6 +165,15 @@ class AnswerAttempt:
             "cohort_key": self.cohort_key,
             "app_version": self.app_version,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class UserProgressSnapshot:
+    """Compact per-user progress data derived from append-only answers."""
+
+    answered_question_ids: tuple[int, ...] = ()
+    activity_dates: tuple[date, ...] = ()
+    question_streak: int = 0
 
 
 @dataclass(frozen=True, slots=True)

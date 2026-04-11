@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import uuid4
 
 import streamlit as st
 
-from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative, Question, QuestionAlternative, User
-from modules.services.answer_service import append_answer_history, extract_answered_question_ids
+from modules.domain.models import (
+    AnswerAttempt,
+    AnswerEvaluation,
+    DisplayAlternative,
+    Question,
+    QuestionAlternative,
+    User,
+    UserProgressSnapshot,
+)
 from modules.utils.datetime_utils import utc_now
 
 SESSION_ID_KEY = "glipmath_session_id"
@@ -34,9 +41,9 @@ QUESTION_SELECTION_KEY = "glipmath_question_selection"
 SUBMISSION_IN_PROGRESS_KEY = "glipmath_submission_in_progress"
 SKIPPED_QUESTION_IDS_KEY = "glipmath_skipped_question_ids"
 INVALID_QUESTION_IDS_KEY = "glipmath_invalid_question_ids"
-USER_ANSWER_HISTORY_KEY = "glipmath_user_answer_history"
-USER_ANSWER_HISTORY_ISSUES_KEY = "glipmath_user_answer_history_issues"
-USER_ANSWER_HISTORY_LOADED_KEY = "glipmath_user_answer_history_loaded"
+USER_PROGRESS_SNAPSHOT_KEY = "glipmath_user_progress_snapshot"
+USER_PROGRESS_ISSUES_KEY = "glipmath_user_progress_issues"
+USER_PROGRESS_LOADED_KEY = "glipmath_user_progress_loaded"
 USER_ANSWERED_QUESTION_IDS_KEY = "glipmath_user_answered_question_ids"
 SUBJECT_FILTER_KEY = "glipmath_subject_filter"
 TOPIC_FILTER_KEY = "glipmath_topic_filter"
@@ -73,9 +80,9 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(SUBMISSION_IN_PROGRESS_KEY, False)
     st.session_state.setdefault(SKIPPED_QUESTION_IDS_KEY, [])
     st.session_state.setdefault(INVALID_QUESTION_IDS_KEY, [])
-    st.session_state.setdefault(USER_ANSWER_HISTORY_KEY, [])
-    st.session_state.setdefault(USER_ANSWER_HISTORY_ISSUES_KEY, [])
-    st.session_state.setdefault(USER_ANSWER_HISTORY_LOADED_KEY, False)
+    st.session_state.setdefault(USER_PROGRESS_SNAPSHOT_KEY, None)
+    st.session_state.setdefault(USER_PROGRESS_ISSUES_KEY, [])
+    st.session_state.setdefault(USER_PROGRESS_LOADED_KEY, False)
     st.session_state.setdefault(USER_ANSWERED_QUESTION_IDS_KEY, [])
     st.session_state.setdefault(SUBJECT_FILTER_KEY, "Todas")
     st.session_state.setdefault(TOPIC_FILTER_KEY, None)
@@ -118,9 +125,9 @@ def bind_authenticated_user(user: User) -> None:
     st.session_state[SESSION_ID_KEY] = uuid4().hex
     st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
     st.session_state[INVALID_QUESTION_IDS_KEY] = []
-    st.session_state[USER_ANSWER_HISTORY_KEY] = []
-    st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY] = []
-    st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = False
+    st.session_state[USER_PROGRESS_SNAPSHOT_KEY] = None
+    st.session_state[USER_PROGRESS_ISSUES_KEY] = []
+    st.session_state[USER_PROGRESS_LOADED_KEY] = False
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
     st.session_state[SUBJECT_FILTER_KEY] = "Todas"
     st.session_state[TOPIC_FILTER_KEY] = None
@@ -161,13 +168,13 @@ def get_authenticated_user() -> User | None:
     )
 
 
-def has_loaded_user_answer_history(user_email: str) -> bool:
-    """Return whether the current user's answer snapshot is already in session."""
+def has_loaded_user_progress_snapshot(user_email: str) -> bool:
+    """Return whether the current user's progress snapshot is already in session."""
 
     initialize_session_state()
     return (
         st.session_state[AUTHENTICATED_USER_EMAIL_KEY] == user_email
-        and bool(st.session_state[USER_ANSWER_HISTORY_LOADED_KEY])
+        and bool(st.session_state[USER_PROGRESS_LOADED_KEY])
     )
 
 
@@ -311,57 +318,109 @@ def get_leaderboard_position(user_email: str) -> tuple[int | None, int, list[str
     return rank, total_users, issues
 
 
-def set_user_answer_history(
+def set_user_progress_snapshot(
     user_email: str,
-    answers: list[AnswerAttempt],
+    snapshot: UserProgressSnapshot,
     *,
     issues: list[str] | None = None,
 ) -> None:
-    """Persist the current user's parsed answer history in session state."""
+    """Persist the current user's compact progress snapshot in session state."""
 
     _bind_authenticated_user_email(user_email)
-    st.session_state[USER_ANSWER_HISTORY_KEY] = list(answers)
-    st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY] = list(issues or [])
-    st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = True
-    st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = sorted(extract_answered_question_ids(answers))
+    st.session_state[USER_PROGRESS_SNAPSHOT_KEY] = {
+        "answered_question_ids": list(snapshot.answered_question_ids),
+        "activity_dates": [value.isoformat() for value in snapshot.activity_dates],
+        "question_streak": max(int(snapshot.question_streak), 0),
+    }
+    st.session_state[USER_PROGRESS_ISSUES_KEY] = list(issues or [])
+    st.session_state[USER_PROGRESS_LOADED_KEY] = True
+    st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = list(snapshot.answered_question_ids)
 
 
-def get_user_answer_history(user_email: str) -> list[AnswerAttempt]:
-    """Return the current user's parsed answer history from session state."""
+def get_user_progress_snapshot(user_email: str) -> UserProgressSnapshot:
+    """Return the current user's compact progress snapshot from session state."""
 
-    if not has_loaded_user_answer_history(user_email):
+    if not has_loaded_user_progress_snapshot(user_email):
+        return UserProgressSnapshot()
+
+    raw_snapshot = st.session_state[USER_PROGRESS_SNAPSHOT_KEY]
+    if not isinstance(raw_snapshot, dict):
+        return UserProgressSnapshot()
+
+    raw_answered_question_ids = raw_snapshot.get("answered_question_ids", [])
+    raw_activity_dates = raw_snapshot.get("activity_dates", [])
+    raw_question_streak = raw_snapshot.get("question_streak", 0)
+    answered_question_ids = tuple(
+        sorted(
+            {
+                int(value)
+                for value in raw_answered_question_ids
+                if value is not None and str(value).strip()
+            }
+        )
+    )
+    activity_dates = tuple(
+        sorted(
+            {
+                parsed_date
+                for value in raw_activity_dates
+                for parsed_date in [_parse_local_date(value)]
+                if parsed_date is not None
+            },
+            reverse=True,
+        )
+    )
+    question_streak = max(int(raw_question_streak or 0), 0)
+    return UserProgressSnapshot(
+        answered_question_ids=answered_question_ids,
+        activity_dates=activity_dates,
+        question_streak=question_streak,
+    )
+
+
+def get_user_progress_snapshot_issues(user_email: str) -> list[str]:
+    """Return any issues found while loading the user's progress snapshot."""
+
+    if not has_loaded_user_progress_snapshot(user_email):
         return []
-    raw_answers = st.session_state[USER_ANSWER_HISTORY_KEY]
-    if not isinstance(raw_answers, list):
-        return []
-    return [answer for answer in raw_answers if isinstance(answer, AnswerAttempt)]
-
-
-def get_user_answer_history_issues(user_email: str) -> list[str]:
-    """Return any issues found while loading the user's answer snapshot."""
-
-    if not has_loaded_user_answer_history(user_email):
-        return []
-    raw_issues = st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY]
+    raw_issues = st.session_state[USER_PROGRESS_ISSUES_KEY]
     if not isinstance(raw_issues, list):
         return []
     return [str(issue) for issue in raw_issues]
 
 
 def append_user_answer_attempt(user_email: str, answer: AnswerAttempt) -> None:
-    """Append one new answer attempt to the current user's in-session history."""
+    """Append one new answer attempt to the current user's in-session progress snapshot."""
 
     _bind_authenticated_user_email(user_email)
-    updated_answers = append_answer_history(get_user_answer_history(user_email), answer)
-    st.session_state[USER_ANSWER_HISTORY_KEY] = updated_answers
-    st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = sorted(extract_answered_question_ids(updated_answers))
-    st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = True
+    current_snapshot = get_user_progress_snapshot(user_email)
+    updated_question_ids = tuple(
+        sorted({*current_snapshot.answered_question_ids, answer.id_question})
+    )
+    updated_activity_dates = tuple(
+        sorted(
+            {
+                *current_snapshot.activity_dates,
+                _answer_activity_date(answer),
+            },
+            reverse=True,
+        )
+    )
+    set_user_progress_snapshot(
+        user_email,
+        UserProgressSnapshot(
+            answered_question_ids=updated_question_ids,
+            activity_dates=updated_activity_dates,
+            question_streak=(current_snapshot.question_streak + 1) if answer.is_correct else 0,
+        ),
+        issues=get_user_progress_snapshot_issues(user_email),
+    )
 
 
 def get_answered_question_ids(user_email: str) -> set[int]:
     """Return the answered question IDs for the current authenticated user."""
 
-    if not has_loaded_user_answer_history(user_email):
+    if not has_loaded_user_progress_snapshot(user_email):
         return set()
 
     raw_ids = st.session_state[USER_ANSWERED_QUESTION_IDS_KEY]
@@ -785,9 +844,9 @@ def _bind_authenticated_user_email(user_email: str) -> None:
     st.session_state[SESSION_ID_KEY] = uuid4().hex
     st.session_state[SKIPPED_QUESTION_IDS_KEY] = []
     st.session_state[INVALID_QUESTION_IDS_KEY] = []
-    st.session_state[USER_ANSWER_HISTORY_KEY] = []
-    st.session_state[USER_ANSWER_HISTORY_ISSUES_KEY] = []
-    st.session_state[USER_ANSWER_HISTORY_LOADED_KEY] = False
+    st.session_state[USER_PROGRESS_SNAPSHOT_KEY] = None
+    st.session_state[USER_PROGRESS_ISSUES_KEY] = []
+    st.session_state[USER_PROGRESS_LOADED_KEY] = False
     st.session_state[USER_ANSWERED_QUESTION_IDS_KEY] = []
     st.session_state[SUBJECT_FILTER_KEY] = "Todas"
     st.session_state[TOPIC_FILTER_KEY] = None
@@ -870,3 +929,24 @@ def _string_or_none(value: object) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _parse_local_date(value: object) -> date | None:
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+
+    text = _string_or_none(value)
+    if text is None:
+        return None
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
+
+
+def _answer_activity_date(answer: AnswerAttempt) -> date:
+    if answer.answered_at_local is not None:
+        return answer.answered_at_local.date()
+    return answer.answered_at_utc.date()

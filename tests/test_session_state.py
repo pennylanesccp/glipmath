@@ -1,7 +1,8 @@
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 from app.state import session_state
-from modules.domain.models import DisplayAlternative, Question, QuestionAlternative, User
+from modules.domain.models import AnswerAttempt, DisplayAlternative, Question, QuestionAlternative, User, UserProgressSnapshot
 
 
 def test_current_question_snapshot_round_trips_through_session_state(monkeypatch) -> None:
@@ -202,4 +203,60 @@ def test_multi_subject_topic_filters_round_trip(monkeypatch) -> None:
     assert session_state.get_topic_filters() == (
         ("Ciencias", "ecologia"),
         ("Matematica", "divisao"),
+    )
+
+
+def test_user_progress_snapshot_round_trips_through_session_state(monkeypatch) -> None:
+    monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
+
+    snapshot = UserProgressSnapshot(
+        answered_question_ids=(2, 7),
+        activity_dates=(date(2026, 3, 23), date(2026, 3, 22)),
+        question_streak=3,
+    )
+
+    session_state.set_user_progress_snapshot(
+        "ana@example.com",
+        snapshot,
+        issues=["delayed refresh"],
+    )
+
+    assert session_state.has_loaded_user_progress_snapshot("ana@example.com") is True
+    assert session_state.get_user_progress_snapshot("ana@example.com") == snapshot
+    assert session_state.get_user_progress_snapshot_issues("ana@example.com") == ["delayed refresh"]
+    assert session_state.get_answered_question_ids("ana@example.com") == {2, 7}
+
+
+def test_append_user_answer_attempt_updates_compact_progress_snapshot(monkeypatch) -> None:
+    monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
+
+    session_state.set_user_progress_snapshot(
+        "ana@example.com",
+        UserProgressSnapshot(
+            answered_question_ids=(2,),
+            activity_dates=(date(2026, 3, 22),),
+            question_streak=1,
+        ),
+    )
+
+    session_state.append_user_answer_attempt(
+        "ana@example.com",
+        AnswerAttempt(
+            id_answer="a2",
+            id_question=7,
+            user_email="ana@example.com",
+            selected_alternative_text="4",
+            correct_alternative_text="4",
+            is_correct=True,
+            answered_at_utc=datetime(2026, 3, 23, 12, 0, tzinfo=timezone.utc),
+            answered_at_local=datetime(2026, 3, 23, 9, 0),
+            time_spent_seconds=4.0,
+            session_id="session-1",
+        ),
+    )
+
+    assert session_state.get_user_progress_snapshot("ana@example.com") == UserProgressSnapshot(
+        answered_question_ids=(2, 7),
+        activity_dates=(date(2026, 3, 23), date(2026, 3, 22)),
+        question_streak=2,
     )

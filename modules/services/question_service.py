@@ -11,6 +11,7 @@ import pandas as pd
 from modules.domain.models import DisplayAlternative, Question, QuestionAlternative, QuestionIndexEntry
 from modules.storage.schema_validation import (
     ensure_unique_integer_values,
+    iter_dataframe_rows,
     prepare_dataframe,
     require_columns,
     worksheet_row_number,
@@ -103,10 +104,10 @@ def parse_question_bank_dataframe(
 
     questions: list[Question] = []
     issues: list[str] = []
-    for index, row in prepared.iterrows():
+    for index, row in iter_dataframe_rows(prepared):
         row_number = worksheet_row_number(index)
         try:
-            question = _parse_question_row(row.to_dict())
+            question = _parse_question_row(row)
         except ValueError as exc:
             issues.append(f"{QUESTION_RESOURCE_NAME} row {row_number}: {exc}")
             continue
@@ -129,7 +130,7 @@ def parse_question_id_dataframe(
 
     question_ids: list[int] = []
     issues: list[str] = []
-    for index, row in prepared.iterrows():
+    for index, row in iter_dataframe_rows(prepared):
         row_number = worksheet_row_number(index)
         try:
             question_ids.append(_parse_required_int(row.get("id_question"), "id_question"))
@@ -152,7 +153,7 @@ def parse_question_index_dataframe(
 
     entries: list[QuestionIndexEntry] = []
     issues: list[str] = []
-    for index, row in prepared.iterrows():
+    for index, row in iter_dataframe_rows(prepared):
         row_number = worksheet_row_number(index)
         try:
             entries.append(
@@ -182,7 +183,7 @@ def parse_project_options_dataframe(
     project_options: list[str] = []
     seen_projects: set[str] = set()
     issues: list[str] = []
-    for index, row in prepared.iterrows():
+    for index, row in iter_dataframe_rows(prepared):
         row_number = worksheet_row_number(index)
         try:
             project = _parse_optional_cohort_key(row.get("cohort_key"))
@@ -222,7 +223,7 @@ def find_valid_question_bank_row_indexes(
     duplicate_id_by_index = _find_duplicate_id_by_index(prepared)
     valid_indexes: list[int] = []
     issues: list[QuestionRowIssue] = []
-    for index, row in prepared.iterrows():
+    for index, row in iter_dataframe_rows(prepared):
         row_number = worksheet_row_number(index)
         duplicate_id = duplicate_id_by_index.get(index)
         if duplicate_id is not None:
@@ -236,7 +237,7 @@ def find_valid_question_bank_row_indexes(
             continue
 
         try:
-            _parse_question_row(row.to_dict())
+            _parse_question_row(row)
         except ValueError as exc:
             issues.append(
                 QuestionRowIssue(
@@ -552,21 +553,6 @@ def format_subject_label(subject: str | None) -> str:
         return explicit_label
     return _format_canonical_label(normalized_subject)
 
-    accent_map = {
-        "matematica": "Matemática",
-        "portugues": "Português",
-        "historia": "História",
-        "geografia": "Geografia",
-        "ciencias": "Ciências",
-        "todas": "Tudo",
-    }
-    key = normalized_subject.lower()
-    if key in accent_map:
-        return accent_map[key]
-
-    words = normalized_subject.replace("_", " ").split()
-    return " ".join(word.capitalize() for word in words)
-
 
 def format_topic_label(topic: str | None) -> str:
     """Render one topic key as a readable Portuguese-BR label."""
@@ -579,9 +565,6 @@ def format_topic_label(topic: str | None) -> str:
     if explicit_label is not None:
         return explicit_label
     return _format_canonical_label(normalized_topic)
-
-    words = normalized_topic.replace("_", " ").split()
-    return " ".join(word.capitalize() for word in words)
 
 
 def format_subject_topic_filter_label(
@@ -798,7 +781,7 @@ def _find_duplicate_id_by_index(dataframe: pd.DataFrame) -> dict[int, int]:
     ids_by_index: dict[int, int] = {}
     row_indexes_by_id: dict[int, list[int]] = {}
 
-    for index, row in dataframe.iterrows():
+    for index, row in iter_dataframe_rows(dataframe):
         try:
             parsed_id = int(str(row.get("id_question")).strip())
         except (TypeError, ValueError):

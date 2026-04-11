@@ -1,14 +1,15 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pandas as pd
 import pytest
 
-from modules.domain.models import DisplayAlternative, Question, QuestionAlternative, User
+from modules.domain.models import DisplayAlternative, Question, QuestionAlternative, User, UserProgressSnapshot
 from modules.services.answer_service import (
     append_answer_history,
     build_answer_evaluation,
     extract_answered_question_ids,
     parse_answers_dataframe,
+    parse_user_progress_snapshot_dataframe,
 )
 
 
@@ -151,3 +152,41 @@ def test_append_answer_history_prepends_and_deduplicates() -> None:
     assert [answer.id_answer for answer in combined_answers] == ["a2", "a1"]
     assert [answer.id_answer for answer in deduplicated_answers] == ["a2", "a1"]
     assert extract_answered_question_ids(deduplicated_answers) == {1, 2}
+
+
+def test_parse_user_progress_snapshot_dataframe_reads_compact_snapshot() -> None:
+    frame = pd.DataFrame(
+        [
+            {
+                "answered_question_ids": [7, 2, 7],
+                "activity_dates": [date(2026, 3, 23), "2026-03-22", datetime(2026, 3, 21, 9, 0)],
+                "question_streak": 4,
+            }
+        ]
+    )
+
+    snapshot, issues = parse_user_progress_snapshot_dataframe(frame)
+
+    assert issues == []
+    assert snapshot == UserProgressSnapshot(
+        answered_question_ids=(2, 7),
+        activity_dates=(date(2026, 3, 23), date(2026, 3, 22), date(2026, 3, 21)),
+        question_streak=4,
+    )
+
+
+def test_parse_user_progress_snapshot_dataframe_reports_invalid_payload() -> None:
+    frame = pd.DataFrame(
+        [
+            {
+                "answered_question_ids": "not-an-array",
+                "activity_dates": [],
+                "question_streak": 1,
+            }
+        ]
+    )
+
+    snapshot, issues = parse_user_progress_snapshot_dataframe(frame)
+
+    assert snapshot == UserProgressSnapshot()
+    assert issues == ["answers_progress row 2: answered_question_ids must be an array-like value."]

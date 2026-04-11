@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 
 import pandas as pd
 
@@ -17,7 +17,7 @@ def prepare_dataframe(dataframe: pd.DataFrame | None) -> pd.DataFrame:
 
     if dataframe is None:
         return pd.DataFrame()
-    prepared = dataframe.copy()
+    prepared = dataframe.copy(deep=False)
     prepared.columns = [str(column).strip() for column in prepared.columns]
     return prepared.fillna("")
 
@@ -46,8 +46,8 @@ def ensure_unique_integer_values(
 
     seen: set[int] = set()
     duplicates: set[int] = set()
-    for _, row in dataframe.iterrows():
-        raw_value = row.get(column_name, "")
+    column_values = dataframe[column_name] if column_name in dataframe.columns else ()
+    for raw_value in column_values:
         try:
             value = int(str(raw_value).strip())
         except (TypeError, ValueError):
@@ -73,8 +73,9 @@ def ensure_unique_normalized_values(
 
     seen: set[str] = set()
     duplicates: set[str] = set()
-    for _, row in dataframe.iterrows():
-        value = normalizer(str(row.get(column_name, "")))
+    column_values = dataframe[column_name] if column_name in dataframe.columns else ()
+    for raw_value in column_values:
+        value = normalizer(str(raw_value))
         if not value:
             continue
         if value in seen:
@@ -92,3 +93,11 @@ def worksheet_row_number(dataframe_index: int) -> int:
     """Return a human-friendly row number for CSV-style diagnostics."""
 
     return dataframe_index + 2
+
+
+def iter_dataframe_rows(dataframe: pd.DataFrame) -> Iterator[tuple[int, dict[str, object]]]:
+    """Yield dataframe rows as plain dicts without the overhead of iterrows()."""
+
+    columns = tuple(dataframe.columns)
+    for index, values in zip(dataframe.index, dataframe.itertuples(index=False, name=None), strict=False):
+        yield index, dict(zip(columns, values, strict=False))

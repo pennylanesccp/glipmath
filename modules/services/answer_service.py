@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from collections.abc import Sequence
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative, Question, User
-from modules.storage.schema_validation import prepare_dataframe, require_columns, worksheet_row_number
+from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative, Question, User, UserProgressSnapshot
+from modules.storage.schema_validation import iter_dataframe_rows, prepare_dataframe, require_columns, worksheet_row_number
 from modules.utils.datetime_utils import parse_local_datetime, parse_timestamp, utc_now
 from modules.utils.id_utils import generate_answer_id
 from modules.utils.normalization import clean_optional_text, normalize_email
@@ -28,6 +29,12 @@ ANSWERS_REQUIRED_COLUMNS = [
     "answered_at_local",
     "time_spent_seconds",
     "session_id",
+]
+USER_PROGRESS_RESOURCE_NAME = "answers_progress"
+USER_PROGRESS_REQUIRED_COLUMNS = [
+    "answered_question_ids",
+    "activity_dates",
+    "question_streak",
 ]
 
 
@@ -91,8 +98,8 @@ def parse_answers_dataframe(dataframe: pd.DataFrame) -> tuple[list[AnswerAttempt
 
     answers: list[AnswerAttempt] = []
     issues: list[str] = []
-    for index, row in prepared.iterrows():
-        if _is_blank_row(row.to_dict()):
+    for index, row in iter_dataframe_rows(prepared):
+        if _is_blank_row(row):
             continue
 
         row_number = worksheet_row_number(index)
@@ -130,6 +137,50 @@ def parse_answers_dataframe(dataframe: pd.DataFrame) -> tuple[list[AnswerAttempt
             issues.append(f"{ANSWERS_RESOURCE_NAME} row {row_number}: {exc}")
 
     return answers, issues
+
+
+def parse_user_progress_snapshot_dataframe(
+    dataframe: pd.DataFrame,
+) -> tuple[UserProgressSnapshot, list[str]]:
+    """Parse one compact user-progress snapshot row returned by BigQuery."""
+
+    prepared = prepare_dataframe(dataframe)
+    if prepared.empty and not list(prepared.columns):
+        return UserProgressSnapshot(), []
+
+    require_columns(prepared, USER_PROGRESS_REQUIRED_COLUMNS, USER_PROGRESS_RESOURCE_NAME)
+
+    issues: list[str] = []
+    if len(prepared.index) > 1:
+        issues.append("answers_progress query returned more than one row for a single user snapshot.")
+
+    row = prepared.iloc[0].to_dict()
+    row_number = worksheet_row_number(prepared.index[0])
+    try:
+        snapshot = UserProgressSnapshot(
+            answered_question_ids=tuple(
+                sorted(
+                    {
+                        _parse_required_int(item, "answered_question_ids[]")
+                        for item in _parse_array_value(row.get("answered_question_ids"), "answered_question_ids")
+                    }
+                )
+            ),
+            activity_dates=tuple(
+                sorted(
+                    {
+                        _parse_activity_date(item, "activity_dates[]")
+                        for item in _parse_array_value(row.get("activity_dates"), "activity_dates")
+                    },
+                    reverse=True,
+                )
+            ),
+            question_streak=max(_parse_required_int(row.get("question_streak"), "question_streak"), 0),
+        )
+    except ValueError as exc:
+        issues.append(f"{USER_PROGRESS_RESOURCE_NAME} row {row_number}: {exc}")
+        snapshot = UserProgressSnapshot()
+    return snapshot, issues
 
 
 def build_answer_evaluation(
@@ -216,3 +267,32 @@ def _parse_bool(value: object) -> bool:
 
 def _is_blank_row(row: dict[str, object]) -> bool:
     return all(not str(value).strip() for value in row.values())
+
+
+def _parse_array_value(value: object, field_name: str) -> list[object]:
+    if value is None or value == "":
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return list(value)
+    if hasattr(value, "tolist"):
+        converted = value.tolist()
+        if isinstance(converted, list):
+            return converted
+        if isinstance(converted, tuple):
+            return list(converted)
+    raise ValueError(f"{field_name} must be an array-like value.")
+
+
+def _parse_activity_date(value: object, field_name: str) -> date:
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+
+    text = str(value).strip()
+    if not text:
+        raise ValueError(f"{field_name} must be a valid date.")
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must be a valid date.") from exc

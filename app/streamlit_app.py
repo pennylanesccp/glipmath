@@ -36,9 +36,9 @@ from app.state.session_state import (
     get_skipped_question_ids,
     get_subject_filters,
     get_topic_filters,
-    get_user_answer_history,
-    get_user_answer_history_issues,
-    has_loaded_user_answer_history,
+    get_user_progress_snapshot,
+    get_user_progress_snapshot_issues,
+    has_loaded_user_progress_snapshot,
     has_loaded_leaderboard_position,
     has_logged_authenticated_run,
     initialize_session_state,
@@ -52,13 +52,13 @@ from app.state.session_state import (
     set_question_pool,
     set_subject_filters,
     set_topic_filters,
-    set_user_answer_history,
+    set_user_progress_snapshot,
 )
 from modules.auth.auth_service import get_authenticated_identity
 from modules.auth.authorization_service import AuthorizationService
 from modules.config.settings import AppSettings, load_settings
-from modules.domain.models import AnswerAttempt, DisplayAlternative, Question, QuestionIndexEntry, User
-from modules.services.answer_service import AnswerService, parse_answers_dataframe
+from modules.domain.models import DisplayAlternative, Question, QuestionIndexEntry, User, UserProgressSnapshot
+from modules.services.answer_service import AnswerService, parse_user_progress_snapshot_dataframe
 from modules.services.leaderboard_service import parse_leaderboard_position_dataframe
 from modules.services.question_service import (
     QuestionFilterSelection,
@@ -76,7 +76,7 @@ from modules.services.question_service import (
     parse_single_question_dataframe,
     select_question_batch_ids,
 )
-from modules.services.streak_service import compute_day_streak, compute_question_streak
+from modules.services.streak_service import compute_day_streak_from_activity_dates
 from modules.services.user_service import (
     resolve_available_project_options,
     resolve_effective_project_for_user,
@@ -85,6 +85,7 @@ from modules.storage.answer_repository import AnswerRepository
 from modules.storage.bigquery_client import BigQueryClient, BigQueryError
 from modules.storage.question_repository import QuestionRepository
 from modules.storage.user_access_repository import UserAccessRepository
+from modules.utils.datetime_utils import today_in_timezone
 from modules.utils.logging_utils import configure_logging, get_logger
 from modules.utils.normalization import normalize_email
 
@@ -218,12 +219,13 @@ def main() -> None:
             clear_current_question()
             st.rerun()
 
-        _ensure_user_answer_history_loaded(
+        _ensure_user_progress_snapshot_loaded(
             answer_repository=context.answer_repository,
             answers_table_id=answers_table_id,
             user_email=authorized_user.email,
+            timezone_name=settings.timezone,
         )
-        answer_history = get_user_answer_history(authorized_user.email)
+        user_progress = get_user_progress_snapshot(authorized_user.email)
 
         leaderboard_rank, leaderboard_total_users, leaderboard_issues = _ensure_leaderboard_position_loaded(
             answer_repository=context.answer_repository,
@@ -254,7 +256,7 @@ def main() -> None:
         return
 
     question_issues = list(project_option_issues) + list(question_index_issues) + list(question_lookup_issues)
-    answer_issues = get_user_answer_history_issues(authorized_user.email) + list(leaderboard_issues)
+    answer_issues = get_user_progress_snapshot_issues(authorized_user.email) + list(leaderboard_issues)
     _render_diagnostics(
         settings=settings,
         question_issues=question_issues,
@@ -270,8 +272,11 @@ def main() -> None:
         selected_subjects=normalized_filters.subjects,
         selected_topics=normalized_filters.topics,
         selected_filter_label=format_question_filter_label(normalized_filters),
-        day_streak=compute_day_streak(answer_history, timezone_name=settings.timezone),
-        question_streak=compute_question_streak(answer_history),
+        day_streak=compute_day_streak_from_activity_dates(
+            user_progress.activity_dates,
+            today=today_in_timezone(settings.timezone),
+        ),
+        question_streak=user_progress.question_streak,
         leaderboard_position=_resolve_leaderboard_position(leaderboard_rank, leaderboard_total_users),
     )
 
@@ -569,26 +574,33 @@ def load_question_batch(
 
 
 @st.cache_data(show_spinner=False, ttl=120)
-def load_user_answer_history(
+def load_user_progress_snapshot(
     _answer_repository: AnswerRepository,
     answers_table_id: str,
+    *,
     user_email: str,
-) -> tuple[list[AnswerAttempt], list[str]]:
-    """Load and cache one user's parsed answer history."""
+    timezone_name: str,
+) -> tuple[UserProgressSnapshot, list[str]]:
+    """Load and cache one user's compact progress snapshot."""
 
     logger = get_logger(__name__)
     started_at = perf_counter()
-    answer_frame = _answer_repository.load_user_frame(user_email)
-    answers, issues = parse_answers_dataframe(answer_frame)
+    progress_frame = _answer_repository.load_user_progress_snapshot_frame(
+        user_email=user_email,
+        timezone_name=timezone_name,
+    )
+    snapshot, issues = parse_user_progress_snapshot_dataframe(progress_frame)
     logger.debug(
-        "Loaded user answer history | table_id=%s | user_email=%s | answers=%s | issues=%s | elapsed_ms=%.2f",
+        "Loaded user progress snapshot | table_id=%s | user_email=%s | answered_questions=%s | activity_dates=%s | question_streak=%s | issues=%s | elapsed_ms=%.2f",
         answers_table_id,
         user_email,
-        len(answers),
+        len(snapshot.answered_question_ids),
+        len(snapshot.activity_dates),
+        snapshot.question_streak,
         len(issues),
         (perf_counter() - started_at) * 1000,
     )
-    return answers, issues
+    return snapshot, issues
 
 
 @st.cache_data(show_spinner=False, ttl=60)
@@ -626,20 +638,22 @@ def load_leaderboard_position(
     return rank, total_users, issues
 
 
-def _ensure_user_answer_history_loaded(
+def _ensure_user_progress_snapshot_loaded(
     *,
     answer_repository: AnswerRepository,
     answers_table_id: str,
     user_email: str,
-) -> list[AnswerAttempt]:
-    if not has_loaded_user_answer_history(user_email):
-        answers, issues = load_user_answer_history(
+    timezone_name: str,
+) -> UserProgressSnapshot:
+    if not has_loaded_user_progress_snapshot(user_email):
+        snapshot, issues = load_user_progress_snapshot(
             answer_repository,
             answers_table_id,
-            user_email,
+            user_email=user_email,
+            timezone_name=timezone_name,
         )
-        set_user_answer_history(user_email, answers, issues=issues)
-    return get_user_answer_history(user_email)
+        set_user_progress_snapshot(user_email, snapshot, issues=issues)
+    return get_user_progress_snapshot(user_email)
 
 
 def _resolve_authorized_user(

@@ -59,6 +59,60 @@ class AnswerRepository:
             parameters=[bigquery.ScalarQueryParameter("user_email", "STRING", user_email)],
         )
 
+    def load_user_progress_snapshot_frame(
+        self,
+        *,
+        user_email: str,
+        timezone_name: str,
+    ) -> pd.DataFrame:
+        """Load a compact per-user progress snapshot for learner startup."""
+
+        query = f"""
+            WITH user_answers AS (
+                SELECT
+                    id_question,
+                    is_correct,
+                    COALESCE(
+                        DATE(answered_at_local),
+                        DATE(answered_at_utc, @timezone_name)
+                    ) AS activity_date,
+                    ROW_NUMBER() OVER (
+                        ORDER BY answered_at_utc DESC, id_answer DESC
+                    ) AS answer_order
+                FROM `{self._answers_table_id}`
+                WHERE LOWER(TRIM(user_email)) = @user_email
+            )
+            SELECT
+                ARRAY(
+                    SELECT DISTINCT id_question
+                    FROM user_answers
+                    WHERE id_question IS NOT NULL
+                    ORDER BY id_question
+                ) AS answered_question_ids,
+                ARRAY(
+                    SELECT DISTINCT activity_date
+                    FROM user_answers
+                    WHERE activity_date IS NOT NULL
+                    ORDER BY activity_date DESC
+                ) AS activity_dates,
+                (
+                    SELECT
+                        CASE
+                            WHEN COUNT(*) = 0 THEN 0
+                            WHEN MIN(IF(NOT is_correct, answer_order, NULL)) IS NULL THEN COUNT(*)
+                            ELSE MIN(IF(NOT is_correct, answer_order, NULL)) - 1
+                        END
+                    FROM user_answers
+                ) AS question_streak
+        """
+        return self._bigquery_client.query_to_dataframe(
+            query,
+            parameters=[
+                bigquery.ScalarQueryParameter("user_email", "STRING", user_email.lower().strip()),
+                bigquery.ScalarQueryParameter("timezone_name", "STRING", timezone_name),
+            ],
+        )
+
     def append_answer_row(self, row: Mapping[str, object]) -> None:
         """Append a single answer log row."""
 

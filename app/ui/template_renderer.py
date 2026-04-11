@@ -21,6 +21,7 @@ class RawHtml:
     value: str
 
 
+@lru_cache(maxsize=None)
 def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 

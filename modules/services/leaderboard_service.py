@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from modules.domain.models import AnswerAttempt, LeaderboardEntry, User
-from modules.storage.schema_validation import prepare_dataframe, require_columns, worksheet_row_number
+from modules.storage.schema_validation import iter_dataframe_rows, prepare_dataframe, require_columns, worksheet_row_number
 from modules.utils.normalization import clean_optional_text, normalize_email
 
 LEADERBOARD_RESOURCE_NAME = "v_leaderboard"
@@ -68,7 +68,7 @@ def parse_leaderboard_dataframe(
 
     entries: list[LeaderboardEntry] = []
     issues: list[str] = []
-    for index, row in prepared.iterrows():
+    for index, row in iter_dataframe_rows(prepared):
         row_number = worksheet_row_number(index)
         try:
             user_email = normalize_email(str(row.get("user_email", "")))

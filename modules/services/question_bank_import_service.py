@@ -10,7 +10,7 @@ from typing import Any
 
 import pandas as pd
 
-from modules.storage.schema_validation import prepare_dataframe, require_columns, worksheet_row_number
+from modules.storage.schema_validation import iter_dataframe_rows, prepare_dataframe, require_columns, worksheet_row_number
 from modules.utils.normalization import clean_optional_text, coerce_bool
 
 SUPPORTED_QUESTION_FILE_SUFFIXES = {".csv", ".jsonl"}
@@ -337,9 +337,9 @@ def _load_vestibulinho_csv_rows(
 
     rows: list[ImportedQuestionRow] = []
     failures: list[QuestionImportFailure] = []
-    for index, row in prepared.iterrows():
+    for index, row in iter_dataframe_rows(prepared):
         row_number = worksheet_row_number(index)
-        raw_row = row.to_dict()
+        raw_row = dict(row)
         try:
             rows.append(
                 ImportedQuestionRow(

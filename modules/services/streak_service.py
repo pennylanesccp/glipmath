@@ -18,22 +18,10 @@ def compute_day_streak(
     if not answers:
         return 0
 
-    current_date = today or today_in_timezone(timezone_name)
-    active_dates = {_answer_local_date(answer, timezone_name) for answer in answers}
-    latest_activity = max(active_dates)
-
-    if latest_activity == current_date:
-        cursor = current_date
-    elif latest_activity == current_date - timedelta(days=1):
-        cursor = latest_activity
-    else:
-        return 0
-
-    streak = 0
-    while cursor in active_dates:
-        streak += 1
-        cursor -= timedelta(days=1)
-    return streak
+    return compute_day_streak_from_activity_dates(
+        {_answer_local_date(answer, timezone_name) for answer in answers},
+        today=today or today_in_timezone(timezone_name),
+    )
 
 
 def compute_question_streak(answers: list[AnswerAttempt]) -> int:
@@ -45,6 +33,32 @@ def compute_question_streak(answers: list[AnswerAttempt]) -> int:
         if not answer.is_correct:
             break
         streak += 1
+    return streak
+
+
+def compute_day_streak_from_activity_dates(
+    activity_dates: set[date] | list[date] | tuple[date, ...],
+    *,
+    today: date,
+) -> int:
+    """Compute consecutive active days from distinct local activity dates."""
+
+    normalized_dates = {value for value in activity_dates if isinstance(value, date)}
+    if not normalized_dates:
+        return 0
+
+    latest_activity = max(normalized_dates)
+    if latest_activity == today:
+        cursor = today
+    elif latest_activity == today - timedelta(days=1):
+        cursor = latest_activity
+    else:
+        return 0
+
+    streak = 0
+    while cursor in normalized_dates:
+        streak += 1
+        cursor -= timedelta(days=1)
     return streak
 
 

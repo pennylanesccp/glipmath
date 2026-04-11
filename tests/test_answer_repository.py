@@ -182,3 +182,27 @@ def test_load_user_leaderboard_position_frame_scopes_students_to_one_cohort() ->
     parameters = fake_client.parameters[0]
     assert parameters is not None
     assert [parameter.name for parameter in parameters] == ["user_email", "cohort_key"]
+
+
+def test_load_user_progress_snapshot_frame_requests_compact_progress_fields() -> None:
+    fake_client = FakeBigQueryClient(tuple())
+    repository = AnswerRepository(
+        fake_client,
+        answers_table_id="project.dataset.answers",
+        user_access_table_id="project.dataset.user_access",
+    )
+
+    repository.load_user_progress_snapshot_frame(
+        user_email=" Ana@example.com ",
+        timezone_name="America/Sao_Paulo",
+    )
+
+    assert "ARRAY(" in fake_client.queries[0]
+    assert "AS answered_question_ids" in fake_client.queries[0]
+    assert "AS activity_dates" in fake_client.queries[0]
+    assert "AS question_streak" in fake_client.queries[0]
+    parameters = fake_client.parameters[0]
+    assert parameters is not None
+    assert [parameter.name for parameter in parameters] == ["user_email", "timezone_name"]
+    assert parameters[0].to_api_repr()["parameterValue"]["value"] == "ana@example.com"
+    assert parameters[1].to_api_repr()["parameterValue"]["value"] == "America/Sao_Paulo"

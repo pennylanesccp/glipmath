@@ -1,7 +1,11 @@
 from datetime import date, datetime, timezone
 
 from modules.domain.models import AnswerAttempt
-from modules.services.streak_service import compute_day_streak, compute_question_streak
+from modules.services.streak_service import (
+    compute_day_streak,
+    compute_day_streak_from_activity_dates,
+    compute_question_streak,
+)
 
 
 def _answer(
@@ -102,3 +106,13 @@ def test_compute_question_streak_stops_on_first_incorrect_answer() -> None:
     ]
 
     assert compute_question_streak(answers) == 2
+
+
+def test_compute_day_streak_from_activity_dates_accepts_distinct_dates() -> None:
+    assert (
+        compute_day_streak_from_activity_dates(
+            [date(2026, 3, 23), date(2026, 3, 22), date(2026, 3, 21)],
+            today=date(2026, 3, 23),
+        )
+        == 3
+    )
