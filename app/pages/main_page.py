@@ -355,22 +355,28 @@ def _render_pending_alternative_radio(
     selected_option_id: str | None,
 ) -> str | None:
     st.html('<div class="gm-live-pending-label">Escolha uma alternativa</div>')
+    current_selection = get_question_selection() or selected_option_id
     with st.container():
-        st.html('<div class="gm-live-pending-options-hook"></div>')
+        st.html('<div class="gm-live-pending-options-list-hook"></div>')
         for alternative in alternatives:
-            is_selected = alternative.option_id == selected_option_id
-            if st.button(
-                _format_pending_widget_label(alternative.alternative_text),
-                key=f"gm_pending_alternative_button_{current_question_id}_{alternative.option_id}",
-                icon=":material/radio_button_checked:" if is_selected else ":material/radio_button_unchecked:",
-                type="primary" if is_selected else "secondary",
-                use_container_width=True,
-            ):
-                if alternative.option_id != get_question_selection():
-                    set_question_selection(alternative.option_id)
-                st.rerun()
+            is_selected = alternative.option_id == current_selection
+            with st.container():
+                hook_class = "gm-live-pending-option-hook"
+                if is_selected:
+                    hook_class += " gm-live-pending-option-hook--selected"
+                st.html(f'<div class="{hook_class}"></div>')
+                if st.button(
+                    _format_pending_widget_label(alternative.alternative_text),
+                    key=f"gm_pending_alternative_button_{current_question_id}_{alternative.option_id}",
+                    icon=":material/radio_button_checked:" if is_selected else ":material/radio_button_unchecked:",
+                    type="secondary",
+                    use_container_width=True,
+                ):
+                    if alternative.option_id != get_question_selection():
+                        set_question_selection(alternative.option_id)
+                    st.rerun()
 
-    return get_question_selection() or selected_option_id
+    return get_question_selection() or current_selection
 
 
 def _render_pending_state(
@@ -1141,18 +1147,25 @@ def _apply_live_page_styles() -> None:
             color: #1d4ed8;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-list-hook) {
             gap: 0.48rem !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) {
+            gap: 0 !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] {
             width: 100% !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] > button {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button {
             align-items: flex-start !important;
+            background: #ffffff !important;
+            border: 1px solid #dbeafe !important;
             border-radius: 1rem !important;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05) !important;
+            color: #0f172a !important;
             display: grid !important;
             gap: 0.72rem !important;
             grid-template-columns: 1rem minmax(0, 1fr) !important;
@@ -1164,48 +1177,42 @@ def _apply_live_page_styles() -> None:
             width: 100% !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] > button[kind="secondary"] {
-            background: #ffffff !important;
-            border: 1px solid #dbeafe !important;
-            color: #0f172a !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] > button[kind="secondary"]:hover {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button:hover {
             background: #ffffff !important;
             border-color: #93c5fd !important;
             box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12) !important;
             color: #0f172a !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] > button[kind="primary"] {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook--selected) div[data-testid="stButton"] > button {
             background: #edf4ff !important;
-            border: 1px solid #93c5fd !important;
-            color: #1d4ed8 !important;
+            border-color: #93c5fd !important;
             box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12) !important;
+            color: #1d4ed8 !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] > button[kind="primary"]:hover {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook--selected) div[data-testid="stButton"] > button:hover {
             background: #edf4ff !important;
             border-color: #60a5fa !important;
             color: #1d4ed8 !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] > button span[data-testid="stIconMaterial"] {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button span[data-testid="stIconMaterial"] {
             color: #bfd4ff !important;
             font-size: 1rem !important;
             line-height: 1 !important;
             margin-top: 0.08rem !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] > button[kind="primary"] span[data-testid="stIconMaterial"] {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook--selected) div[data-testid="stButton"] > button span[data-testid="stIconMaterial"] {
             color: #2563eb !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] > button [data-testid="stMarkdownContainer"] {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button [data-testid="stMarkdownContainer"] {
             width: 100% !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) div[data-testid="stButton"] > button [data-testid="stMarkdownContainer"] p {
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-option-hook) div[data-testid="stButton"] > button [data-testid="stMarkdownContainer"] p {
             color: inherit !important;
             font-size: 1rem !important;
             font-weight: 500 !important;
