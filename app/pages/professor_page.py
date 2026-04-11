@@ -53,6 +53,7 @@ AUTHORING_WRONG_EXPLANATION_KEYS = (
     "gm_prof_authoring_wrong_explanation_3",
 )
 AUTHORING_PROJECT_SCOPE_KEY = "gm_prof_authoring_project_scope"
+AUTHORING_PENDING_DRAFT_UPDATE_KEY = "gm_prof_authoring_pending_draft_update"
 ADD_STUDENT_EMAIL_KEY = "gm_prof_add_student_email"
 ADD_STUDENT_EMAIL_RESET_REQUEST_KEY = "gm_prof_add_student_email_reset_requested"
 USER_ACCESS_WRITE_PERMISSION_ERROR_HINT = (
@@ -182,6 +183,7 @@ def _render_question_authoring_panel(
 
     _ensure_authoring_project_scope(normalized_project)
     _ensure_authoring_widget_defaults()
+    _consume_pending_authoring_draft_update(project_key=normalized_project)
 
     with st.form("gm_professor_question_authoring_form", clear_on_submit=False):
         subject_col, topic_col = st.columns(2, gap="small")
@@ -310,9 +312,14 @@ def _handle_polish_with_ai(
     except GeminiGenerationError as exc:
         st.error(str(exc))
         return
+    except ValueError as exc:
+        st.error(
+            "A IA retornou uma questao invalida para este formulario. "
+            f"Revise os campos e tente novamente. Detalhe: {exc}"
+        )
+        return
 
-    _apply_draft_to_widget_state(polished_draft)
-    set_professor_authoring_ai_assisted(True)
+    _request_authoring_draft_update(polished_draft, ai_assisted=True)
     set_professor_notice(
         "success",
         "A IA preencheu o formulário. Revise os campos e envie quando estiver satisfeito.",
@@ -344,11 +351,14 @@ def _handle_submit_question(
         st.error(str(exc))
         return
 
-    _reset_authoring_form(
-        project_key=draft.project_key,
-        subject=draft.subject,
-        topic=draft.topic,
-        difficulty=draft.difficulty,
+    _request_authoring_draft_update(
+        QuestionAuthoringDraft(
+            project_key=draft.project_key,
+            subject=draft.subject,
+            topic=draft.topic,
+            difficulty=draft.difficulty,
+        ),
+        ai_assisted=False,
     )
     set_professor_notice(
         "success",
@@ -499,6 +509,60 @@ def _apply_draft_to_widget_state(draft: QuestionAuthoringDraft) -> None:
     for index, wrong_answer in enumerate(draft.wrong_answers):
         st.session_state[AUTHORING_WRONG_TEXT_KEYS[index]] = wrong_answer.alternative_text or ""
         st.session_state[AUTHORING_WRONG_EXPLANATION_KEYS[index]] = wrong_answer.explanation or ""
+
+
+def _request_authoring_draft_update(
+    draft: QuestionAuthoringDraft,
+    *,
+    ai_assisted: bool,
+) -> None:
+    st.session_state[AUTHORING_PENDING_DRAFT_UPDATE_KEY] = {
+        "project_key": clean_optional_text(draft.project_key),
+        "subject": draft.subject or "",
+        "topic": draft.topic or "",
+        "difficulty": normalize_difficulty_value(draft.difficulty),
+        "statement": draft.statement or "",
+        "correct_text": draft.correct_answer.alternative_text or "",
+        "correct_explanation": draft.correct_answer.explanation or "",
+        "wrong_texts": [wrong_answer.alternative_text or "" for wrong_answer in draft.wrong_answers],
+        "wrong_explanations": [wrong_answer.explanation or "" for wrong_answer in draft.wrong_answers],
+        "ai_assisted": bool(ai_assisted),
+    }
+
+
+def _consume_pending_authoring_draft_update(*, project_key: str) -> None:
+    pending_update = st.session_state.pop(AUTHORING_PENDING_DRAFT_UPDATE_KEY, None)
+    if not isinstance(pending_update, dict):
+        return
+
+    pending_project_key = clean_optional_text(pending_update.get("project_key"))
+    if pending_project_key != clean_optional_text(project_key):
+        return
+
+    st.session_state[AUTHORING_SUBJECT_KEY] = clean_optional_text(pending_update.get("subject")) or ""
+    st.session_state[AUTHORING_TOPIC_KEY] = clean_optional_text(pending_update.get("topic")) or ""
+    st.session_state[AUTHORING_DIFFICULTY_KEY] = normalize_difficulty_value(
+        clean_optional_text(pending_update.get("difficulty"))
+    )
+    st.session_state[AUTHORING_STATEMENT_KEY] = clean_optional_text(pending_update.get("statement")) or ""
+    st.session_state[AUTHORING_CORRECT_TEXT_KEY] = clean_optional_text(pending_update.get("correct_text")) or ""
+    st.session_state[AUTHORING_CORRECT_EXPLANATION_KEY] = (
+        clean_optional_text(pending_update.get("correct_explanation")) or ""
+    )
+
+    wrong_texts = pending_update.get("wrong_texts")
+    if isinstance(wrong_texts, list):
+        for index, key in enumerate(AUTHORING_WRONG_TEXT_KEYS):
+            value = wrong_texts[index] if index < len(wrong_texts) else ""
+            st.session_state[key] = clean_optional_text(value) or ""
+
+    wrong_explanations = pending_update.get("wrong_explanations")
+    if isinstance(wrong_explanations, list):
+        for index, key in enumerate(AUTHORING_WRONG_EXPLANATION_KEYS):
+            value = wrong_explanations[index] if index < len(wrong_explanations) else ""
+            st.session_state[key] = clean_optional_text(value) or ""
+
+    set_professor_authoring_ai_assisted(bool(pending_update.get("ai_assisted")))
 
 
 def _reset_authoring_form(

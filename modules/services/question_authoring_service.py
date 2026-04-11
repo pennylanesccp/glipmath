@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any, Protocol
 from uuid import uuid4
@@ -149,12 +150,53 @@ class QuestionAuthoringService:
     def polish_draft(self, draft: QuestionAuthoringDraft) -> QuestionAuthoringDraft:
         """Generate one polished question draft from the current teacher hints."""
 
-        payload = self._ai_client.generate_json(
-            prompt=self.build_prompt(draft),
-            response_schema=QUESTION_AUTHORING_RESPONSE_SCHEMA,
-            temperature=0.4,
+        prompt = self.build_prompt(draft)
+        last_issue: ValueError | None = None
+
+        for attempt in range(2):
+            payload = self._ai_client.generate_json(
+                prompt=prompt,
+                response_schema=QUESTION_AUTHORING_RESPONSE_SCHEMA,
+                temperature=0.4,
+            )
+            try:
+                return self.parse_response(draft, payload)
+            except ValueError as exc:
+                last_issue = exc
+                if attempt == 1:
+                    break
+                prompt = self.build_retry_prompt(
+                    draft,
+                    invalid_payload=payload,
+                    validation_error=exc,
+                )
+
+        issue_text = str(last_issue) if last_issue is not None else "payload invalido."
+        raise ValueError(f"A IA retornou uma questao invalida: {issue_text}")
+
+    def build_retry_prompt(
+        self,
+        draft: QuestionAuthoringDraft,
+        *,
+        invalid_payload: dict[str, Any],
+        validation_error: ValueError,
+    ) -> str:
+        """Build a stricter retry prompt after one invalid AI response."""
+
+        invalid_payload_json = json.dumps(
+            invalid_payload,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
         )
-        return self.parse_response(draft, payload)
+        return (
+            f"{self.build_prompt(draft)}\n\n"
+            "Sua resposta anterior foi rejeitada na validacao.\n"
+            f"Erro encontrado: {validation_error}\n"
+            "Corrija o JSON inteiro e retorne uma nova versao completa.\n"
+            "Garanta especialmente que os quatro `alternative_text` sejam unicos.\n"
+            f"JSON rejeitado:\n```json\n{invalid_payload_json}\n```"
+        )
 
     def parse_response(
         self,

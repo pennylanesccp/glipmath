@@ -1,3 +1,5 @@
+import pytest
+
 from modules.services.question_authoring_service import (
     AI_POLISHED_QUESTION_SOURCE,
     AuthoringAlternativeDraft,
@@ -21,6 +23,24 @@ class FakeGenerationClient:
         assert response_schema["type"] == "object"
         assert temperature == 0.4
         return self.payload
+
+
+class SequencedGenerationClient:
+    def __init__(self, payloads: list[dict[str, object]]) -> None:
+        self.payloads = list(payloads)
+        self.prompts: list[str] = []
+
+    def generate_json(
+        self,
+        *,
+        prompt: str,
+        response_schema: dict[str, object],
+        temperature: float = 0.4,
+    ) -> dict[str, object]:
+        self.prompts.append(prompt)
+        assert response_schema["type"] == "object"
+        assert temperature == 0.4
+        return self.payloads[len(self.prompts) - 1]
 
 
 def test_validate_draft_for_ai_requires_only_metadata() -> None:
@@ -133,6 +153,132 @@ def test_question_authoring_service_polishes_payload_and_preserves_metadata() ->
     assert polished.statement == "Qual é a raiz quadrada de 81?"
     assert polished.correct_answer.alternative_text == "9"
     assert [answer.alternative_text for answer in polished.wrong_answers] == ["8", "7", "6"]
+
+
+def test_question_authoring_service_retries_when_first_payload_has_duplicate_alternatives() -> None:
+    client = SequencedGenerationClient(
+        [
+            {
+                "statement": "Qual e a raiz quadrada de 81?",
+                "correct_answer": {
+                    "alternative_text": "9",
+                    "explanation": "9 x 9 = 81.",
+                },
+                "wrong_answers": [
+                    {
+                        "alternative_text": "8",
+                        "explanation": "8 x 8 = 64.",
+                    },
+                    {
+                        "alternative_text": "8",
+                        "explanation": "Ainda e 64.",
+                    },
+                    {
+                        "alternative_text": "6",
+                        "explanation": "6 x 6 = 36.",
+                    },
+                ],
+            },
+            {
+                "statement": "Qual e a raiz quadrada de 81?",
+                "correct_answer": {
+                    "alternative_text": "9",
+                    "explanation": "9 x 9 = 81.",
+                },
+                "wrong_answers": [
+                    {
+                        "alternative_text": "8",
+                        "explanation": "8 x 8 = 64.",
+                    },
+                    {
+                        "alternative_text": "7",
+                        "explanation": "7 x 7 = 49.",
+                    },
+                    {
+                        "alternative_text": "6",
+                        "explanation": "6 x 6 = 36.",
+                    },
+                ],
+            },
+        ]
+    )
+    service = QuestionAuthoringService(client)
+
+    polished = service.polish_draft(
+        QuestionAuthoringDraft(
+            project_key="rumo_etec",
+            subject="Matematica",
+            topic="radiciacao",
+            difficulty="3_medio",
+        )
+    )
+
+    assert polished.correct_answer.alternative_text == "9"
+    assert [answer.alternative_text for answer in polished.wrong_answers] == ["8", "7", "6"]
+    assert len(client.prompts) == 2
+    assert "rejeitada na validacao" in client.prompts[1]
+    assert "alternative_text" in client.prompts[1]
+
+
+def test_question_authoring_service_raises_friendly_error_after_two_invalid_payloads() -> None:
+    service = QuestionAuthoringService(
+        SequencedGenerationClient(
+            [
+                {
+                    "statement": "Qual e a raiz quadrada de 81?",
+                    "correct_answer": {
+                        "alternative_text": "9",
+                        "explanation": "9 x 9 = 81.",
+                    },
+                    "wrong_answers": [
+                        {
+                            "alternative_text": "8",
+                            "explanation": "8 x 8 = 64.",
+                        },
+                        {
+                            "alternative_text": "8",
+                            "explanation": "Ainda e 64.",
+                        },
+                        {
+                            "alternative_text": "6",
+                            "explanation": "6 x 6 = 36.",
+                        },
+                    ],
+                },
+                {
+                    "statement": "Qual e a raiz quadrada de 81?",
+                    "correct_answer": {
+                        "alternative_text": "9",
+                        "explanation": "9 x 9 = 81.",
+                    },
+                    "wrong_answers": [
+                        {
+                            "alternative_text": "8",
+                            "explanation": "8 x 8 = 64.",
+                        },
+                        {
+                            "alternative_text": "8",
+                            "explanation": "Ainda e 64.",
+                        },
+                        {
+                            "alternative_text": "6",
+                            "explanation": "6 x 6 = 36.",
+                        },
+                    ],
+                },
+            ]
+        )
+    )
+
+    with pytest.raises(ValueError, match="A IA retornou uma questao invalida"):
+        service.polish_draft(
+            QuestionAuthoringDraft(
+                project_key="rumo_etec",
+                subject="Matematica",
+                topic="radiciacao",
+                difficulty="3_medio",
+            )
+        )
 
 
 def test_difficulty_helpers_normalize_and_format_labels() -> None:
