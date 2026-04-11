@@ -1417,10 +1417,14 @@ def _apply_live_page_styles() -> None:
             margin-bottom: 0.35rem;
         }
 
+        div[data-testid="stElementContainer"]:has(div[data-testid="stRadio"]),
+        div[data-testid="stElementContainer"]:has(div[data-testid="stRadio"]) > div,
+        div[data-testid="stRadio"],
         div[data-testid="stRadio"] > div:first-of-type,
         div[data-testid="stRadio"] > div,
         div[data-testid="stRadio"] [role="radiogroup"] {
             width: 100% !important;
+            max-width: none !important;
         }
 
         div[data-testid="stRadio"] [role="radiogroup"] {
@@ -1435,6 +1439,12 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stRadio"] [role="radiogroup"] > * {
             align-self: stretch !important;
+            display: block !important;
+            max-width: none !important;
+            width: 100% !important;
+        }
+
+        div[data-testid="stRadio"] [role="radiogroup"] > * > * {
             max-width: none !important;
             width: 100% !important;
         }
@@ -1447,8 +1457,11 @@ def _apply_live_page_styles() -> None:
             box-sizing: border-box;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
             cursor: pointer !important;
-            display: flex !important;
-            flex: 1 1 auto !important;
+            column-gap: 0.72rem !important;
+            display: grid !important;
+            grid-template-columns: 1rem minmax(0, 1fr);
+            inline-size: 100% !important;
+            justify-self: stretch !important;
             margin-bottom: 0 !important;
             max-width: none !important;
             min-width: 100% !important;
@@ -1481,6 +1494,14 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stRadio"] label[data-baseweb="radio"] > div:last-child {
             flex: 1 1 auto !important;
             min-width: 0 !important;
+            width: 100% !important;
+        }
+
+        div[data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"],
+        div[data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] > div,
+        div[data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] p {
+            max-width: none !important;
+            width: 100% !important;
         }
 
         div[data-testid="stRadio"] input[type="radio"] {
