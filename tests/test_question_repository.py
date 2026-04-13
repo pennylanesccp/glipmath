@@ -73,20 +73,22 @@ def test_load_question_frame_by_id_enforces_cohort_scope() -> None:
     assert {parameter.name for parameter in parameters} == {"id_question", "cohort_key"}
 
 
-def test_load_question_frames_by_ids_uses_one_array_parameter_query() -> None:
+def test_load_question_frames_by_ids_preserves_requested_order_in_query() -> None:
     fake_client = FakeBigQueryClient()
     repository = QuestionRepository(fake_client, "project.dataset.question_bank")
 
     repository.load_question_frames_by_ids([42, 7, 42], cohort_key="ano_2")
 
-    assert "id_question IN UNNEST(@id_question_ids)" in fake_client.queries[0]
+    assert "FROM UNNEST(@id_question_ids) AS id_question WITH OFFSET AS requested_offset" in fake_client.queries[0]
+    assert "INNER JOIN `project.dataset.question_bank` AS question_bank" in fake_client.queries[0]
+    assert "ORDER BY requested_ids.requested_offset" in fake_client.queries[0]
     assert "LOWER(TRIM(cohort_key)) = @cohort_key" in fake_client.queries[0]
     parameters = fake_client.parameters[0]
     assert parameters is not None
     assert [parameter.name for parameter in parameters] == ["id_question_ids", "cohort_key"]
     assert parameters[0].to_api_repr()["parameterValue"]["arrayValues"] == [
-        {"value": "7"},
         {"value": "42"},
+        {"value": "7"},
     ]
 
 

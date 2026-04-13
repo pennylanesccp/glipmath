@@ -131,7 +131,7 @@ class QuestionRepository:
     ) -> pd.DataFrame:
         """Load multiple active questions by identifier in one round-trip."""
 
-        normalized_ids = sorted({int(id_question) for id_question in id_questions})
+        normalized_ids = list(dict.fromkeys(int(id_question) for id_question in id_questions))
         if not normalized_ids:
             return pd.DataFrame(
                 columns=[
@@ -157,24 +157,31 @@ class QuestionRepository:
         extra_filter = f"\n              AND {cohort_condition}" if cohort_condition else ""
         parameters.extend(cohort_parameters)
         query = f"""
+            WITH requested_ids AS (
+                SELECT
+                    id_question,
+                    requested_offset
+                FROM UNNEST(@id_question_ids) AS id_question WITH OFFSET AS requested_offset
+            )
             SELECT
-                id_question,
-                statement,
-                correct_answer,
-                wrong_answers,
-                subject,
-                topic,
-                difficulty,
-                source,
-                cohort_key,
-                is_active,
-                created_at_utc,
-                updated_at_utc
-            FROM `{self._table_id}`
-            WHERE is_active = TRUE
-              AND id_question IN UNNEST(@id_question_ids)
+                question_bank.id_question,
+                question_bank.statement,
+                question_bank.correct_answer,
+                question_bank.wrong_answers,
+                question_bank.subject,
+                question_bank.topic,
+                question_bank.difficulty,
+                question_bank.source,
+                question_bank.cohort_key,
+                question_bank.is_active,
+                question_bank.created_at_utc,
+                question_bank.updated_at_utc
+            FROM requested_ids
+            INNER JOIN `{self._table_id}` AS question_bank
+                ON question_bank.id_question = requested_ids.id_question
+            WHERE question_bank.is_active = TRUE
               {extra_filter}
-            ORDER BY id_question
+            ORDER BY requested_ids.requested_offset
         """
         return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
 
