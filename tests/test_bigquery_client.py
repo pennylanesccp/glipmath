@@ -81,3 +81,25 @@ def test_bigquery_client_allows_adc_by_default(monkeypatch) -> None:
     assert captured["project"] == "ide-math-app"
     assert captured["location"] == "southamerica-east1"
     assert captured["credentials"] is None
+
+
+def test_normalize_sql_preserves_query_structure() -> None:
+    normalized = bigquery_client_module._normalize_sql(
+        """
+            SELECT
+                user_email,
+                role
+            FROM `ide-math-app.glipmath_core.user_access`
+            WHERE LOWER(TRIM(user_email)) = @user_email
+        """
+    )
+
+    assert normalized == "\n".join(
+        [
+            "SELECT",
+            "    user_email,",
+            "    role",
+            "FROM `ide-math-app.glipmath_core.user_access`",
+            "WHERE LOWER(TRIM(user_email)) = @user_email",
+        ]
+    )

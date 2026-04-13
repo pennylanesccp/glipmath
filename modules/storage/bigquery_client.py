@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import textwrap
 from time import perf_counter
 from typing import Any
 
@@ -117,7 +118,7 @@ class BigQueryClient:
                 "Executing BigQuery query | location=%s | parameters=%s | sql=%s",
                 self._location,
                 _format_parameters(parameters),
-                _compact_sql(sql),
+                _normalize_sql(sql),
             )
             query_job = self._client.query(
                 sql,
@@ -130,7 +131,7 @@ class BigQueryClient:
                 "BigQuery query failed | job_id=%s | parameters=%s | sql=%s",
                 getattr(query_job, "job_id", None),
                 _format_parameters(parameters),
-                _compact_sql(sql),
+                _normalize_sql(sql),
             )
             raise BigQueryError(f"BigQuery query failed: {exc}") from exc
 
@@ -162,7 +163,7 @@ class BigQueryClient:
                 "Executing BigQuery statement | location=%s | parameters=%s | sql=%s",
                 self._location,
                 _format_parameters(parameters),
-                _compact_sql(sql),
+                _normalize_sql(sql),
             )
             query_job = self._client.query(
                 sql,
@@ -175,7 +176,7 @@ class BigQueryClient:
                 "BigQuery statement failed | job_id=%s | parameters=%s | sql=%s",
                 getattr(query_job, "job_id", None),
                 _format_parameters(parameters),
-                _compact_sql(sql),
+                _normalize_sql(sql),
             )
             raise BigQueryError(f"BigQuery statement failed: {exc}") from exc
         logger.debug(
@@ -217,8 +218,28 @@ class BigQueryClient:
         )
 
 
-def _compact_sql(sql: str) -> str:
-    return " ".join(line.strip() for line in sql.strip().splitlines() if line.strip())
+def _normalize_sql(sql: str) -> str:
+    lines = [
+        line.rstrip()
+        for line in textwrap.dedent(sql).strip().splitlines()
+        if line.strip()
+    ]
+    if len(lines) <= 1:
+        return "\n".join(lines)
+
+    trailing_indent = min(
+        (
+            len(line) - len(line.lstrip())
+            for line in lines[1:]
+            if line.strip()
+        ),
+        default=0,
+    )
+    if trailing_indent <= 0:
+        return "\n".join(lines)
+
+    normalized_tail = [line[trailing_indent:] for line in lines[1:]]
+    return "\n".join([lines[0], *normalized_tail])
 
 
 def _format_parameters(
