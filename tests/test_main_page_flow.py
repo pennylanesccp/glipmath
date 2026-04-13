@@ -383,7 +383,7 @@ def test_apply_live_page_styles_reuses_pending_choice_spacing_for_radio_block(mo
     assert "padding: var(--gm-pending-choice-spacing) !important;" in stylesheet
 
 
-def test_apply_live_page_styles_places_sidebar_shell_on_the_left(monkeypatch) -> None:
+def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch) -> None:
     rendered_html: list[str] = []
 
     monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
@@ -393,10 +393,9 @@ def test_apply_live_page_styles_places_sidebar_shell_on_the_left(monkeypatch) ->
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
     assert "border-right: 1px solid #dbeafe !important;" in stylesheet
-    assert "left: 0 !important;" in stylesheet
-    assert "right: auto !important;" in stylesheet
-    assert "transform: translateX(-100%) !important;" in stylesheet
-    assert "left: 1rem !important;" in stylesheet
+    assert '[data-testid="stHeader"]' in stylesheet
+    assert 'button[kind="header"][aria-label*="sidebar" i]' not in stylesheet
+    assert 'section[data-testid="stSidebar"][aria-expanded="false"]' not in stylesheet
 
 
 def test_format_pending_widget_label_unwraps_fenced_code_blocks() -> None:

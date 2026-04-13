@@ -1030,16 +1030,10 @@ def _apply_live_page_styles() -> None:
             border-left: none !important;
             border-right: 1px solid #dbeafe !important;
             box-shadow: 18px 0 40px rgba(15, 23, 42, 0.1) !important;
-            left: 0 !important;
-            right: auto !important;
         }
 
         section[data-testid="stSidebar"] > div {
             background: rgba(255, 255, 255, 0.96) !important;
-        }
-
-        section[data-testid="stSidebar"][aria-expanded="false"] {
-            transform: translateX(-100%) !important;
         }
 
         [data-testid="stHeader"] {
@@ -1048,47 +1042,6 @@ def _apply_live_page_styles() -> None:
 
         section[data-testid="stSidebar"] [data-testid="stButton"] > button {
             border-radius: 1rem;
-        }
-
-        button[kind="header"][aria-label*="sidebar" i] {
-            align-items: center !important;
-            background: rgba(255, 255, 255, 0.94) !important;
-            border: 1px solid #cbd5e1 !important;
-            border-radius: 999px !important;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
-            color: #94a3b8 !important;
-            display: inline-flex !important;
-            height: 2.5rem !important;
-            justify-content: center !important;
-            left: 1rem !important;
-            padding: 0 !important;
-            position: fixed !important;
-            right: auto !important;
-            top: 0.75rem !important;
-            width: 2.5rem !important;
-            z-index: 1002 !important;
-        }
-
-        button[kind="header"][aria-label*="sidebar" i] svg {
-            display: none !important;
-        }
-
-        button[kind="header"][aria-label*="sidebar" i]::after {
-            color: #94a3b8 !important;
-            content: "\22EE";
-            font-size: 1.35rem;
-            font-weight: 700;
-            line-height: 1;
-        }
-
-        button[kind="header"][aria-label*="sidebar" i]:hover {
-            background: #f8fafc !important;
-            border-color: #94a3b8 !important;
-        }
-
-        button[kind="header"][aria-label*="sidebar" i]:focus-visible {
-            box-shadow: 0 0 0 0.18rem rgba(148, 163, 184, 0.28) !important;
-            outline: none !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook) [data-testid="stCheckbox"] {
