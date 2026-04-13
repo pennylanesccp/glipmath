@@ -976,7 +976,7 @@ def _format_rank_text(leaderboard_position: str) -> str:
     text = str(leaderboard_position or "").strip()
     if not text:
         return "#-"
-    return text.split("/")[0].strip()
+    return text.replace(" / ", "/").replace(" /", "/").replace("/ ", "/")
 
 
 def _text_to_html(text: str | None) -> str:
@@ -994,6 +994,10 @@ def _apply_live_page_styles() -> None:
     st.html(
         """
         <style>
+        :root {
+            --gm-pending-choice-spacing: 0.62rem;
+        }
+
         [data-testid="stAppViewContainer"] {
             background:
                 radial-gradient(circle at top, rgba(37, 99, 235, 0.12), transparent 26%),
@@ -1023,11 +1027,11 @@ def _apply_live_page_styles() -> None:
         }
 
         section[data-testid="stSidebar"] {
-            border-right: none !important;
-            border-left: 1px solid #dbeafe !important;
-            box-shadow: -18px 0 40px rgba(15, 23, 42, 0.1) !important;
-            left: auto !important;
-            right: 0 !important;
+            border-left: none !important;
+            border-right: 1px solid #dbeafe !important;
+            box-shadow: 18px 0 40px rgba(15, 23, 42, 0.1) !important;
+            left: 0 !important;
+            right: auto !important;
         }
 
         section[data-testid="stSidebar"] > div {
@@ -1035,7 +1039,11 @@ def _apply_live_page_styles() -> None:
         }
 
         section[data-testid="stSidebar"][aria-expanded="false"] {
-            transform: translateX(100%) !important;
+            transform: translateX(-100%) !important;
+        }
+
+        [data-testid="stHeader"] {
+            background: transparent !important;
         }
 
         section[data-testid="stSidebar"] [data-testid="stButton"] > button {
@@ -1052,10 +1060,10 @@ def _apply_live_page_styles() -> None:
             display: inline-flex !important;
             height: 2.5rem !important;
             justify-content: center !important;
-            left: auto !important;
+            left: 1rem !important;
             padding: 0 !important;
             position: fixed !important;
-            right: 1rem !important;
+            right: auto !important;
             top: 0.75rem !important;
             width: 2.5rem !important;
             z-index: 1002 !important;
@@ -1320,12 +1328,13 @@ def _apply_live_page_styles() -> None:
             color: #7b8498;
             font-size: 0.88rem;
             font-weight: 600;
-            margin: 0.18rem 0 0.38rem;
+            margin: 0.18rem 0 var(--gm-pending-choice-spacing);
         }
 
         .gm-live-pending-choice-card {
             margin-bottom: 0 !important;
             max-width: none;
+            padding: var(--gm-pending-choice-spacing) !important;
             width: 100%;
         }
 
@@ -1355,7 +1364,7 @@ def _apply_live_page_styles() -> None:
         .gm-live-pending-choice-row {
             align-items: flex-start;
             display: flex;
-            gap: 0.62rem;
+            gap: var(--gm-pending-choice-spacing);
         }
 
         .gm-live-pending-choice-dot {
@@ -1672,7 +1681,7 @@ def _apply_live_page_styles() -> None:
             align-items: stretch !important;
             display: flex !important;
             flex-direction: column !important;
-            gap: 0.42rem !important;
+            gap: var(--gm-pending-choice-spacing) !important;
             max-width: none !important;
             width: 100% !important;
         }
@@ -1697,7 +1706,7 @@ def _apply_live_page_styles() -> None:
             box-sizing: border-box;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
             cursor: pointer !important;
-            column-gap: 0.72rem !important;
+            column-gap: var(--gm-pending-choice-spacing) !important;
             display: grid !important;
             grid-template-columns: 1rem minmax(0, 1fr);
             inline-size: 100% !important;
@@ -1705,7 +1714,7 @@ def _apply_live_page_styles() -> None:
             margin-bottom: 0 !important;
             max-width: none !important;
             min-width: 100% !important;
-            padding: 0.9rem 1rem;
+            padding: var(--gm-pending-choice-spacing) !important;
             width: 100% !important;
         }
 

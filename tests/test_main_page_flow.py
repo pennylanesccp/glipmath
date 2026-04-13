@@ -367,6 +367,38 @@ def test_build_pending_alternative_card_html_renders_markdown_and_selected_state
     assert "print('ok')" in html
 
 
+def test_apply_live_page_styles_reuses_pending_choice_spacing_for_radio_block(monkeypatch) -> None:
+    rendered_html: list[str] = []
+
+    monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
+
+    main_page._apply_live_page_styles()
+
+    assert len(rendered_html) == 1
+    stylesheet = rendered_html[0]
+    assert "--gm-pending-choice-spacing: 0.62rem;" in stylesheet
+    assert "margin: 0.18rem 0 var(--gm-pending-choice-spacing);" in stylesheet
+    assert "gap: var(--gm-pending-choice-spacing) !important;" in stylesheet
+    assert "column-gap: var(--gm-pending-choice-spacing) !important;" in stylesheet
+    assert "padding: var(--gm-pending-choice-spacing) !important;" in stylesheet
+
+
+def test_apply_live_page_styles_places_sidebar_shell_on_the_left(monkeypatch) -> None:
+    rendered_html: list[str] = []
+
+    monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
+
+    main_page._apply_live_page_styles()
+
+    assert len(rendered_html) == 1
+    stylesheet = rendered_html[0]
+    assert "border-right: 1px solid #dbeafe !important;" in stylesheet
+    assert "left: 0 !important;" in stylesheet
+    assert "right: auto !important;" in stylesheet
+    assert "transform: translateX(-100%) !important;" in stylesheet
+    assert "left: 1rem !important;" in stylesheet
+
+
 def test_format_pending_widget_label_unwraps_fenced_code_blocks() -> None:
     label = main_page._format_pending_widget_label(
         "```sql\nSELECT *\nFROM bronze.orders\n```"
@@ -381,6 +413,12 @@ def test_format_pending_widget_label_preserves_inline_markdown_when_possible() -
     )
 
     assert label == "Use `Type 1` and compare with `Type 2`."
+
+
+def test_format_rank_text_preserves_rank_and_total_users() -> None:
+    assert main_page._format_rank_text("#1 / 10") == "#1/10"
+    assert main_page._format_rank_text("#3/12") == "#3/12"
+    assert main_page._format_rank_text("") == "#-"
 
 
 def test_build_answer_status_chip_html_matches_result_state() -> None:

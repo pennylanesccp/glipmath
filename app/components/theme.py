@@ -4,16 +4,13 @@ import streamlit as st
 
 
 def apply_app_theme() -> None:
-    """Hide Streamlit chrome and keep the app shell compact."""
+    """Minimize Streamlit chrome while keeping navigation controls available."""
 
     st.html(
         """
         <style>
-        [data-testid="stSidebar"],
-        [data-testid="collapsedControl"],
         [data-testid="stToolbar"],
-        [data-testid="stStatusWidget"],
-        [data-testid="stHeader"] {
+        [data-testid="stStatusWidget"] {
             display: none !important;
         }
 
