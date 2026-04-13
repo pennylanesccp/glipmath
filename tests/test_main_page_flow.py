@@ -367,7 +367,7 @@ def test_build_pending_alternative_card_html_renders_markdown_and_selected_state
     assert "print('ok')" in html
 
 
-def test_apply_live_page_styles_reuses_pending_choice_spacing_for_radio_block(monkeypatch) -> None:
+def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch) -> None:
     rendered_html: list[str] = []
 
     monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
@@ -376,11 +376,14 @@ def test_apply_live_page_styles_reuses_pending_choice_spacing_for_radio_block(mo
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-pending-choice-spacing: 0.48rem;" in stylesheet
-    assert "margin: 0.18rem 0 var(--gm-pending-choice-spacing);" in stylesheet
-    assert "gap: var(--gm-pending-choice-spacing) !important;" in stylesheet
-    assert "column-gap: var(--gm-pending-choice-spacing) !important;" in stylesheet
-    assert "padding: var(--gm-pending-choice-spacing) !important;" in stylesheet
+    assert "--gm-pending-choice-gap: 0.48rem;" in stylesheet
+    assert "--gm-pending-choice-label-gap: 0.3rem;" in stylesheet
+    assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
+    assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet
+    assert "margin: 0.18rem 0 var(--gm-pending-choice-label-gap);" in stylesheet
+    assert "gap: var(--gm-pending-choice-gap) !important;" in stylesheet
+    assert "column-gap: var(--gm-pending-choice-gap) !important;" in stylesheet
+    assert "padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;" in stylesheet
 
 
 def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch) -> None:

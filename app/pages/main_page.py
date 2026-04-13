@@ -995,7 +995,10 @@ def _apply_live_page_styles() -> None:
         """
         <style>
         :root {
-            --gm-pending-choice-spacing: 0.48rem;
+            --gm-pending-choice-gap: 0.48rem;
+            --gm-pending-choice-label-gap: 0.3rem;
+            --gm-pending-choice-padding-block: 0.56rem;
+            --gm-pending-choice-padding-inline: 0.62rem;
         }
 
         [data-testid="stAppViewContainer"] {
@@ -1281,13 +1284,13 @@ def _apply_live_page_styles() -> None:
             color: #7b8498;
             font-size: 0.88rem;
             font-weight: 600;
-            margin: 0.18rem 0 var(--gm-pending-choice-spacing);
+            margin: 0.18rem 0 var(--gm-pending-choice-label-gap);
         }
 
         .gm-live-pending-choice-card {
             margin-bottom: 0 !important;
             max-width: none;
-            padding: var(--gm-pending-choice-spacing) !important;
+            padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;
             width: 100%;
         }
 
@@ -1317,7 +1320,7 @@ def _apply_live_page_styles() -> None:
         .gm-live-pending-choice-row {
             align-items: flex-start;
             display: flex;
-            gap: var(--gm-pending-choice-spacing);
+            gap: var(--gm-pending-choice-gap);
         }
 
         .gm-live-pending-choice-dot {
@@ -1634,7 +1637,7 @@ def _apply_live_page_styles() -> None:
             align-items: stretch !important;
             display: flex !important;
             flex-direction: column !important;
-            gap: var(--gm-pending-choice-spacing) !important;
+            gap: var(--gm-pending-choice-gap) !important;
             max-width: none !important;
             width: 100% !important;
         }
@@ -1659,7 +1662,7 @@ def _apply_live_page_styles() -> None:
             box-sizing: border-box;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
             cursor: pointer !important;
-            column-gap: var(--gm-pending-choice-spacing) !important;
+            column-gap: var(--gm-pending-choice-gap) !important;
             display: grid !important;
             grid-template-columns: 1rem minmax(0, 1fr);
             inline-size: 100% !important;
@@ -1667,7 +1670,7 @@ def _apply_live_page_styles() -> None:
             margin-bottom: 0 !important;
             max-width: none !important;
             min-width: 100% !important;
-            padding: var(--gm-pending-choice-spacing) !important;
+            padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;
             width: 100% !important;
         }
 

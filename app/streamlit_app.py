@@ -138,7 +138,7 @@ def main() -> None:
     st.set_page_config(
         page_title="GlipMath",
         layout="centered",
-        initial_sidebar_state="collapsed",
+        initial_sidebar_state="expanded",
     )
     initialize_session_state()
 

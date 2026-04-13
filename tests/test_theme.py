@@ -15,5 +15,6 @@ def test_apply_app_theme_keeps_sidebar_navigation_available(monkeypatch) -> None
     assert '[data-testid="stToolbar"]' in stylesheet
     assert '[data-testid="stStatusWidget"]' in stylesheet
     assert '[data-testid="stSidebar"]' not in stylesheet
-    assert '[data-testid="collapsedControl"]' not in stylesheet
-    assert '[data-testid="stHeader"]' not in stylesheet
+    assert '[data-testid="collapsedControl"]' in stylesheet
+    assert '[data-testid="collapsedControl"] button' in stylesheet
+    assert '[data-testid="stHeader"]' in stylesheet
