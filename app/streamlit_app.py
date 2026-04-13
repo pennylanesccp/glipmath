@@ -18,10 +18,12 @@ from app.components.theme import apply_app_theme
 from app.pages.login_page import render_login_page, render_not_authorized_page
 from app.pages.main_page import render_main_page
 from app.pages.professor_page import render_professor_page
+from app.pages.student_dashboard_page import render_student_dashboard_page
 from app.state.session_state import (
     bind_authenticated_user,
     clear_current_question,
     get_current_professor_tool,
+    get_current_student_view,
     get_current_workspace,
     ensure_question_pool_scope,
     get_answered_question_ids,
@@ -46,6 +48,7 @@ from app.state.session_state import (
     mark_authenticated_run_logged,
     set_current_question,
     set_current_professor_tool,
+    set_current_student_view,
     set_current_workspace,
     set_leaderboard_position,
     set_project_filter,
@@ -57,7 +60,15 @@ from app.state.session_state import (
 from modules.auth.auth_service import get_authenticated_identity
 from modules.auth.authorization_service import AuthorizationService
 from modules.config.settings import AppSettings, load_settings
-from modules.domain.models import DisplayAlternative, Question, QuestionIndexEntry, User, UserProgressSnapshot
+from modules.domain.models import (
+    DisplayAlternative,
+    Question,
+    QuestionIndexEntry,
+    StudentDashboardSummary,
+    StudentSubjectPerformance,
+    User,
+    UserProgressSnapshot,
+)
 from modules.services.answer_service import AnswerService, parse_user_progress_snapshot_dataframe
 from modules.services.leaderboard_service import parse_leaderboard_position_dataframe
 from modules.services.question_service import (
@@ -77,6 +88,10 @@ from modules.services.question_service import (
     select_question_batch_ids,
 )
 from modules.services.streak_service import compute_day_streak_from_activity_dates
+from modules.services.student_dashboard_service import (
+    parse_student_dashboard_summary_dataframe,
+    parse_student_subject_performance_dataframe,
+)
 from modules.services.user_service import (
     resolve_available_project_options,
     resolve_effective_project_for_user,
@@ -178,6 +193,7 @@ def main() -> None:
             project_options=project_options,
             selected_project=selected_project,
         )
+        current_student_view = get_current_student_view()
         effective_project_scope = resolve_effective_project_for_user(
             authorized_user,
             selected_project=selected_project,
@@ -195,6 +211,32 @@ def main() -> None:
                 user_access_repository=context.user_access_repository,
                 gemini_api_key=settings.gemini.api_key,
                 gemini_model=settings.gemini.model,
+            )
+            return
+
+        if current_student_view == "stats":
+            dashboard_summary, dashboard_summary_issues = load_student_dashboard_summary(
+                context.answer_repository,
+                answers_table_id,
+                user_email=authorized_user.email,
+                cohort_key=effective_project_scope,
+            )
+            subject_performance, subject_performance_issues = load_student_subject_performance(
+                context.answer_repository,
+                answers_table_id,
+                user_email=authorized_user.email,
+                cohort_key=effective_project_scope,
+            )
+            _render_diagnostics(
+                settings=settings,
+                question_issues=list(project_option_issues),
+                answer_issues=list(dashboard_summary_issues) + list(subject_performance_issues),
+            )
+            render_student_dashboard_page(
+                user=authorized_user,
+                selected_project=effective_project_scope,
+                summary=dashboard_summary,
+                subject_performance=subject_performance,
             )
             return
 
@@ -432,6 +474,26 @@ def _render_authenticated_shell(
         if get_current_professor_tool() is not None:
             set_current_professor_tool(None)
 
+    if current_workspace == "student":
+        current_student_view = get_current_student_view()
+        student_view_choice = st.segmented_control(
+            "Visão do aluno",
+            options=["practice", "stats"],
+            default=current_student_view,
+            format_func=_format_student_view_label,
+            key="gm_student_view_segmented_control",
+            label_visibility="collapsed",
+            width="stretch",
+        )
+        normalized_student_view = (
+            student_view_choice if student_view_choice in {"practice", "stats"} else "practice"
+        )
+        if normalized_student_view != current_student_view:
+            set_current_student_view(normalized_student_view)
+            if normalized_student_view == "practice":
+                clear_current_question()
+            st.rerun()
+
     return project_choice, current_workspace
 
 
@@ -479,6 +541,27 @@ def _render_authenticated_shell_sidebar(
                 set_current_workspace("student")
             if get_current_professor_tool() is not None:
                 set_current_professor_tool(None)
+
+        if current_workspace == "student":
+            st.caption("Visão")
+            current_student_view = get_current_student_view()
+            student_view_choice = st.segmented_control(
+                "Visão do aluno",
+                options=["practice", "stats"],
+                default=current_student_view,
+                format_func=_format_student_view_label,
+                key="gm_student_view_segmented_control",
+                label_visibility="collapsed",
+                width="stretch",
+            )
+            normalized_student_view = (
+                student_view_choice if student_view_choice in {"practice", "stats"} else "practice"
+            )
+            if normalized_student_view != current_student_view:
+                set_current_student_view(normalized_student_view)
+                if normalized_student_view == "practice":
+                    clear_current_question()
+                st.rerun()
 
     if project_choice != get_project_filter():
         st.session_state.pop("gm_subject_filter_select", None)
@@ -636,6 +719,66 @@ def load_leaderboard_position(
         (perf_counter() - started_at) * 1000,
     )
     return rank, total_users, issues
+
+
+@st.cache_data(show_spinner=False, ttl=120)
+def load_student_dashboard_summary(
+    _answer_repository: AnswerRepository,
+    answers_table_id: str,
+    *,
+    user_email: str,
+    cohort_key: str | None,
+) -> tuple[StudentDashboardSummary, list[str]]:
+    """Load and cache one learner dashboard summary for the current project scope."""
+
+    logger = get_logger(__name__)
+    started_at = perf_counter()
+    summary_frame = _answer_repository.load_user_dashboard_summary_frame(
+        user_email=user_email,
+        cohort_key=cohort_key,
+    )
+    summary, issues = parse_student_dashboard_summary_dataframe(summary_frame)
+    logger.debug(
+        "Loaded student dashboard summary | answers_table_id=%s | user_email=%s | cohort_key=%s | total_answers=%s | total_correct=%s | total_wrong=%s | issues=%s | elapsed_ms=%.2f",
+        answers_table_id,
+        user_email,
+        cohort_key,
+        summary.total_answers,
+        summary.total_correct,
+        summary.total_wrong,
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return summary, issues
+
+
+@st.cache_data(show_spinner=False, ttl=120)
+def load_student_subject_performance(
+    _answer_repository: AnswerRepository,
+    answers_table_id: str,
+    *,
+    user_email: str,
+    cohort_key: str | None,
+) -> tuple[list[StudentSubjectPerformance], list[str]]:
+    """Load and cache lightweight per-subject learner dashboard metrics."""
+
+    logger = get_logger(__name__)
+    started_at = perf_counter()
+    subject_frame = _answer_repository.load_user_subject_performance_frame(
+        user_email=user_email,
+        cohort_key=cohort_key,
+    )
+    subject_performance, issues = parse_student_subject_performance_dataframe(subject_frame)
+    logger.debug(
+        "Loaded student subject performance | answers_table_id=%s | user_email=%s | cohort_key=%s | subjects=%s | issues=%s | elapsed_ms=%.2f",
+        answers_table_id,
+        user_email,
+        cohort_key,
+        len(subject_performance),
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return subject_performance, issues
 
 
 def _ensure_user_progress_snapshot_loaded(
@@ -853,6 +996,10 @@ def _format_project_option_label(project_key: str) -> str:
 
 def _format_workspace_label(workspace: str) -> str:
     return "Espaço Professor" if workspace == "professor" else "Espaço Aluno"
+
+
+def _format_student_view_label(view_name: str) -> str:
+    return "EstatÃ­sticas" if view_name == "stats" else "QuestÃµes"
 
 
 def _apply_workspace_shell_styles() -> None:

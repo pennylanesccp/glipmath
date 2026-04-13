@@ -206,3 +206,44 @@ def test_load_user_progress_snapshot_frame_requests_compact_progress_fields() ->
     assert [parameter.name for parameter in parameters] == ["user_email", "timezone_name"]
     assert parameters[0].to_api_repr()["parameterValue"]["value"] == "ana@example.com"
     assert parameters[1].to_api_repr()["parameterValue"]["value"] == "America/Sao_Paulo"
+
+
+def test_load_user_dashboard_summary_frame_scopes_to_selected_project() -> None:
+    fake_client = FakeBigQueryClient(tuple())
+    repository = AnswerRepository(
+        fake_client,
+        answers_table_id="project.dataset.answers",
+        user_access_table_id="project.dataset.user_access",
+    )
+
+    repository.load_user_dashboard_summary_frame(
+        user_email="Ana@example.com",
+        cohort_key="ano_2",
+    )
+
+    assert "COUNTIF(is_correct) AS total_correct" in fake_client.queries[0]
+    assert "AVG(CAST(time_spent_seconds AS FLOAT64)) AS average_time_spent_seconds" in fake_client.queries[0]
+    assert "LOWER(TRIM(cohort_key)) = @cohort_key" in fake_client.queries[0]
+    parameters = fake_client.parameters[0]
+    assert parameters is not None
+    assert [parameter.name for parameter in parameters] == ["user_email", "cohort_key"]
+    assert parameters[0].to_api_repr()["parameterValue"]["value"] == "ana@example.com"
+    assert parameters[1].to_api_repr()["parameterValue"]["value"] == "ano_2"
+
+
+def test_load_user_subject_performance_frame_groups_by_subject() -> None:
+    fake_client = FakeBigQueryClient(tuple())
+    repository = AnswerRepository(
+        fake_client,
+        answers_table_id="project.dataset.answers",
+        user_access_table_id="project.dataset.user_access",
+    )
+
+    repository.load_user_subject_performance_frame(user_email="ana@example.com")
+
+    assert "COALESCE(NULLIF(LOWER(TRIM(subject)), ''), 'sem_materia') AS subject" in fake_client.queries[0]
+    assert "GROUP BY subject" in fake_client.queries[0]
+    assert "ORDER BY total_answers DESC, total_correct DESC, subject ASC" in fake_client.queries[0]
+    parameters = fake_client.parameters[0]
+    assert parameters is not None
+    assert [parameter.name for parameter in parameters] == ["user_email"]

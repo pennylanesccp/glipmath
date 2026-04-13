@@ -138,6 +138,22 @@ def test_get_authenticated_user_returns_bound_user(monkeypatch) -> None:
     assert session_state.get_authenticated_user() == user
 
 
+def test_student_view_round_trips_and_resets_with_user_scope(monkeypatch) -> None:
+    monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
+
+    first_user = User(email="ana@example.com", role="student", cohort_key="ano_1")
+    second_user = User(email="bia@example.com", role="student", cohort_key="ano_2")
+
+    session_state.bind_authenticated_user(first_user)
+    session_state.set_current_student_view("stats")
+
+    assert session_state.get_current_student_view() == "stats"
+
+    session_state.bind_authenticated_user(second_user)
+
+    assert session_state.get_current_student_view() == "practice"
+
+
 def test_bind_authenticated_user_resets_authenticated_run_log_flag(monkeypatch) -> None:
     monkeypatch.setattr(session_state, "st", SimpleNamespace(session_state={}))
 

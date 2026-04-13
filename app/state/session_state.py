@@ -22,6 +22,7 @@ AUTHENTICATED_USER_SCOPE_KEY = "glipmath_authenticated_user_scope"
 AUTHENTICATED_USER_KEY = "glipmath_authenticated_user"
 AUTHENTICATED_RUN_LOGGED_KEY = "glipmath_authenticated_run_logged"
 CURRENT_WORKSPACE_KEY = "glipmath_current_workspace"
+CURRENT_STUDENT_VIEW_KEY = "glipmath_current_student_view"
 CURRENT_PROFESSOR_TOOL_KEY = "glipmath_current_professor_tool"
 PROFESSOR_AUTHORING_AI_ASSISTED_KEY = "glipmath_professor_authoring_ai_assisted"
 PROFESSOR_NOTICE_KEY = "glipmath_professor_notice"
@@ -61,6 +62,7 @@ def initialize_session_state() -> None:
     st.session_state.setdefault(AUTHENTICATED_USER_KEY, None)
     st.session_state.setdefault(AUTHENTICATED_RUN_LOGGED_KEY, False)
     st.session_state.setdefault(CURRENT_WORKSPACE_KEY, "student")
+    st.session_state.setdefault(CURRENT_STUDENT_VIEW_KEY, "practice")
     st.session_state.setdefault(CURRENT_PROFESSOR_TOOL_KEY, None)
     st.session_state.setdefault(PROFESSOR_AUTHORING_AI_ASSISTED_KEY, False)
     st.session_state.setdefault(PROFESSOR_NOTICE_KEY, None)
@@ -119,6 +121,7 @@ def bind_authenticated_user(user: User) -> None:
     }
     st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = False
     st.session_state[CURRENT_WORKSPACE_KEY] = "student"
+    st.session_state[CURRENT_STUDENT_VIEW_KEY] = "practice"
     st.session_state[CURRENT_PROFESSOR_TOOL_KEY] = None
     st.session_state[PROFESSOR_AUTHORING_AI_ASSISTED_KEY] = False
     st.session_state[PROFESSOR_NOTICE_KEY] = None
@@ -202,6 +205,16 @@ def get_current_workspace() -> str:
     return workspace
 
 
+def get_current_student_view() -> str:
+    """Return the selected student-space view."""
+
+    initialize_session_state()
+    current_view = _string_or_none(st.session_state[CURRENT_STUDENT_VIEW_KEY]) or "practice"
+    if current_view not in {"practice", "stats"}:
+        return "practice"
+    return current_view
+
+
 def set_current_workspace(workspace: str | None) -> None:
     """Persist the selected authenticated workspace."""
 
@@ -210,6 +223,16 @@ def set_current_workspace(workspace: str | None) -> None:
     if normalized_workspace not in {"student", "professor"}:
         normalized_workspace = "student"
     st.session_state[CURRENT_WORKSPACE_KEY] = normalized_workspace
+
+
+def set_current_student_view(view_name: str | None) -> None:
+    """Persist the selected student-space view."""
+
+    initialize_session_state()
+    normalized_view = _string_or_none(view_name) or "practice"
+    if normalized_view not in {"practice", "stats"}:
+        normalized_view = "practice"
+    st.session_state[CURRENT_STUDENT_VIEW_KEY] = normalized_view
 
 
 def get_current_professor_tool() -> str | None:
@@ -838,6 +861,7 @@ def _bind_authenticated_user_email(user_email: str) -> None:
     st.session_state[AUTHENTICATED_USER_KEY] = None
     st.session_state[AUTHENTICATED_RUN_LOGGED_KEY] = False
     st.session_state[CURRENT_WORKSPACE_KEY] = "student"
+    st.session_state[CURRENT_STUDENT_VIEW_KEY] = "practice"
     st.session_state[CURRENT_PROFESSOR_TOOL_KEY] = None
     st.session_state[PROFESSOR_AUTHORING_AI_ASSISTED_KEY] = False
     st.session_state[PROFESSOR_NOTICE_KEY] = None

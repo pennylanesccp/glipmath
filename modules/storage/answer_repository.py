@@ -113,6 +113,73 @@ class AnswerRepository:
             ],
         )
 
+    def load_user_dashboard_summary_frame(
+        self,
+        *,
+        user_email: str,
+        cohort_key: str | None = None,
+    ) -> pd.DataFrame:
+        """Load one compact learner summary for the current project scope."""
+
+        parameters = [bigquery.ScalarQueryParameter("user_email", "STRING", user_email.lower().strip())]
+        cohort_filter = ""
+        if cohort_key:
+            parameters.append(
+                bigquery.ScalarQueryParameter("cohort_key", "STRING", cohort_key.lower().strip())
+            )
+            cohort_filter = """
+              AND LOWER(TRIM(cohort_key)) = @cohort_key
+            """
+
+        query = f"""
+            SELECT
+                COUNT(*) AS total_answers,
+                COUNTIF(is_correct) AS total_correct,
+                COUNTIF(NOT is_correct) AS total_wrong,
+                SAFE_DIVIDE(COUNTIF(is_correct), COUNT(*)) AS accuracy_rate,
+                AVG(CAST(time_spent_seconds AS FLOAT64)) AS average_time_spent_seconds,
+                AVG(IF(is_correct, CAST(time_spent_seconds AS FLOAT64), NULL)) AS average_correct_time_spent_seconds,
+                AVG(IF(NOT is_correct, CAST(time_spent_seconds AS FLOAT64), NULL)) AS average_wrong_time_spent_seconds
+            FROM `{self._answers_table_id}`
+            WHERE LOWER(TRIM(user_email)) = @user_email
+              {cohort_filter}
+        """
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
+
+    def load_user_subject_performance_frame(
+        self,
+        *,
+        user_email: str,
+        cohort_key: str | None = None,
+    ) -> pd.DataFrame:
+        """Load lightweight per-subject learner aggregates for the current project scope."""
+
+        parameters = [bigquery.ScalarQueryParameter("user_email", "STRING", user_email.lower().strip())]
+        cohort_filter = ""
+        if cohort_key:
+            parameters.append(
+                bigquery.ScalarQueryParameter("cohort_key", "STRING", cohort_key.lower().strip())
+            )
+            cohort_filter = """
+              AND LOWER(TRIM(cohort_key)) = @cohort_key
+            """
+
+        query = f"""
+            SELECT
+                COALESCE(NULLIF(LOWER(TRIM(subject)), ''), 'sem_materia') AS subject,
+                COUNT(*) AS total_answers,
+                COUNTIF(is_correct) AS total_correct,
+                COUNTIF(NOT is_correct) AS total_wrong,
+                SAFE_DIVIDE(COUNTIF(is_correct), COUNT(*)) AS accuracy_rate,
+                AVG(CAST(time_spent_seconds AS FLOAT64)) AS average_time_spent_seconds
+            FROM `{self._answers_table_id}`
+            WHERE LOWER(TRIM(user_email)) = @user_email
+              {cohort_filter}
+            GROUP BY subject
+            ORDER BY total_answers DESC, total_correct DESC, subject ASC
+        """
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
+
     def append_answer_row(self, row: Mapping[str, object]) -> None:
         """Append a single answer log row."""
 

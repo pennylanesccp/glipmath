@@ -195,3 +195,28 @@ class LeaderboardEntry:
     display_name: str
     total_correct: int
     total_answers: int
+
+
+@dataclass(frozen=True, slots=True)
+class StudentDashboardSummary:
+    """Compact learner performance summary for the current project scope."""
+
+    total_answers: int = 0
+    total_correct: int = 0
+    total_wrong: int = 0
+    accuracy_rate: float = 0.0
+    average_time_spent_seconds: float = 0.0
+    average_correct_time_spent_seconds: float = 0.0
+    average_wrong_time_spent_seconds: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class StudentSubjectPerformance:
+    """Per-subject learner performance used by the lightweight dashboard."""
+
+    subject: str | None = None
+    total_answers: int = 0
+    total_correct: int = 0
+    total_wrong: int = 0
+    accuracy_rate: float = 0.0
+    average_time_spent_seconds: float = 0.0

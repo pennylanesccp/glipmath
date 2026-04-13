@@ -128,11 +128,14 @@ def test_render_authenticated_shell_clears_professor_tool_for_student_only_user(
     fake_st = SimpleNamespace(
         sidebar=FakeSidebar(),
         session_state={},
+        caption=lambda *args, **kwargs: None,
+        segmented_control=lambda *args, **kwargs: "practice",
         rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
     )
 
     monkeypatch.setattr(streamlit_app, "st", fake_st)
     monkeypatch.setattr(streamlit_app, "get_project_filter", lambda: "crescer_e_conectar")
+    monkeypatch.setattr(streamlit_app, "get_current_student_view", lambda: "practice")
 
     selected_project, current_workspace = streamlit_app._render_authenticated_shell_sidebar(
         user=user,
@@ -161,18 +164,24 @@ def test_render_authenticated_shell_sidebar_reads_current_sidebar_choices_withou
         def __exit__(self, exc_type, exc, tb):
             return False
 
+    def _segmented_control(*args, **kwargs):
+        if kwargs.get("key") == "gm_workspace_segmented_control":
+            return "student"
+        return "stats"
+
     fake_st = SimpleNamespace(
         sidebar=FakeSidebar(),
         session_state={},
         caption=lambda *args, **kwargs: None,
         selectbox=lambda *args, **kwargs: "rumo_etec",
-        segmented_control=lambda *args, **kwargs: "student",
+        segmented_control=_segmented_control,
         rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
     )
 
     monkeypatch.setattr(streamlit_app, "st", fake_st)
     monkeypatch.setattr(streamlit_app, "get_project_filter", lambda: "rumo_etec")
     monkeypatch.setattr(streamlit_app, "get_current_workspace", lambda: "student")
+    monkeypatch.setattr(streamlit_app, "get_current_student_view", lambda: "stats")
 
     selected_project, current_workspace = streamlit_app._render_authenticated_shell_sidebar(
         user=user,
