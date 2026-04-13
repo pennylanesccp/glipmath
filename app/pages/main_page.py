@@ -995,7 +995,7 @@ def _apply_live_page_styles() -> None:
         """
         <style>
         :root {
-            --gm-pending-choice-spacing: 0.62rem;
+            --gm-pending-choice-spacing: 0.48rem;
         }
 
         [data-testid="stAppViewContainer"] {

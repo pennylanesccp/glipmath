@@ -376,7 +376,7 @@ def test_apply_live_page_styles_reuses_pending_choice_spacing_for_radio_block(mo
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-pending-choice-spacing: 0.62rem;" in stylesheet
+    assert "--gm-pending-choice-spacing: 0.48rem;" in stylesheet
     assert "margin: 0.18rem 0 var(--gm-pending-choice-spacing);" in stylesheet
     assert "gap: var(--gm-pending-choice-spacing) !important;" in stylesheet
     assert "column-gap: var(--gm-pending-choice-spacing) !important;" in stylesheet
