@@ -1039,10 +1039,6 @@ def _apply_live_page_styles() -> None:
             background: rgba(255, 255, 255, 0.96) !important;
         }
 
-        [data-testid="stHeader"] {
-            background: transparent !important;
-        }
-
         section[data-testid="stSidebar"] [data-testid="stButton"] > button {
             border-radius: 1rem;
         }

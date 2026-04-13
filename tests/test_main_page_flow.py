@@ -396,7 +396,7 @@ def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
     assert "border-right: 1px solid #dbeafe !important;" in stylesheet
-    assert '[data-testid="stHeader"]' in stylesheet
+    assert '[data-testid="stHeader"]' not in stylesheet
     assert 'button[kind="header"][aria-label*="sidebar" i]' not in stylesheet
     assert 'section[data-testid="stSidebar"][aria-expanded="false"]' not in stylesheet
 
