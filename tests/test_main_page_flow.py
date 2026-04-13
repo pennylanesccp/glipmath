@@ -410,6 +410,8 @@ def test_build_metrics_bar_html_orders_day_and_question_streak_icons() -> None:
     assert html.index("fire-uri") < html.index("podium-uri")
     assert ">5<" in html
     assert ">3<" in html
+    assert "Dias seguidos com atividade." in html
+    assert "Sequência atual de respostas corretas." in html
 
 
 def test_streak_text_helpers_use_day_and_question_values_independently() -> None:
@@ -463,8 +465,10 @@ def test_build_metric_chip_html_marks_timer_as_warning_after_threshold() -> None
     html = main_page._build_metric_chip_html(
         "02:00",
         "",
+        description="Tempo gasto na questão atual.",
         is_timer=True,
         timer_warning=True,
     )
 
     assert "gm-live-metric--timer-warning" in html
+    assert "gm-live-metric-tooltip" in html

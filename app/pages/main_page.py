@@ -41,12 +41,16 @@ from modules.services.question_service import find_display_alternative
 from modules.storage.bigquery_client import BigQueryError
 from modules.utils.datetime_utils import utc_now
 
-CALENDAR_ICON_RELATIVE_PATH = "assets/icons/calendar.svg"
+CALENDAR_ICON_RELATIVE_PATH = "assets/icons/calendar.png"
 FIRE_ICON_RELATIVE_PATH = "assets/icons/fire-svgrepo-com.svg"
 PODIUM_ICON_RELATIVE_PATH = "assets/icons/pedestal-podium-svgrepo-com.svg"
 TIMER_ICON_RELATIVE_PATH = "assets/icons/timer-outline-svgrepo-com.svg"
 TIMER_WARNING_THRESHOLD_SECONDS = 120
 FENCED_CODE_BLOCK_PATTERN = re.compile(r"```[^\n`]*\n(.*?)```", re.DOTALL)
+DAY_STREAK_DESCRIPTION = "Dias seguidos com atividade."
+QUESTION_STREAK_DESCRIPTION = "Sequência atual de respostas corretas."
+RANK_DESCRIPTION = "Sua posição atual no ranking."
+TIMER_DESCRIPTION = "Tempo gasto na questão atual."
 
 
 def render_main_page(
@@ -371,7 +375,7 @@ def _render_pending_interaction_fragment(
 
     with st.container():
         st.html('<div class="gm-pending-actions-hook"></div>')
-        skip_col, verify_col = st.columns(2, gap="small", vertical_alignment="bottom")
+        skip_col, verify_col = st.columns([0.88, 2.12], gap="small", vertical_alignment="bottom")
         with skip_col:
             skip_clicked = st.button(
                 "Pular",
@@ -461,7 +465,7 @@ def _render_pending_state(
 
     with st.container():
         st.html('<div class="gm-pending-actions-hook"></div>')
-        skip_col, verify_col = st.columns(2, gap="small", vertical_alignment="bottom")
+        skip_col, verify_col = st.columns([0.88, 2.12], gap="small", vertical_alignment="bottom")
         with skip_col:
             skip_clicked = st.button(
                 "Pular",
@@ -596,6 +600,7 @@ def _build_metric_chip_html(
     value_text: str,
     icon_data_uri: str,
     *,
+    description: str = "",
     is_timer: bool = False,
     timer_warning: bool = False,
 ) -> str:
@@ -604,6 +609,15 @@ def _build_metric_chip_html(
         timer_class = " gm-live-metric--timer"
     if timer_warning:
         timer_class += " gm-live-metric--timer-warning"
+    normalized_description = str(description or "").strip()
+    escaped_description = escape(normalized_description, quote=True)
+    tooltip_html = ""
+    if normalized_description:
+        tooltip_html = (
+            '<span class="gm-live-metric-tooltip" role="tooltip">'
+            f"{escape(normalized_description)}"
+            "</span>"
+        )
 
     icon_html = ""
     if icon_data_uri:
@@ -612,10 +626,13 @@ def _build_metric_chip_html(
         )
 
     return (
-        f'<div class="gm-live-metric{timer_class}">'
+        f'<button class="gm-live-metric{timer_class}" type="button"'
+        f' aria-label="{escaped_description or escape(value_text, quote=True)}"'
+        f' title="{escaped_description or escape(value_text, quote=True)}">'
         f"{icon_html}"
         f'<span class="gm-live-metric-value">{escape(value_text)}</span>'
-        "</div>"
+        f"{tooltip_html}"
+        "</button>"
     )
 
 
@@ -633,10 +650,10 @@ def _build_metrics_bar_html(
 ) -> str:
     return (
         '<div class="gm-live-metrics-bar">'
-        f"{_build_metric_chip_html(day_streak_text, calendar_icon_data_uri)}"
-        f"{_build_metric_chip_html(question_streak_text, fire_icon_data_uri)}"
-        f"{_build_metric_chip_html(rank_text, podium_icon_data_uri)}"
-        f"{_build_metric_chip_html(timer_text, timer_icon_data_uri, is_timer=True, timer_warning=timer_warning)}"
+        f"{_build_metric_chip_html(day_streak_text, calendar_icon_data_uri, description=DAY_STREAK_DESCRIPTION)}"
+        f"{_build_metric_chip_html(question_streak_text, fire_icon_data_uri, description=QUESTION_STREAK_DESCRIPTION)}"
+        f"{_build_metric_chip_html(rank_text, podium_icon_data_uri, description=RANK_DESCRIPTION)}"
+        f"{_build_metric_chip_html(timer_text, timer_icon_data_uri, description=TIMER_DESCRIPTION, is_timer=True, timer_warning=timer_warning)}"
         "</div>"
     )
 
@@ -1005,8 +1022,65 @@ def _apply_live_page_styles() -> None:
             color: #0f172a;
         }
 
+        section[data-testid="stSidebar"] {
+            border-right: none !important;
+            border-left: 1px solid #dbeafe !important;
+            box-shadow: -18px 0 40px rgba(15, 23, 42, 0.1) !important;
+            left: auto !important;
+            right: 0 !important;
+        }
+
+        section[data-testid="stSidebar"] > div {
+            background: rgba(255, 255, 255, 0.96) !important;
+        }
+
+        section[data-testid="stSidebar"][aria-expanded="false"] {
+            transform: translateX(100%) !important;
+        }
+
         section[data-testid="stSidebar"] [data-testid="stButton"] > button {
             border-radius: 1rem;
+        }
+
+        button[kind="header"][aria-label*="sidebar" i] {
+            align-items: center !important;
+            background: rgba(255, 255, 255, 0.94) !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 999px !important;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
+            color: #94a3b8 !important;
+            display: inline-flex !important;
+            height: 2.5rem !important;
+            justify-content: center !important;
+            left: auto !important;
+            padding: 0 !important;
+            position: fixed !important;
+            right: 1rem !important;
+            top: 0.75rem !important;
+            width: 2.5rem !important;
+            z-index: 1002 !important;
+        }
+
+        button[kind="header"][aria-label*="sidebar" i] svg {
+            display: none !important;
+        }
+
+        button[kind="header"][aria-label*="sidebar" i]::after {
+            color: #94a3b8 !important;
+            content: "\22EE";
+            font-size: 1.35rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        button[kind="header"][aria-label*="sidebar" i]:hover {
+            background: #f8fafc !important;
+            border-color: #94a3b8 !important;
+        }
+
+        button[kind="header"][aria-label*="sidebar" i]:focus-visible {
+            box-shadow: 0 0 0 0.18rem rgba(148, 163, 184, 0.28) !important;
+            outline: none !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook) [data-testid="stCheckbox"] {
@@ -1027,6 +1101,15 @@ def _apply_live_page_styles() -> None:
             min-width: 0 !important;
         }
 
+        div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child {
+            flex: 0 0 5.9rem !important;
+            width: 5.9rem !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child {
+            flex: 1 1 0 !important;
+        }
+
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) [data-testid="stButton"] > button {
             white-space: nowrap !important;
         }
@@ -1035,14 +1118,18 @@ def _apply_live_page_styles() -> None:
             align-items: center;
             display: flex;
             gap: 0.62rem;
-            justify-content: flex-start;
+            justify-content: center;
             min-height: 2.55rem;
             width: 100%;
         }
 
         .gm-live-metric {
             align-items: center;
+            appearance: none;
+            background: transparent;
+            border: 0;
             color: #1e3a8a;
+            cursor: help;
             display: inline-flex;
             font-size: 1.12rem;
             font-weight: 800;
@@ -1051,7 +1138,17 @@ def _apply_live_page_styles() -> None:
             line-height: 1;
             min-height: 2.55rem;
             padding: 0;
+            position: relative;
             width: auto;
+        }
+
+        .gm-live-metric:focus {
+            outline: none;
+        }
+
+        .gm-live-metric:focus-visible {
+            box-shadow: 0 0 0 0.16rem rgba(37, 99, 235, 0.22);
+            border-radius: 0.9rem;
         }
 
         .gm-live-metric-icon {
@@ -1065,6 +1162,35 @@ def _apply_live_page_styles() -> None:
             color: #1e3a8a;
             font-weight: 800;
             white-space: nowrap;
+        }
+
+        .gm-live-metric-tooltip {
+            background: rgba(15, 23, 42, 0.94);
+            border-radius: 0.8rem;
+            bottom: calc(-100% - 0.55rem);
+            color: #f8fafc;
+            font-size: 0.73rem;
+            font-weight: 600;
+            left: 50%;
+            line-height: 1.35;
+            max-width: 10rem;
+            opacity: 0;
+            padding: 0.5rem 0.62rem;
+            pointer-events: none;
+            position: absolute;
+            text-align: center;
+            transform: translate(-50%, -0.18rem);
+            transition: opacity 0.16s ease, transform 0.16s ease;
+            white-space: normal;
+            z-index: 20;
+        }
+
+        .gm-live-metric:hover .gm-live-metric-tooltip,
+        .gm-live-metric:focus .gm-live-metric-tooltip,
+        .gm-live-metric:focus-visible .gm-live-metric-tooltip,
+        .gm-live-metric:active .gm-live-metric-tooltip {
+            opacity: 1;
+            transform: translate(-50%, 0);
         }
 
         .gm-live-metric--timer-warning,
@@ -1706,6 +1832,14 @@ def _apply_live_page_styles() -> None:
             cursor: pointer !important;
             font-weight: 700;
             min-height: 2.9rem;
+        }
+
+        @media (max-width: 380px) {
+            div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child,
+            div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child {
+                flex: 1 1 0 !important;
+                width: auto !important;
+            }
         }
 
         div[data-testid="stAlert"] {
