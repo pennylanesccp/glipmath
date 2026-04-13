@@ -13,6 +13,12 @@ def apply_app_theme() -> None:
             display: none !important;
         }
 
+        [data-testid="stHeader"] {
+            background: transparent !important;
+            border-bottom: none !important;
+            box-shadow: none !important;
+        }
+
         .block-container {
             padding-top: 0.75rem;
             padding-bottom: 0.5rem;

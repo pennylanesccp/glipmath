@@ -94,6 +94,71 @@ def test_use_topic_only_filter_is_enabled_for_single_subject_group() -> None:
     )
 
 
+def test_sync_subject_topic_filter_widget_state_marks_select_all_and_topics_when_unfiltered(monkeypatch) -> None:
+    fake_st = SimpleNamespace(session_state={})
+
+    monkeypatch.setattr(main_page, "st", fake_st)
+
+    main_page._sync_subject_topic_filter_widget_state(
+        subject_topic_groups=[SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance"))],
+        selected_subjects=(),
+        selected_topics=(),
+    )
+
+    assert fake_st.session_state[main_page._select_all_filters_checkbox_key()] is True
+    assert fake_st.session_state[main_page._topic_checkbox_key("databricks", "ingestion")] is True
+    assert fake_st.session_state[main_page._topic_checkbox_key("databricks", "governance")] is True
+
+
+def test_toggle_all_subject_topic_filters_clears_specific_selection(monkeypatch) -> None:
+    fake_st = SimpleNamespace(session_state={main_page._select_all_filters_checkbox_key(): True})
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(main_page, "st", fake_st)
+    monkeypatch.setattr(main_page, "set_subject_filters", lambda subjects: captured.__setitem__("subjects", tuple(subjects)))
+    monkeypatch.setattr(main_page, "set_topic_filters", lambda topics: captured.__setitem__("topics", tuple(topics)))
+    monkeypatch.setattr(main_page, "clear_current_question", lambda: captured.__setitem__("cleared", True))
+
+    main_page._toggle_all_subject_topic_filters()
+
+    assert captured == {
+        "subjects": (),
+        "topics": (),
+        "cleared": True,
+    }
+
+
+def test_toggle_topic_filter_from_select_all_state_keeps_remaining_topics_selected(monkeypatch) -> None:
+    fake_st = SimpleNamespace(session_state={main_page._topic_checkbox_key("databricks", "ingestion"): False})
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(main_page, "st", fake_st)
+    monkeypatch.setattr(main_page, "get_subject_filters", lambda: ())
+    monkeypatch.setattr(main_page, "get_topic_filters", lambda: ())
+    monkeypatch.setattr(main_page, "set_subject_filters", lambda subjects: captured.__setitem__("subjects", tuple(subjects)))
+    monkeypatch.setattr(
+        main_page,
+        "set_topic_filters",
+        lambda topics: captured.__setitem__("topics", tuple(sorted(topics))),
+    )
+    monkeypatch.setattr(main_page, "clear_current_question", lambda: captured.__setitem__("cleared", True))
+
+    main_page._toggle_topic_filter(
+        "databricks",
+        "ingestion",
+        (("databricks", ("ingestion", "governance", "security")),),
+    )
+
+    assert captured == {
+        "subjects": (),
+        "topics": (
+            ("databricks", "governance"),
+            ("databricks", "security"),
+        ),
+        "cleared": True,
+    }
+
+
 def test_submit_selected_answer_rejects_missing_option(monkeypatch) -> None:
     warnings: list[str] = []
     question = Question(

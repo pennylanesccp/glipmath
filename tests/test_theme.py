@@ -16,4 +16,5 @@ def test_apply_app_theme_keeps_sidebar_navigation_available(monkeypatch) -> None
     assert '[data-testid="stSidebar"]' not in stylesheet
     assert '[data-testid="stToolbar"]' not in stylesheet
     assert '[data-testid="collapsedControl"]' not in stylesheet
-    assert '[data-testid="stHeader"]' not in stylesheet
+    assert '[data-testid="stHeader"]' in stylesheet
+    assert "background: transparent !important;" in stylesheet

@@ -193,6 +193,11 @@ def test_render_authenticated_shell_sidebar_reads_current_sidebar_choices_withou
     assert current_workspace == "student"
 
 
+def test_student_view_label_uses_portuguese_accents_without_mojibake() -> None:
+    assert streamlit_app._format_student_view_label("practice") == "Questões"
+    assert streamlit_app._format_student_view_label("stats") == "Estatísticas"
+
+
 def test_normalize_filters_for_subject_group_shape_clears_full_subject_selection_in_single_subject_mode() -> None:
     normalized_filters = streamlit_app._normalize_filters_for_subject_group_shape(
         normalized_filters=QuestionFilterSelection(subjects=("databricks",), topics=()),

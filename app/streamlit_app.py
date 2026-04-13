@@ -999,7 +999,7 @@ def _format_workspace_label(workspace: str) -> str:
 
 
 def _format_student_view_label(view_name: str) -> str:
-    return "EstatÃ­sticas" if view_name == "stats" else "QuestÃµes"
+    return "Estat\u00edsticas" if view_name == "stats" else "Quest\u00f5es"
 
 
 def _apply_workspace_shell_styles() -> None:
