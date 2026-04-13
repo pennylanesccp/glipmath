@@ -441,6 +441,7 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
+    assert "--gm-topbar-alignment-offset: 0.18rem;" in stylesheet
     assert "--gm-pending-choice-gap: 0.48rem;" in stylesheet
     assert "--gm-pending-choice-label-gap: 0.3rem;" in stylesheet
     assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
@@ -448,6 +449,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "margin: 0.18rem 0 var(--gm-pending-choice-label-gap);" in stylesheet
     assert "gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "column-gap: var(--gm-pending-choice-gap) !important;" in stylesheet
+    assert "min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));" in stylesheet
+    assert "padding-top: var(--gm-topbar-alignment-offset);" in stylesheet
     assert "padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;" in stylesheet
 
 

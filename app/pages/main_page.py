@@ -1080,6 +1080,7 @@ def _apply_live_page_styles() -> None:
         """
         <style>
         :root {
+            --gm-topbar-alignment-offset: 0.18rem;
             --gm-pending-choice-gap: 0.48rem;
             --gm-pending-choice-label-gap: 0.3rem;
             --gm-pending-choice-padding-block: 0.56rem;
@@ -1249,8 +1250,10 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stElementContainer"]:has(.gm-live-metrics-bar) {
             align-items: center;
+            box-sizing: border-box;
             display: flex;
-            min-height: 2.55rem;
+            min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));
+            padding-top: var(--gm-topbar-alignment-offset);
             width: 100%;
         }
 
