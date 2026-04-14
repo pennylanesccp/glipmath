@@ -231,7 +231,7 @@ def test_load_user_dashboard_summary_frame_scopes_to_selected_project() -> None:
     assert parameters[1].to_api_repr()["parameterValue"]["value"] == "ano_2"
 
 
-def test_load_user_subject_performance_frame_groups_by_subject() -> None:
+def test_load_user_subject_performance_frame_groups_by_topic() -> None:
     fake_client = FakeBigQueryClient(tuple())
     repository = AnswerRepository(
         fake_client,
@@ -241,7 +241,7 @@ def test_load_user_subject_performance_frame_groups_by_subject() -> None:
 
     repository.load_user_subject_performance_frame(user_email="ana@example.com")
 
-    assert "COALESCE(NULLIF(LOWER(TRIM(subject)), ''), 'sem_materia') AS subject" in fake_client.queries[0]
+    assert "COALESCE(NULLIF(LOWER(TRIM(topic)), ''), 'sem_topico') AS subject" in fake_client.queries[0]
     assert "GROUP BY subject" in fake_client.queries[0]
     assert "ORDER BY total_answers DESC, total_correct DESC, subject ASC" in fake_client.queries[0]
     parameters = fake_client.parameters[0]

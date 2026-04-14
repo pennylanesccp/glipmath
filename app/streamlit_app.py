@@ -57,7 +57,7 @@ from app.state.session_state import (
     set_topic_filters,
     set_user_progress_snapshot,
 )
-from modules.auth.auth_service import get_authenticated_identity
+from modules.auth.auth_service import get_authenticated_identity, trigger_logout
 from modules.auth.authorization_service import AuthorizationService
 from modules.config.settings import AppSettings, load_settings
 from modules.domain.models import (
@@ -212,6 +212,7 @@ def main() -> None:
                 gemini_api_key=settings.gemini.api_key,
                 gemini_model=settings.gemini.model,
             )
+            _render_sidebar_logout_button()
             return
 
         if current_student_view == "stats":
@@ -238,6 +239,7 @@ def main() -> None:
                 summary=dashboard_summary,
                 subject_performance=subject_performance,
             )
+            _render_sidebar_logout_button()
             return
 
         question_index, question_index_issues = load_active_question_index(
@@ -321,6 +323,7 @@ def main() -> None:
         question_streak=user_progress.question_streak,
         leaderboard_position=_resolve_leaderboard_position(leaderboard_rank, leaderboard_total_users),
     )
+    _render_sidebar_logout_button()
 
 
 @st.cache_resource(show_spinner=False)
@@ -572,6 +575,18 @@ def _render_authenticated_shell_sidebar(
         st.rerun()
 
     return project_choice, current_workspace
+
+
+def _render_sidebar_logout_button() -> None:
+    with st.sidebar:
+        st.divider()
+        if st.button(
+            "Sair",
+            key="gm_sidebar_logout_button",
+            type="secondary",
+            use_container_width=True,
+        ):
+            trigger_logout()
 
 
 @st.cache_data(show_spinner=False, ttl=300)

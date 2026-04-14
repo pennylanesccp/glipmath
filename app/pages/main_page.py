@@ -187,16 +187,15 @@ def _render_sidebar_subject_topic_filters(
 
     single_subject_mode = _use_topic_only_filter(subject_topic_groups)
     group_specs = _subject_topic_group_specs(subject_topic_groups)
-    all_selected = _all_filters_selected(
+    _ensure_sidebar_subject_topic_filter_widget_state(
         subject_topic_groups=subject_topic_groups,
         selected_subjects=selected_subjects,
         selected_topics=selected_topics,
     )
-    _sync_subject_topic_filter_widget_state(
-        subject_topic_groups=subject_topic_groups,
-        selected_subjects=selected_subjects,
-        selected_topics=selected_topics,
-    )
+    _refresh_select_all_filters_checkbox_state(subject_topic_groups)
+    draft_subjects, draft_topics = _read_sidebar_subject_topic_filter_widget_state(subject_topic_groups)
+    draft_subject_set = set(draft_subjects)
+    all_selected = _all_filter_widgets_checked(subject_topic_groups)
 
     with st.sidebar:
         st.divider()
@@ -204,7 +203,8 @@ def _render_sidebar_subject_topic_filters(
         st.checkbox(
             "Selecionar tudo",
             key=_select_all_filters_checkbox_key(),
-            on_change=_toggle_all_subject_topic_filters,
+            on_change=_toggle_all_sidebar_subject_topic_filter_widgets,
+            args=(group_specs,),
         )
 
         for group in subject_topic_groups:
@@ -214,8 +214,6 @@ def _render_sidebar_subject_topic_filters(
                 st.checkbox(
                     format_subject_label(group.subject),
                     key=_subject_checkbox_key(group.subject),
-                    on_change=_toggle_subject_filter,
-                    args=(group.subject, group_specs),
                 )
 
             with st.container():
@@ -227,10 +225,19 @@ def _render_sidebar_subject_topic_filters(
                     st.checkbox(
                         format_topic_label(topic),
                         key=_topic_checkbox_key(group.subject, topic),
-                        disabled=(not single_subject_mode) and (all_selected or group.subject in selected_subjects),
-                        on_change=_toggle_topic_filter,
-                        args=(group.subject, topic, group_specs),
+                        disabled=(not single_subject_mode) and (all_selected or group.subject in draft_subject_set),
                     )
+
+        draft_subjects, draft_topics = _read_sidebar_subject_topic_filter_widget_state(subject_topic_groups)
+        has_pending_changes = draft_subjects != selected_subjects or draft_topics != selected_topics
+        if st.button(
+            "Aplicar filtros",
+            key="gm_sidebar_apply_subject_topic_filters",
+            type="primary",
+            use_container_width=True,
+            disabled=not has_pending_changes,
+        ):
+            _apply_subject_topic_filters(subjects=draft_subjects, topics=draft_topics)
 
 
 def _render_subject_topic_filter_multiselect(
@@ -902,6 +909,14 @@ def _topic_checkbox_key(subject: str, topic: str) -> str:
     return f"gm_filter_topic_checkbox_{subject}_{topic}"
 
 
+def _sidebar_filter_widget_scope_key() -> str:
+    return "gm_sidebar_filter_widget_scope"
+
+
+def _sidebar_filter_widget_applied_signature_key() -> str:
+    return "gm_sidebar_filter_widget_applied_signature"
+
+
 def _subject_topic_group_specs(
     subject_topic_groups: list[SubjectTopicGroup],
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
@@ -963,6 +978,110 @@ def _sync_subject_topic_filter_widget_state(
                 all_selected
                 or (group.subject, topic) in selected_topic_set
             )
+
+
+def _sidebar_filter_widgets_ready(subject_topic_groups: list[SubjectTopicGroup]) -> bool:
+    if _select_all_filters_checkbox_key() not in st.session_state:
+        return False
+
+    for group in subject_topic_groups:
+        if _subject_checkbox_key(group.subject) not in st.session_state:
+            return False
+        for topic in group.topics:
+            if _topic_checkbox_key(group.subject, topic) not in st.session_state:
+                return False
+    return True
+
+
+def _filter_selection_signature(
+    *,
+    selected_subjects: tuple[str, ...],
+    selected_topics: tuple[tuple[str, str], ...],
+) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
+    return tuple(sorted(selected_subjects)), tuple(sorted(selected_topics))
+
+
+def _ensure_sidebar_subject_topic_filter_widget_state(
+    *,
+    subject_topic_groups: list[SubjectTopicGroup],
+    selected_subjects: tuple[str, ...],
+    selected_topics: tuple[tuple[str, str], ...],
+) -> None:
+    group_specs = _subject_topic_group_specs(subject_topic_groups)
+    applied_signature = _filter_selection_signature(
+        selected_subjects=selected_subjects,
+        selected_topics=selected_topics,
+    )
+    if (
+        st.session_state.get(_sidebar_filter_widget_scope_key()) != group_specs
+        or st.session_state.get(_sidebar_filter_widget_applied_signature_key()) != applied_signature
+        or not _sidebar_filter_widgets_ready(subject_topic_groups)
+    ):
+        _sync_subject_topic_filter_widget_state(
+            subject_topic_groups=subject_topic_groups,
+            selected_subjects=selected_subjects,
+            selected_topics=selected_topics,
+        )
+        st.session_state[_sidebar_filter_widget_scope_key()] = group_specs
+        st.session_state[_sidebar_filter_widget_applied_signature_key()] = applied_signature
+
+
+def _all_filter_widgets_checked(subject_topic_groups: list[SubjectTopicGroup]) -> bool:
+    group_specs = _subject_topic_group_specs(subject_topic_groups)
+    if not group_specs:
+        return False
+
+    if _use_topic_only_filter(subject_topic_groups):
+        topic_keys = _all_topic_filter_keys(group_specs)
+        return bool(topic_keys) and all(
+            bool(st.session_state.get(_topic_checkbox_key(subject, topic)))
+            for subject, topic in topic_keys
+        )
+
+    subject_keys = _all_subject_filter_keys(group_specs)
+    return bool(subject_keys) and all(
+        bool(st.session_state.get(_subject_checkbox_key(subject)))
+        for subject in subject_keys
+    )
+
+
+def _refresh_select_all_filters_checkbox_state(subject_topic_groups: list[SubjectTopicGroup]) -> None:
+    st.session_state[_select_all_filters_checkbox_key()] = _all_filter_widgets_checked(subject_topic_groups)
+
+
+def _read_sidebar_subject_topic_filter_widget_state(
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
+    group_specs = _subject_topic_group_specs(subject_topic_groups)
+    if not group_specs:
+        return (), ()
+
+    if _all_filter_widgets_checked(subject_topic_groups):
+        return (), ()
+
+    selected_subjects = tuple(
+        subject
+        for subject in _all_subject_filter_keys(group_specs)
+        if bool(st.session_state.get(_subject_checkbox_key(subject)))
+    )
+    selected_subject_set = set(selected_subjects)
+    selected_topics = tuple(
+        (subject, topic)
+        for subject, topic in _all_topic_filter_keys(group_specs)
+        if subject not in selected_subject_set
+        and bool(st.session_state.get(_topic_checkbox_key(subject, topic)))
+    )
+    return selected_subjects, selected_topics
+
+
+def _toggle_all_sidebar_subject_topic_filter_widgets(
+    subject_topic_group_specs: tuple[tuple[str, tuple[str, ...]], ...],
+) -> None:
+    target_value = bool(st.session_state.get(_select_all_filters_checkbox_key()))
+    for subject, topics in subject_topic_group_specs:
+        st.session_state[_subject_checkbox_key(subject)] = target_value
+        for topic in topics:
+            st.session_state[_topic_checkbox_key(subject, topic)] = target_value
 
 
 def _toggle_all_subject_topic_filters() -> None:

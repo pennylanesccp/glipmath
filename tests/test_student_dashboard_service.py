@@ -59,12 +59,12 @@ def test_parse_student_dashboard_summary_dataframe_defaults_blank_numeric_values
     assert summary == StudentDashboardSummary()
 
 
-def test_parse_student_subject_performance_dataframe_reads_rows_and_normalizes_subjects() -> None:
+def test_parse_student_subject_performance_dataframe_reads_rows_and_normalizes_topics() -> None:
     subject_performance, issues = parse_student_subject_performance_dataframe(
         pd.DataFrame(
             [
                 {
-                    "subject": "Matemática",
+                    "subject": "Structured Streaming",
                     "total_answers": 12,
                     "total_correct": 9,
                     "total_wrong": 3,
@@ -86,7 +86,7 @@ def test_parse_student_subject_performance_dataframe_reads_rows_and_normalizes_s
     assert issues == []
     assert subject_performance == [
         StudentSubjectPerformance(
-            subject="matematica",
+            subject="structured streaming",
             total_answers=12,
             total_correct=9,
             total_wrong=3,

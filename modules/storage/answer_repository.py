@@ -152,7 +152,7 @@ class AnswerRepository:
         user_email: str,
         cohort_key: str | None = None,
     ) -> pd.DataFrame:
-        """Load lightweight per-subject learner aggregates for the current project scope."""
+        """Load lightweight per-topic learner aggregates for the current project scope."""
 
         parameters = [bigquery.ScalarQueryParameter("user_email", "STRING", user_email.lower().strip())]
         cohort_filter = ""
@@ -166,7 +166,7 @@ class AnswerRepository:
 
         query = f"""
             SELECT
-                COALESCE(NULLIF(LOWER(TRIM(subject)), ''), 'sem_materia') AS subject,
+                COALESCE(NULLIF(LOWER(TRIM(topic)), ''), 'sem_topico') AS subject,
                 COUNT(*) AS total_answers,
                 COUNTIF(is_correct) AS total_correct,
                 COUNTIF(NOT is_correct) AS total_wrong,

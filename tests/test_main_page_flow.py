@@ -94,68 +94,156 @@ def test_use_topic_only_filter_is_enabled_for_single_subject_group() -> None:
     )
 
 
-def test_sync_subject_topic_filter_widget_state_marks_select_all_and_topics_when_unfiltered(monkeypatch) -> None:
+def test_ensure_sidebar_subject_topic_filter_widget_state_initializes_from_applied_filters(monkeypatch) -> None:
     fake_st = SimpleNamespace(session_state={})
 
     monkeypatch.setattr(main_page, "st", fake_st)
 
-    main_page._sync_subject_topic_filter_widget_state(
-        subject_topic_groups=[SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance"))],
-        selected_subjects=(),
+    main_page._ensure_sidebar_subject_topic_filter_widget_state(
+        subject_topic_groups=[
+            SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance")),
+            SubjectTopicGroup(subject="matematica", topics=("divisao",)),
+        ],
+        selected_subjects=("databricks",),
         selected_topics=(),
     )
 
-    assert fake_st.session_state[main_page._select_all_filters_checkbox_key()] is True
-    assert fake_st.session_state[main_page._topic_checkbox_key("databricks", "ingestion")] is True
-    assert fake_st.session_state[main_page._topic_checkbox_key("databricks", "governance")] is True
+    assert fake_st.session_state[main_page._select_all_filters_checkbox_key()] is False
+    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is True
+    assert fake_st.session_state[main_page._subject_checkbox_key("matematica")] is False
 
 
-def test_toggle_all_subject_topic_filters_clears_specific_selection(monkeypatch) -> None:
+def test_ensure_sidebar_subject_topic_filter_widget_state_preserves_unapplied_draft(monkeypatch) -> None:
+    subject_topic_groups = [
+        SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance")),
+        SubjectTopicGroup(subject="matematica", topics=("divisao",)),
+    ]
+    fake_st = SimpleNamespace(
+        session_state={
+            main_page._sidebar_filter_widget_scope_key(): main_page._subject_topic_group_specs(subject_topic_groups),
+            main_page._sidebar_filter_widget_applied_signature_key(): main_page._filter_selection_signature(
+                selected_subjects=("databricks",),
+                selected_topics=(),
+            ),
+            main_page._select_all_filters_checkbox_key(): False,
+            main_page._subject_checkbox_key("databricks"): False,
+            main_page._subject_checkbox_key("matematica"): False,
+            main_page._topic_checkbox_key("databricks", "ingestion"): False,
+            main_page._topic_checkbox_key("databricks", "governance"): False,
+            main_page._topic_checkbox_key("matematica", "divisao"): False,
+        }
+    )
+
+    monkeypatch.setattr(main_page, "st", fake_st)
+
+    main_page._ensure_sidebar_subject_topic_filter_widget_state(
+        subject_topic_groups=subject_topic_groups,
+        selected_subjects=("databricks",),
+        selected_topics=(),
+    )
+
+    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is False
+
+
+def test_toggle_all_sidebar_subject_topic_filter_widgets_updates_local_widget_state(monkeypatch) -> None:
     fake_st = SimpleNamespace(session_state={main_page._select_all_filters_checkbox_key(): True})
-    captured: dict[str, object] = {}
 
     monkeypatch.setattr(main_page, "st", fake_st)
-    monkeypatch.setattr(main_page, "set_subject_filters", lambda subjects: captured.__setitem__("subjects", tuple(subjects)))
-    monkeypatch.setattr(main_page, "set_topic_filters", lambda topics: captured.__setitem__("topics", tuple(topics)))
-    monkeypatch.setattr(main_page, "clear_current_question", lambda: captured.__setitem__("cleared", True))
 
-    main_page._toggle_all_subject_topic_filters()
+    main_page._toggle_all_sidebar_subject_topic_filter_widgets(
+        (
+            ("databricks", ("ingestion", "governance")),
+            ("matematica", ("divisao",)),
+        )
+    )
 
-    assert captured == {
-        "subjects": (),
-        "topics": (),
-        "cleared": True,
-    }
+    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is True
+    assert fake_st.session_state[main_page._topic_checkbox_key("databricks", "ingestion")] is True
+    assert fake_st.session_state[main_page._topic_checkbox_key("matematica", "divisao")] is True
 
 
-def test_toggle_topic_filter_from_select_all_state_keeps_remaining_topics_selected(monkeypatch) -> None:
-    fake_st = SimpleNamespace(session_state={main_page._topic_checkbox_key("databricks", "ingestion"): False})
-    captured: dict[str, object] = {}
+def test_read_sidebar_subject_topic_filter_widget_state_returns_pending_selection(monkeypatch) -> None:
+    fake_st = SimpleNamespace(
+        session_state={
+            main_page._subject_checkbox_key("databricks"): True,
+            main_page._subject_checkbox_key("matematica"): False,
+            main_page._topic_checkbox_key("databricks", "ingestion"): True,
+            main_page._topic_checkbox_key("databricks", "governance"): False,
+            main_page._topic_checkbox_key("matematica", "divisao"): True,
+        }
+    )
 
     monkeypatch.setattr(main_page, "st", fake_st)
-    monkeypatch.setattr(main_page, "get_subject_filters", lambda: ())
-    monkeypatch.setattr(main_page, "get_topic_filters", lambda: ())
-    monkeypatch.setattr(main_page, "set_subject_filters", lambda subjects: captured.__setitem__("subjects", tuple(subjects)))
+
+    selected_subjects, selected_topics = main_page._read_sidebar_subject_topic_filter_widget_state(
+        [
+            SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance")),
+            SubjectTopicGroup(subject="matematica", topics=("divisao",)),
+        ]
+    )
+
+    assert selected_subjects == ("databricks",)
+    assert selected_topics == (("matematica", "divisao"),)
+
+
+def test_render_sidebar_subject_topic_filters_applies_draft_only_on_apply_click(monkeypatch) -> None:
+    applied: dict[str, object] = {}
+
+    class FakeSidebar:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    fake_st = SimpleNamespace(
+        session_state={},
+        sidebar=FakeSidebar(),
+        divider=lambda: None,
+        caption=lambda *args, **kwargs: None,
+        checkbox=lambda *args, **kwargs: False,
+        button=lambda *args, **kwargs: kwargs.get("key") == "gm_sidebar_apply_subject_topic_filters",
+        container=lambda: FakeSidebar(),
+        html=lambda *args, **kwargs: None,
+    )
+
+    monkeypatch.setattr(main_page, "st", fake_st)
     monkeypatch.setattr(
         main_page,
-        "set_topic_filters",
-        lambda topics: captured.__setitem__("topics", tuple(sorted(topics))),
+        "_ensure_sidebar_subject_topic_filter_widget_state",
+        lambda **kwargs: None,
     )
-    monkeypatch.setattr(main_page, "clear_current_question", lambda: captured.__setitem__("cleared", True))
-
-    main_page._toggle_topic_filter(
-        "databricks",
-        "ingestion",
-        (("databricks", ("ingestion", "governance", "security")),),
+    monkeypatch.setattr(
+        main_page,
+        "_refresh_select_all_filters_checkbox_state",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_all_filter_widgets_checked",
+        lambda *args, **kwargs: False,
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_read_sidebar_subject_topic_filter_widget_state",
+        lambda *args, **kwargs: (("matematica",), ()),
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_apply_subject_topic_filters",
+        lambda *, subjects, topics: applied.update({"subjects": subjects, "topics": topics}),
     )
 
-    assert captured == {
-        "subjects": (),
-        "topics": (
-            ("databricks", "governance"),
-            ("databricks", "security"),
-        ),
-        "cleared": True,
+    main_page._render_sidebar_subject_topic_filters(
+        subject_topic_groups=[SubjectTopicGroup(subject="matematica", topics=("divisao",))],
+        selected_subjects=(),
+        selected_topics=(),
+        selected_filter_label="Tudo",
+    )
+
+    assert applied == {
+        "subjects": ("matematica",),
+        "topics": (),
     }
 
 

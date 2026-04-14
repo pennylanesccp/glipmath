@@ -4,23 +4,34 @@ from app.pages import student_dashboard_page
 from modules.domain.models import StudentSubjectPerformance, User
 
 
-def test_build_dashboard_header_html_includes_project_scope_and_total_answers() -> None:
+def test_build_dashboard_header_html_keeps_only_the_student_title() -> None:
     html = student_dashboard_page._build_dashboard_header_html(
         user=User(email="ana@example.com", name="Ana"),
-        selected_project="ano_1",
-        total_answers=24,
     )
 
     assert "Seu desempenho, Ana" in html
-    assert "Projeto: Ano 1" in html
-    assert "Respostas: 24" in html
+    assert "Projeto:" not in html
+    assert "Respostas:" not in html
+    assert "Resumo" not in html
 
 
-def test_build_subject_performance_chart_uses_dual_axis_layers() -> None:
+def test_build_metric_card_html_renders_divider_detail_section() -> None:
+    html = student_dashboard_page._build_metric_card_html(
+        title="Acertos",
+        value="3",
+        detail="75.0%",
+        tone="success",
+    )
+
+    assert "gm-stats-card-detail" in html
+    assert "75.0%" in html
+
+
+def test_build_subject_performance_chart_uses_topic_labels_on_the_x_axis() -> None:
     chart = student_dashboard_page._build_subject_performance_chart(
         [
             StudentSubjectPerformance(
-                subject="matematica",
+                subject="structured streaming",
                 total_answers=12,
                 total_correct=9,
                 total_wrong=3,
@@ -42,6 +53,7 @@ def test_build_subject_performance_chart_uses_dual_axis_layers() -> None:
 
     assert spec["resolve"]["scale"]["y"] == "independent"
     assert len(spec["layer"]) == 2
+    assert spec["layer"][0]["encoding"]["x"]["axis"]["title"] == "Tópicos"
     dataset = next(iter(spec["datasets"].values()))
-    assert dataset[0]["subject_label"] == "Matemática"
-    assert dataset[1]["subject_label"] == "Sem matéria"
+    assert dataset[0]["topic_label"] == "Data Transformation, Cleansing and Quality"
+    assert dataset[1]["topic_label"] == "Sem tópico"

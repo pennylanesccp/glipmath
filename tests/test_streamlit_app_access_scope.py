@@ -205,3 +205,27 @@ def test_normalize_filters_for_subject_group_shape_clears_full_subject_selection
     )
 
     assert normalized_filters == QuestionFilterSelection(subjects=(), topics=())
+
+
+def test_render_sidebar_logout_button_triggers_streamlit_logout(monkeypatch) -> None:
+    calls: list[str] = []
+
+    class FakeSidebar:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    fake_st = SimpleNamespace(
+        sidebar=FakeSidebar(),
+        divider=lambda: calls.append("divider"),
+        button=lambda *args, **kwargs: True,
+    )
+
+    monkeypatch.setattr(streamlit_app, "st", fake_st)
+    monkeypatch.setattr(streamlit_app, "trigger_logout", lambda: calls.append("logout"))
+
+    streamlit_app._render_sidebar_logout_button()
+
+    assert calls == ["divider", "logout"]
