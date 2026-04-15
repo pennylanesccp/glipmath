@@ -12,3 +12,4 @@ fileWatcherType = "none"
 [client]
 showErrorDetails = true
 showSidebarNavigation = false
+toolbarMode = "minimal"

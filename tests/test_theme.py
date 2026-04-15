@@ -18,6 +18,8 @@ def test_apply_app_theme_keeps_sidebar_navigation_available(monkeypatch) -> None
     assert '[data-testid="collapsedControl"]' not in stylesheet
     assert '[data-testid="stHeader"]' in stylesheet
     assert "background: transparent !important;" in stylesheet
+    assert '[data-testid="stToolbarActions"]' in stylesheet
+    assert '[data-testid="stToolbarActionButton"]' in stylesheet
     assert 'a[href*="github.com"]' in stylesheet
     assert '[aria-label*="Fork" i]' in stylesheet
     assert '[aria-label*="GitHub" i]' in stylesheet

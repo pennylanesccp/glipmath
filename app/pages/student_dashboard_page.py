@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from html import escape
+from textwrap import wrap
 
 import altair as alt
 import pandas as pd
@@ -244,26 +245,35 @@ def _build_empty_state_html(message: str) -> str:
 def _build_subject_performance_chart(
     subject_performance: list[StudentSubjectPerformance],
 ) -> alt.LayerChart:
-    chart_data = pd.DataFrame(
-        [
+    chart_rows: list[dict[str, object]] = []
+    for item in subject_performance:
+        topic_label = _format_subject_stat_label(item.subject)
+        chart_rows.append(
             {
-                "topic_label": _format_subject_stat_label(item.subject),
+                "topic_label": topic_label,
+                "topic_axis_label": _wrap_chart_axis_label(topic_label),
                 "accuracy_percent": round(item.accuracy_rate * 100, 1),
                 "total_answers": item.total_answers,
                 "total_correct": item.total_correct,
                 "total_wrong": item.total_wrong,
                 "average_time_label": _format_duration(item.average_time_spent_seconds),
             }
-            for item in subject_performance
-        ]
-    )
-    topic_order = chart_data["topic_label"].tolist()
+        )
+
+    chart_data = pd.DataFrame(chart_rows)
+    topic_order = chart_data["topic_axis_label"].tolist()
 
     base = alt.Chart(chart_data).encode(
         x=alt.X(
-            "topic_label:N",
+            "topic_axis_label:N",
             sort=topic_order,
-            axis=alt.Axis(title="T\u00f3picos", labelAngle=-18, labelLimit=220),
+            axis=alt.Axis(
+                title="T\u00f3picos",
+                labelAngle=0,
+                labelLimit=220,
+                labelLineHeight=16,
+                labelOverlap=False,
+            ),
         )
     )
     tooltip = [
@@ -315,6 +325,22 @@ def _format_subject_stat_label(subject: str | None) -> str:
     if formatted_subject:
         return formatted_subject
     return "Sem t\u00f3pico"
+
+
+def _wrap_chart_axis_label(label: str, *, max_line_length: int = 20) -> str:
+    stripped_label = label.strip()
+    if not stripped_label:
+        return label
+
+    wrapped_lines = wrap(
+        stripped_label,
+        width=max_line_length,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    if not wrapped_lines:
+        return stripped_label
+    return "\n".join(wrapped_lines)
 
 
 def _share(part: int, total: int) -> float:

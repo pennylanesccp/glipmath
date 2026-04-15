@@ -19,6 +19,11 @@ def apply_app_theme() -> None:
             box-shadow: none !important;
         }
 
+        [data-testid="stHeader"] [data-testid="stToolbarActions"],
+        [data-testid="stHeader"] [data-testid="stToolbarActionButton"] {
+            display: none !important;
+        }
+
         [data-testid="stHeader"] a[href*="github.com"],
         [data-testid="stHeader"] a[href*="github.dev"],
         [data-testid="stHeader"] a[href*="codespaces"],

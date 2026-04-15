@@ -247,6 +247,60 @@ def test_render_sidebar_subject_topic_filters_applies_draft_only_on_apply_click(
     }
 
 
+def test_render_sidebar_subject_topic_filters_renders_spacing_hooks(monkeypatch) -> None:
+    rendered_html: list[str] = []
+
+    class FakeSidebar:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    fake_st = SimpleNamespace(
+        session_state={},
+        sidebar=FakeSidebar(),
+        divider=lambda: None,
+        caption=lambda *args, **kwargs: None,
+        checkbox=lambda *args, **kwargs: False,
+        button=lambda *args, **kwargs: False,
+        container=lambda: FakeSidebar(),
+        html=lambda html: rendered_html.append(html),
+    )
+
+    monkeypatch.setattr(main_page, "st", fake_st)
+    monkeypatch.setattr(
+        main_page,
+        "_ensure_sidebar_subject_topic_filter_widget_state",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_refresh_select_all_filters_checkbox_state",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_all_filter_widgets_checked",
+        lambda *args, **kwargs: False,
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_read_sidebar_subject_topic_filter_widget_state",
+        lambda *args, **kwargs: ((), ()),
+    )
+
+    main_page._render_sidebar_subject_topic_filters(
+        subject_topic_groups=[SubjectTopicGroup(subject="matematica", topics=("divisao",))],
+        selected_subjects=(),
+        selected_topics=(),
+        selected_filter_label="Tudo",
+    )
+
+    assert any("gm-sidebar-subject-topic-filters-hook" in html for html in rendered_html)
+    assert any("gm-sidebar-apply-filters-hook" in html for html in rendered_html)
+
+
 def test_submit_selected_answer_rejects_missing_option(monkeypatch) -> None:
     warnings: list[str] = []
     question = Question(
@@ -555,6 +609,22 @@ def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch
     assert '[data-testid="stHeader"]' not in stylesheet
     assert 'button[kind="header"][aria-label*="sidebar" i]' not in stylesheet
     assert 'section[data-testid="stSidebar"][aria-expanded="false"]' not in stylesheet
+
+
+def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_primary_button_text(monkeypatch) -> None:
+    rendered_html: list[str] = []
+
+    monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
+
+    main_page._apply_live_page_styles()
+
+    assert len(rendered_html) == 1
+    stylesheet = rendered_html[0]
+    assert "gm-sidebar-subject-topic-filters-hook" in stylesheet
+    assert "gap: 0.38rem !important;" in stylesheet
+    assert "padding-top: 0.48rem !important;" in stylesheet
+    assert 'button[kind="primary"] {' in stylesheet
+    assert "color: #ffffff !important;" in stylesheet
 
 
 def test_format_pending_widget_label_unwraps_fenced_code_blocks() -> None:

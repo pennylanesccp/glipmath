@@ -198,46 +198,50 @@ def _render_sidebar_subject_topic_filters(
     all_selected = _all_filter_widgets_checked(subject_topic_groups)
 
     with st.sidebar:
-        st.divider()
-        st.caption("Disciplina e tópico")
-        st.checkbox(
-            "Selecionar tudo",
-            key=_select_all_filters_checkbox_key(),
-            on_change=_toggle_all_sidebar_subject_topic_filter_widgets,
-            args=(group_specs,),
-        )
+        with st.container():
+            st.html('<div class="gm-sidebar-subject-topic-filters-hook"></div>')
+            st.divider()
+            st.caption("Disciplina e tópico")
+            st.checkbox(
+                "Selecionar tudo",
+                key=_select_all_filters_checkbox_key(),
+                on_change=_toggle_all_sidebar_subject_topic_filter_widgets,
+                args=(group_specs,),
+            )
 
-        for group in subject_topic_groups:
-            if single_subject_mode:
-                st.caption(format_subject_label(group.subject))
-            else:
-                st.checkbox(
-                    format_subject_label(group.subject),
-                    key=_subject_checkbox_key(group.subject),
-                )
-
-            with st.container():
-                hook_class = "gm-sidebar-topic-filter-group-hook"
+            for group in subject_topic_groups:
                 if single_subject_mode:
-                    hook_class += " gm-sidebar-topic-filter-group-hook--single-subject"
-                st.html(f'<div class="{hook_class}"></div>')
-                for topic in group.topics:
+                    st.caption(format_subject_label(group.subject))
+                else:
                     st.checkbox(
-                        format_topic_label(topic),
-                        key=_topic_checkbox_key(group.subject, topic),
-                        disabled=(not single_subject_mode) and (all_selected or group.subject in draft_subject_set),
+                        format_subject_label(group.subject),
+                        key=_subject_checkbox_key(group.subject),
                     )
+
+                with st.container():
+                    hook_class = "gm-sidebar-topic-filter-group-hook"
+                    if single_subject_mode:
+                        hook_class += " gm-sidebar-topic-filter-group-hook--single-subject"
+                    st.html(f'<div class="{hook_class}"></div>')
+                    for topic in group.topics:
+                        st.checkbox(
+                            format_topic_label(topic),
+                            key=_topic_checkbox_key(group.subject, topic),
+                            disabled=(not single_subject_mode) and (all_selected or group.subject in draft_subject_set),
+                        )
 
         draft_subjects, draft_topics = _read_sidebar_subject_topic_filter_widget_state(subject_topic_groups)
         has_pending_changes = draft_subjects != selected_subjects or draft_topics != selected_topics
-        if st.button(
-            "Aplicar filtros",
-            key="gm_sidebar_apply_subject_topic_filters",
-            type="primary",
-            use_container_width=True,
-            disabled=not has_pending_changes,
-        ):
-            _apply_subject_topic_filters(subjects=draft_subjects, topics=draft_topics)
+        with st.container():
+            st.html('<div class="gm-sidebar-apply-filters-hook"></div>')
+            if st.button(
+                "Aplicar filtros",
+                key="gm_sidebar_apply_subject_topic_filters",
+                type="primary",
+                use_container_width=True,
+                disabled=not has_pending_changes,
+            ):
+                _apply_subject_topic_filters(subjects=draft_subjects, topics=draft_topics)
 
 
 def _render_subject_topic_filter_multiselect(
@@ -1248,6 +1252,22 @@ def _apply_live_page_styles() -> None:
             border-radius: 1rem;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) {
+            gap: 0.38rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) hr {
+            margin: 0.08rem 0 0.3rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stCaptionContainer"] {
+            margin: 0.32rem 0 0.04rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook) {
+            gap: 0.24rem !important;
+        }
+
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook) [data-testid="stCheckbox"] {
             margin-left: 1.35rem !important;
             width: calc(100% - 1.35rem) !important;
@@ -1256,6 +1276,19 @@ def _apply_live_page_styles() -> None:
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook--single-subject) [data-testid="stCheckbox"] {
             margin-left: 0 !important;
             width: 100% !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) {
+            gap: 0 !important;
+            padding-top: 0.48rem !important;
+        }
+
+        section[data-testid="stSidebar"] [data-testid="stButton"] > button[kind="primary"] {
+            color: #ffffff !important;
+        }
+
+        section[data-testid="stSidebar"] [data-testid="stButton"] > button[kind="primary"] p {
+            color: #ffffff !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] {

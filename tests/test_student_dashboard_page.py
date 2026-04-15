@@ -54,6 +54,19 @@ def test_build_subject_performance_chart_uses_topic_labels_on_the_x_axis() -> No
     assert spec["resolve"]["scale"]["y"] == "independent"
     assert len(spec["layer"]) == 2
     assert spec["layer"][0]["encoding"]["x"]["axis"]["title"] == "Tópicos"
+    assert spec["layer"][0]["encoding"]["x"]["field"] == "topic_axis_label"
+    assert spec["layer"][0]["encoding"]["x"]["axis"]["labelAngle"] == 0
+    assert spec["layer"][0]["encoding"]["x"]["axis"]["labelOverlap"] is False
     dataset = next(iter(spec["datasets"].values()))
     assert dataset[0]["topic_label"] == "Data Transformation, Cleansing and Quality"
+    assert dataset[0]["topic_axis_label"] == "Data Transformation,\nCleansing and\nQuality"
     assert dataset[1]["topic_label"] == "Sem tópico"
+    assert dataset[1]["topic_axis_label"] == "Sem tópico"
+
+
+def test_wrap_chart_axis_label_breaks_long_topic_names() -> None:
+    assert (
+        student_dashboard_page._wrap_chart_axis_label("Data Ingestion & Acquisition")
+        == "Data Ingestion &\nAcquisition"
+    )
+    assert student_dashboard_page._wrap_chart_axis_label("Sem tópico") == "Sem tópico"
