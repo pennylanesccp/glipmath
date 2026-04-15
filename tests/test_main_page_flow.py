@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -574,6 +575,62 @@ def test_build_pending_alternative_card_html_renders_markdown_and_selected_state
     assert "print('ok')" in html
 
 
+def test_render_pending_alternative_radio_groups_label_and_options(monkeypatch) -> None:
+    rendered_html: list[str] = []
+    selection_updates: list[str | None] = []
+    radio_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(main_page.st, "container", lambda: nullcontext())
+    monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
+    monkeypatch.setattr(
+        main_page.st,
+        "radio",
+        lambda label, options, **kwargs: radio_calls.append(
+            {"label": label, "options": list(options), **kwargs}
+        )
+        or "option_b",
+    )
+    monkeypatch.setattr(main_page, "get_question_selection", lambda: None)
+    monkeypatch.setattr(main_page, "set_question_selection", lambda selection: selection_updates.append(selection))
+
+    selected_option = main_page._render_pending_alternative_radio(
+        current_question_id=17,
+        alternatives=[
+            DisplayAlternative(
+                option_id="option_a",
+                alternative_text="Alternativa A",
+                explanation=None,
+                is_correct=False,
+            ),
+            DisplayAlternative(
+                option_id="option_b",
+                alternative_text="Alternativa B",
+                explanation=None,
+                is_correct=True,
+            ),
+        ],
+        selected_option_id="option_b",
+    )
+
+    assert selected_option == "option_b"
+    assert rendered_html == [
+        '<div class="gm-live-pending-options-hook"></div>',
+        '<div class="gm-live-pending-label">Escolha uma alternativa</div>',
+    ]
+    assert radio_calls == [
+        {
+            "label": "Escolha uma alternativa",
+            "options": ["option_a", "option_b"],
+            "index": 1,
+            "key": "gm_pending_alternative_radio_17",
+            "format_func": radio_calls[0]["format_func"],
+            "label_visibility": "collapsed",
+        }
+    ]
+    assert callable(radio_calls[0]["format_func"])
+    assert selection_updates == ["option_b"]
+
+
 def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch) -> None:
     rendered_html: list[str] = []
 
@@ -583,17 +640,19 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-topbar-alignment-offset: 0.18rem;" in stylesheet
+    assert "--gm-topbar-alignment-offset: 0.2rem;" in stylesheet
+    assert "--gm-live-card-inline-padding: 1rem;" in stylesheet
     assert "--gm-pending-choice-gap: 0.48rem;" in stylesheet
-    assert "--gm-pending-choice-label-gap: 0.3rem;" in stylesheet
+    assert "--gm-pending-choice-label-gap: 0.16rem;" in stylesheet
     assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet
-    assert "margin: 0.18rem 0 var(--gm-pending-choice-label-gap);" in stylesheet
+    assert "margin: 0.1rem 0 0;" in stylesheet
     assert "gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "column-gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));" in stylesheet
     assert "padding-top: var(--gm-topbar-alignment-offset);" in stylesheet
     assert "padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;" in stylesheet
+    assert "padding-inline: var(--gm-live-card-inline-padding) !important;" in stylesheet
 
 
 def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch) -> None:

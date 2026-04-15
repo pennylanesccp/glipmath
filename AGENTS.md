@@ -115,6 +115,7 @@ IMPORTANT formatting requirements:
 
 - The entire commit message output must be in one fenced code block.
 - That code block must be the last content in the final message.
+- The entire commit message, including subject and bullets, must always be written in English.
 - Use `-` for bullets.
 - The commit message must describe the full set of repository changes that are still uncommitted at that moment, not only the latest turn's edits.
 

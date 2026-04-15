@@ -441,22 +441,24 @@ def _render_pending_alternative_radio(
     alternatives: list[DisplayAlternative],
     selected_option_id: str | None,
 ) -> str | None:
-    st.html('<div class="gm-live-pending-label">Escolha uma alternativa</div>')
+    with st.container():
+        st.html('<div class="gm-live-pending-options-hook"></div>')
+        st.html('<div class="gm-live-pending-label">Escolha uma alternativa</div>')
 
-    option_ids = [alternative.option_id for alternative in alternatives]
-    label_by_option_id = {
-        alternative.option_id: _format_pending_widget_label(alternative.alternative_text)
-        for alternative in alternatives
-    }
-    selection_index = option_ids.index(selected_option_id) if selected_option_id in option_ids else None
-    selected_option = st.radio(
-        "Escolha uma alternativa",
-        options=option_ids,
-        index=selection_index,
-        key=f"gm_pending_alternative_radio_{current_question_id}",
-        format_func=lambda option_id: label_by_option_id[option_id],
-        label_visibility="collapsed",
-    )
+        option_ids = [alternative.option_id for alternative in alternatives]
+        label_by_option_id = {
+            alternative.option_id: _format_pending_widget_label(alternative.alternative_text)
+            for alternative in alternatives
+        }
+        selection_index = option_ids.index(selected_option_id) if selected_option_id in option_ids else None
+        selected_option = st.radio(
+            "Escolha uma alternativa",
+            options=option_ids,
+            index=selection_index,
+            key=f"gm_pending_alternative_radio_{current_question_id}",
+            format_func=lambda option_id: label_by_option_id[option_id],
+            label_visibility="collapsed",
+        )
 
     normalized_selection = str(selected_option).strip() if selected_option is not None else None
     if normalized_selection != get_question_selection():
@@ -1203,9 +1205,10 @@ def _apply_live_page_styles() -> None:
         """
         <style>
         :root {
-            --gm-topbar-alignment-offset: 0.18rem;
+            --gm-topbar-alignment-offset: 0.2rem;
+            --gm-live-card-inline-padding: 1rem;
             --gm-pending-choice-gap: 0.48rem;
-            --gm-pending-choice-label-gap: 0.3rem;
+            --gm-pending-choice-label-gap: 0.16rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
         }
@@ -1291,8 +1294,15 @@ def _apply_live_page_styles() -> None:
             color: #ffffff !important;
         }
 
+        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) {
+            gap: var(--gm-pending-choice-label-gap) !important;
+        }
+
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] {
+            box-sizing: border-box !important;
             flex-wrap: nowrap !important;
+            padding-inline: var(--gm-live-card-inline-padding) !important;
+            width: 100% !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div {
@@ -1419,7 +1429,7 @@ def _apply_live_page_styles() -> None:
             border-radius: 1.25rem;
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
             margin-bottom: 0 !important;
-            padding: 1rem 1rem 0.95rem;
+            padding: 1rem var(--gm-live-card-inline-padding) 0.95rem;
         }
 
         .gm-live-card-title {
@@ -1520,7 +1530,7 @@ def _apply_live_page_styles() -> None:
             color: #7b8498;
             font-size: 0.88rem;
             font-weight: 600;
-            margin: 0.18rem 0 var(--gm-pending-choice-label-gap);
+            margin: 0.1rem 0 0;
         }
 
         .gm-live-pending-choice-card {
