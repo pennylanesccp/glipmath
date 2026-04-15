@@ -298,6 +298,7 @@ def test_render_sidebar_subject_topic_filters_renders_spacing_hooks(monkeypatch)
         selected_filter_label="Tudo",
     )
 
+    assert any("gm-sidebar-filter-stack-hook" in html for html in rendered_html)
     assert any("gm-sidebar-subject-topic-filters-hook" in html for html in rendered_html)
     assert any("gm-sidebar-apply-filters-hook" in html for html in rendered_html)
 
@@ -679,9 +680,17 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_primary_button_
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
+    assert "--gm-sidebar-section-gap: 0.34rem;" in stylesheet
+    assert "--gm-sidebar-group-gap: 0.18rem;" in stylesheet
+    assert "--gm-sidebar-group-indent: 1.18rem;" in stylesheet
+    assert "--gm-sidebar-actions-padding-top: 0.34rem;" in stylesheet
+    assert "gm-sidebar-filter-stack-hook" in stylesheet
     assert "gm-sidebar-subject-topic-filters-hook" in stylesheet
-    assert "gap: 0.38rem !important;" in stylesheet
-    assert "padding-top: 0.48rem !important;" in stylesheet
+    assert "gm-sidebar-logout-button-hook" in stylesheet
+    assert "gap: var(--gm-sidebar-section-gap) !important;" in stylesheet
+    assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
+    assert "border-color: #dbeafe !important;" in stylesheet
+    assert "margin-bottom: 0 !important;" in stylesheet
     assert 'button[kind="primary"] {' in stylesheet
     assert "color: #ffffff !important;" in stylesheet
 
