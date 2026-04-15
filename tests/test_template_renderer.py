@@ -38,4 +38,6 @@ def test_render_template_preserves_raw_html_fragments() -> None:
     assert 'class="gsi-material-button is-disabled"' in html
     assert 'src="data:image/svg+xml;base64,xyz"' in html
     assert "Continuar com Google" in html
+    assert "Este app pode conter erros." in html
+    assert 'href="mailto:felipeproenca97@gmail.com"' in html
     assert "Continue with Google" not in html

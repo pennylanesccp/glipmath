@@ -7,6 +7,8 @@ def test_login_preview_is_static_and_uses_portuguese_copy() -> None:
     assert 'href="#preview-static"' in html
     assert "<form" not in html
     assert "Continuar com Google" in html
+    assert "Este app pode conter erros." in html
+    assert "felipeproenca97@gmail.com" in html
     assert "Continue with Google" not in html
 
 
