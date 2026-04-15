@@ -219,6 +219,8 @@ def test_render_sidebar_logout_button_triggers_streamlit_logout(monkeypatch) -> 
 
     fake_st = SimpleNamespace(
         sidebar=FakeSidebar(),
+        container=lambda: FakeSidebar(),
+        html=lambda html: calls.append(html),
         divider=lambda: calls.append("divider"),
         button=lambda *args, **kwargs: True,
     )
@@ -228,4 +230,18 @@ def test_render_sidebar_logout_button_triggers_streamlit_logout(monkeypatch) -> 
 
     streamlit_app._render_sidebar_logout_button()
 
-    assert calls == ["divider", "logout"]
+    assert calls == ['<div class="gm-sidebar-logout-button-hook"></div>', "divider", "logout"]
+
+
+def test_apply_workspace_shell_styles_formats_logout_divider_spacing(monkeypatch) -> None:
+    rendered_html: list[str] = []
+
+    monkeypatch.setattr(streamlit_app.st, "html", lambda html: rendered_html.append(html))
+
+    streamlit_app._apply_workspace_shell_styles()
+
+    assert len(rendered_html) == 1
+    stylesheet = rendered_html[0]
+    assert "gm-sidebar-logout-button-hook" in stylesheet
+    assert "padding-top: 0.42rem !important;" in stylesheet
+    assert "margin: 0 0 0.44rem !important;" in stylesheet

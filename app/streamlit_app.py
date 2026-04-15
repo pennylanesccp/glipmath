@@ -579,14 +579,16 @@ def _render_authenticated_shell_sidebar(
 
 def _render_sidebar_logout_button() -> None:
     with st.sidebar:
-        st.divider()
-        if st.button(
-            "Sair",
-            key="gm_sidebar_logout_button",
-            type="secondary",
-            use_container_width=True,
-        ):
-            trigger_logout()
+        with st.container():
+            st.html('<div class="gm-sidebar-logout-button-hook"></div>')
+            st.divider()
+            if st.button(
+                "Sair",
+                key="gm_sidebar_logout_button",
+                type="secondary",
+                use_container_width=True,
+            ):
+                trigger_logout()
 
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -1096,6 +1098,16 @@ def _apply_workspace_shell_styles() -> None:
             font-weight: 700 !important;
             letter-spacing: 0.08em !important;
             text-transform: uppercase !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) {
+            gap: 0.32rem !important;
+            padding-top: 0.42rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) hr {
+            margin: 0 0 0.44rem !important;
+            border-color: #dbe5f1 !important;
         }
 
         div[data-testid="stSegmentedControl"] > div {
