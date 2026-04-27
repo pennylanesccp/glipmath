@@ -25,12 +25,12 @@ The default strategy is free-tier-minded:
 3. enrich only those rows with Gemini
 4. write the final nested explanations back to BigQuery
 
-## Create a Gemini API Key
+## Create Gemini API Keys
 
 1. Open Google AI Studio:
    - `https://aistudio.google.com/apikey`
-2. Create an API key for the project you want to use.
-3. Do not commit the key to the repository.
+2. Create one or more API keys for the project you want to use.
+3. Do not commit the keys to the repository.
 
 Official references:
 
@@ -39,22 +39,26 @@ Official references:
 
 ## Secrets Configuration
 
-Keep the Gemini model selection in `glipmath.toml` and put only the API key in `.streamlit/secrets.toml` locally. If you want enrichment available in hosted environments, add the same API key to Streamlit Community Cloud secrets as well.
+Keep the Gemini model selection in `glipmath.toml` and put only the API keys in `.streamlit/secrets.toml` locally. If you want enrichment available in hosted environments, add the same API keys to Streamlit Community Cloud secrets as well.
 
 ```toml
 [ai]
-GEMINI_API_KEY = "REPLACE_WITH_GEMINI_API_KEY"
+GEMINI_API_KEYS = [
+  "REPLACE_WITH_GEMINI_API_KEY_1",
+  "REPLACE_WITH_GEMINI_API_KEY_2",
+]
 ```
 
 Notes:
 
 - `glipmath.toml` already defaults `ai.model` to `gemini-2.5-flash-lite`.
+- if one key hits a rate/quota limit, the Gemini client retries the same request with the next configured key.
 - the enrichment script reads secrets through the shared config loader
 - student question answering does not require Gemini to be configured
-- install the admin extra before running enrichment:
+- install the project before running enrichment:
 
   ```powershell
-  python -m pip install -e .[admin]
+  python -m pip install -e .
   ```
 
 ## Enrichment Script

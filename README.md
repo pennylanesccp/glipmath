@@ -104,11 +104,10 @@ The app combines the correct answer and wrong answers in memory, assigns stable 
    python -m pip install -e .
    ```
 
-   Optional extras:
+   Optional dev tools:
 
    ```powershell
    python -m pip install -e .[dev]
-   python -m pip install -e .[admin]
    ```
 
 3. Copy the example secrets file:
@@ -122,7 +121,7 @@ The app combines the correct answer and wrong answers in memory, assigns stable 
 
 5. Fill these sections in `.streamlit/secrets.toml`:
    - `[auth]` for Google OIDC
-   - `[ai]` for the optional Gemini API key
+   - `[ai]` for the optional Gemini API keys
    - `[gcp_service_account]` for the BigQuery runtime service account JSON fields
 6. Apply Terraform for the GCP data layer.
    Recommended:
@@ -224,7 +223,7 @@ Gemini is used only for offline/admin enrichment of question explanations.
 Useful command:
 
 ```powershell
-python -m pip install -e .[admin]
+python -m pip install -e .
 python scripts/enrich_question_explanations.py --dry-run --limit 10
 ```
 

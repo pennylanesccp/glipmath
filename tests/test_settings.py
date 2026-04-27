@@ -44,6 +44,7 @@ def test_load_settings_reads_public_repo_config(tmp_path: Path, monkeypatch) -> 
     monkeypatch.delenv("GLIPMATH_APP_NAME", raising=False)
     monkeypatch.delenv("GLIPMATH_GCP_PROJECT_ID", raising=False)
     monkeypatch.delenv("GLIPMATH_ANSWERS_TABLE", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEYS", raising=False)
     monkeypatch.delenv("GEMINI_MODEL", raising=False)
 
     (tmp_path / "glipmath.toml").write_text(
@@ -71,6 +72,7 @@ def test_load_settings_reads_public_repo_config(tmp_path: Path, monkeypatch) -> 
     assert settings.app_name == "Repo Config"
     assert settings.gcp.project_id == "repo-project"
     assert settings.bigquery.answers_table == "repo_answers"
+    assert settings.gemini.api_keys == ()
     assert settings.gemini.model == "repo-model"
 
 
@@ -80,6 +82,7 @@ def test_load_settings_prefers_secrets_over_public_repo_config(
 ) -> None:
     monkeypatch.delenv("GLIPMATH_GCP_PROJECT_ID", raising=False)
     monkeypatch.delenv("GLIPMATH_ANSWERS_TABLE", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEYS", raising=False)
     monkeypatch.delenv("GEMINI_MODEL", raising=False)
 
     (tmp_path / "glipmath.toml").write_text(
@@ -103,11 +106,27 @@ def test_load_settings_prefers_secrets_over_public_repo_config(
         secrets={
             "gcp": {"project_id": "secret-project"},
             "bigquery": {"answers_table": "secret_answers"},
-            "ai": {"GEMINI_MODEL": "secret-model"},
+            "ai": {
+                "GEMINI_API_KEYS": ["first-key", "second-key"],
+                "GEMINI_MODEL": "secret-model",
+            },
         },
         base_dir=tmp_path,
     )
 
     assert settings.gcp.project_id == "secret-project"
     assert settings.bigquery.answers_table == "secret_answers"
+    assert settings.gemini.api_keys == ("first-key", "second-key")
     assert settings.gemini.model == "secret-model"
+
+
+def test_load_settings_reads_gemini_api_keys_from_comma_separated_env(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("GEMINI_API_KEYS", "first-key, second-key")
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+
+    settings = load_settings(secrets={}, base_dir=tmp_path)
+
+    assert settings.gemini.api_keys == ("first-key", "second-key")

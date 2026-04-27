@@ -209,7 +209,7 @@ def main() -> None:
                 selected_project=effective_project_scope,
                 question_repository=context.question_repository,
                 user_access_repository=context.user_access_repository,
-                gemini_api_key=settings.gemini.api_key,
+                gemini_api_keys=settings.gemini.api_keys,
                 gemini_model=settings.gemini.model,
             )
             _render_sidebar_logout_button()

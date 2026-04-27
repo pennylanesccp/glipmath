@@ -75,7 +75,7 @@ def render_professor_page(
     selected_project: str | None,
     question_repository: QuestionRepository,
     user_access_repository: UserAccessRepository,
-    gemini_api_key: str | None,
+    gemini_api_keys: tuple[str, ...],
     gemini_model: str,
 ) -> None:
     """Render the teacher/admin workspace."""
@@ -93,7 +93,7 @@ def render_professor_page(
         _render_question_authoring_panel(
             selected_project=selected_project,
             question_repository=question_repository,
-            gemini_api_key=gemini_api_key,
+            gemini_api_keys=gemini_api_keys,
             gemini_model=gemini_model,
         )
     elif current_tool == PROFESSOR_TOOL_ADD_STUDENT:
@@ -158,7 +158,7 @@ def _render_question_authoring_panel(
     *,
     selected_project: str | None,
     question_repository: QuestionRepository,
-    gemini_api_key: str | None,
+    gemini_api_keys: tuple[str, ...],
     gemini_model: str,
 ) -> None:
     normalized_project = clean_optional_text(selected_project)
@@ -264,7 +264,7 @@ def _render_question_authoring_panel(
     if polish_clicked:
         _handle_polish_with_ai(
             draft=draft,
-            gemini_api_key=gemini_api_key,
+            gemini_api_keys=gemini_api_keys,
             gemini_model=gemini_model,
         )
 
@@ -278,7 +278,7 @@ def _render_question_authoring_panel(
 def _handle_polish_with_ai(
     *,
     draft: QuestionAuthoringDraft,
-    gemini_api_key: str | None,
+    gemini_api_keys: tuple[str, ...],
     gemini_model: str,
 ) -> None:
     issues = validate_draft_for_ai(draft)
@@ -296,7 +296,7 @@ def _handle_polish_with_ai(
 
         authoring_service = QuestionAuthoringService(
             GeminiClient(
-                api_key=gemini_api_key,
+                api_keys=gemini_api_keys,
                 model=gemini_model,
             )
         )

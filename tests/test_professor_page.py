@@ -122,8 +122,8 @@ def test_handle_polish_with_ai_shows_error_for_invalid_ai_payload(monkeypatch) -
     monkeypatch.setattr(professor_page, "st", fake_st)
 
     class FakeGeminiClient:
-        def __init__(self, *, api_key: str | None, model: str | None) -> None:
-            self.api_key = api_key
+        def __init__(self, *, api_keys: tuple[str, ...], model: str | None) -> None:
+            self.api_keys = api_keys
             self.model = model
 
     class FakeAuthoringService:
@@ -145,7 +145,7 @@ def test_handle_polish_with_ai_shows_error_for_invalid_ai_payload(monkeypatch) -
             topic="divisao",
             difficulty="2_facil",
         ),
-        gemini_api_key="secret",
+        gemini_api_keys=("secret",),
         gemini_model="gemini-test",
     )
 

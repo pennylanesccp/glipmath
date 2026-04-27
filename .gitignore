@@ -16,6 +16,8 @@ tests/*
 !tests/*.py
 tasks
 secrets/
+.tmp/
+.tmp*/
 pytest-cache-files-*/
 
 # Terraform

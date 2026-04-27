@@ -164,14 +164,14 @@ class BigQuerySettings:
 class GeminiSettings:
     """Gemini API settings for offline/admin enrichment workflows."""
 
-    api_key: str | None
+    api_keys: tuple[str, ...]
     model: str
 
     @property
     def is_configured(self) -> bool:
         """Return whether the Gemini enrichment settings are present."""
 
-        return bool(self.api_key and self.model)
+        return bool(self.api_keys and self.model)
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,9 +312,11 @@ def load_settings(
             ),
         ),
         gemini=GeminiSettings(
-            api_key=(
-                _env_or_section("GEMINI_API_KEY", ai_section, "GEMINI_API_KEY")
-                or _env_or_section("GEMINI_API_KEY", ai_section, "api_key")
+            api_keys=(
+                _env_or_section_list("GEMINI_API_KEYS", ai_section, "GEMINI_API_KEYS")
+                or _env_or_section_list("GEMINI_API_KEYS", ai_section, "api_keys")
+                or _env_or_section_list("GEMINI_API_KEY", ai_section, "GEMINI_API_KEY")
+                or _env_or_section_list("GEMINI_API_KEY", ai_section, "api_key")
             ),
             model=(
                 _env_or_section("GEMINI_MODEL", ai_section, "GEMINI_MODEL")
@@ -354,6 +356,15 @@ def _env_or_section(env_name: str, section: Mapping[str, Any], key: str) -> str 
     """Return an environment variable value or fall back to a secrets section key."""
 
     return _string_or_none(os.getenv(env_name)) or _string_or_none(section.get(key))
+
+
+def _env_or_section_list(env_name: str, section: Mapping[str, Any], key: str) -> tuple[str, ...]:
+    """Return non-empty string values from an environment variable or config key."""
+
+    env_value = os.getenv(env_name)
+    if env_value:
+        return _string_list_or_empty(env_value)
+    return _string_list_or_empty(section.get(key))
 
 
 def _json_mapping_or_none(value: str | None) -> dict[str, Any] | None:
@@ -402,6 +413,27 @@ def _string_or_none(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _string_list_or_empty(value: Any) -> tuple[str, ...]:
+    """Return a tuple of stripped strings from TOML lists or comma-separated text."""
+
+    if value is None:
+        return ()
+    if isinstance(value, (list, tuple)):
+        return tuple(
+            text
+            for item in value
+            if (text := _string_or_none(item)) is not None
+        )
+    text = _string_or_none(value)
+    if text is None:
+        return ()
+    return tuple(
+        item
+        for raw_item in text.split(",")
+        if (item := _string_or_none(raw_item)) is not None
+    )
 
 
 def _service_account_info_or_none(

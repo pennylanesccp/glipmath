@@ -40,7 +40,7 @@ def main() -> None:
 
     settings = load_settings(base_dir=REPO_ROOT)
     if not settings.gemini.is_configured:
-        print("[ERROR] Gemini is not configured. Add [ai].GEMINI_API_KEY and [ai].GEMINI_MODEL to secrets.")
+        print("[ERROR] Gemini is not configured. Add [ai].GEMINI_API_KEYS and [ai].GEMINI_MODEL to secrets.")
         raise SystemExit(1)
 
     bigquery_client = BigQueryClient(
@@ -65,7 +65,7 @@ def main() -> None:
 
     explanation_service = ExplanationService(
         GeminiClient(
-            api_key=settings.gemini.api_key,
+            api_keys=settings.gemini.api_keys,
             model=settings.gemini.model,
         )
     )

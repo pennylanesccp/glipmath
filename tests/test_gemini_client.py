@@ -33,10 +33,10 @@ class FakeSdkClient:
 
 def test_gemini_client_requires_api_key_and_model() -> None:
     with pytest.raises(gemini_client.GeminiConfigurationError):
-        gemini_client.GeminiClient(api_key=None, model="gemini-test")
+        gemini_client.GeminiClient(api_keys=(), model="gemini-test")
 
     with pytest.raises(gemini_client.GeminiConfigurationError):
-        gemini_client.GeminiClient(api_key="secret", model=None)
+        gemini_client.GeminiClient(api_keys=("secret",), model=None)
 
 
 def test_gemini_client_uses_response_json_schema(monkeypatch) -> None:
@@ -54,7 +54,7 @@ def test_gemini_client_uses_response_json_schema(monkeypatch) -> None:
         lambda **kwargs: SimpleNamespace(**kwargs),
     )
 
-    client = gemini_client.GeminiClient(api_key="secret", model="gemini-test")
+    client = gemini_client.GeminiClient(api_keys=("secret",), model="gemini-test")
     payload = client.generate_json(
         prompt="hello",
         response_schema={"type": "object"},
@@ -84,13 +84,47 @@ def test_gemini_client_falls_back_to_json_text_when_parsed_is_missing(monkeypatc
         lambda **kwargs: SimpleNamespace(**kwargs),
     )
 
-    client = gemini_client.GeminiClient(api_key="secret", model="gemini-test")
+    client = gemini_client.GeminiClient(api_keys=("secret",), model="gemini-test")
     payload = client.generate_json(
         prompt="hello",
         response_schema={"type": "object"},
     )
 
     assert payload == {"statement": "ok"}
+
+
+def test_gemini_client_retries_next_key_when_quota_is_exhausted(monkeypatch) -> None:
+    class FakeQuotaError(RuntimeError):
+        code = 429
+
+    clients = {
+        "spent": FakeSdkClient(error=FakeQuotaError("quota exceeded")),
+        "fresh": FakeSdkClient(response=FakeResponse(parsed={"statement": "ok"})),
+    }
+    initialized_keys: list[str] = []
+
+    def build_fake_client(**kwargs):
+        api_key = str(kwargs["api_key"])
+        initialized_keys.append(api_key)
+        return clients[api_key]
+
+    monkeypatch.setattr(gemini_client.genai, "Client", build_fake_client)
+    monkeypatch.setattr(
+        gemini_client.types,
+        "GenerateContentConfig",
+        lambda **kwargs: SimpleNamespace(**kwargs),
+    )
+
+    client = gemini_client.GeminiClient(api_keys=("spent", "fresh"), model="gemini-test")
+    payload = client.generate_json(
+        prompt="hello",
+        response_schema={"type": "object"},
+    )
+
+    assert payload == {"statement": "ok"}
+    assert initialized_keys == ["spent", "fresh"]
+    assert len(clients["spent"].models.calls) == 1
+    assert len(clients["fresh"].models.calls) == 1
 
 
 def test_gemini_client_surfaces_underlying_sdk_error(monkeypatch) -> None:
@@ -107,7 +141,7 @@ def test_gemini_client_surfaces_underlying_sdk_error(monkeypatch) -> None:
         lambda **kwargs: SimpleNamespace(**kwargs),
     )
 
-    client = gemini_client.GeminiClient(api_key="secret", model="gemini-test")
+    client = gemini_client.GeminiClient(api_keys=("secret",), model="gemini-test")
 
     with pytest.raises(gemini_client.GeminiGenerationError) as exc_info:
         client.generate_json(
