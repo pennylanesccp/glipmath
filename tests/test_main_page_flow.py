@@ -114,6 +114,25 @@ def test_ensure_sidebar_subject_topic_filter_widget_state_initializes_from_appli
     assert fake_st.session_state[main_page._subject_checkbox_key("matematica")] is False
 
 
+def test_ensure_sidebar_subject_topic_filter_widget_state_marks_empty_filters_as_all(monkeypatch) -> None:
+    fake_st = SimpleNamespace(session_state={})
+
+    monkeypatch.setattr(main_page, "st", fake_st)
+
+    main_page._ensure_sidebar_subject_topic_filter_widget_state(
+        subject_topic_groups=[
+            SubjectTopicGroup(subject="databricks", topics=("ingestion",)),
+            SubjectTopicGroup(subject="matematica", topics=("divisao",)),
+        ],
+        selected_subjects=(),
+        selected_topics=(),
+    )
+
+    assert fake_st.session_state[main_page._select_all_filters_checkbox_key()] is True
+    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is False
+    assert fake_st.session_state[main_page._topic_checkbox_key("matematica", "divisao")] is False
+
+
 def test_ensure_sidebar_subject_topic_filter_widget_state_preserves_unapplied_draft(monkeypatch) -> None:
     subject_topic_groups = [
         SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance")),
@@ -146,7 +165,7 @@ def test_ensure_sidebar_subject_topic_filter_widget_state_preserves_unapplied_dr
     assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is False
 
 
-def test_toggle_all_sidebar_subject_topic_filter_widgets_updates_local_widget_state(monkeypatch) -> None:
+def test_toggle_all_sidebar_subject_topic_filter_widgets_clears_local_widget_state(monkeypatch) -> None:
     fake_st = SimpleNamespace(session_state={main_page._select_all_filters_checkbox_key(): True})
 
     monkeypatch.setattr(main_page, "st", fake_st)
@@ -158,9 +177,9 @@ def test_toggle_all_sidebar_subject_topic_filter_widgets_updates_local_widget_st
         )
     )
 
-    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is True
-    assert fake_st.session_state[main_page._topic_checkbox_key("databricks", "ingestion")] is True
-    assert fake_st.session_state[main_page._topic_checkbox_key("matematica", "divisao")] is True
+    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is False
+    assert fake_st.session_state[main_page._topic_checkbox_key("databricks", "ingestion")] is False
+    assert fake_st.session_state[main_page._topic_checkbox_key("matematica", "divisao")] is False
 
 
 def test_read_sidebar_subject_topic_filter_widget_state_returns_pending_selection(monkeypatch) -> None:
@@ -184,7 +203,7 @@ def test_read_sidebar_subject_topic_filter_widget_state_returns_pending_selectio
     )
 
     assert selected_subjects == ("databricks",)
-    assert selected_topics == (("matematica", "divisao"),)
+    assert selected_topics == (("databricks", "ingestion"), ("matematica", "divisao"))
 
 
 def test_render_sidebar_subject_topic_filters_applies_draft_only_on_apply_click(monkeypatch) -> None:
@@ -686,6 +705,7 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_primary_button_
     assert "--gm-sidebar-actions-padding-top: 0.34rem;" in stylesheet
     assert "gm-sidebar-filter-stack-hook" in stylesheet
     assert "gm-sidebar-subject-topic-filters-hook" in stylesheet
+    assert "gm-sidebar-topic-filter-group-hook--separate" in stylesheet
     assert "gm-sidebar-logout-button-hook" in stylesheet
     assert "gap: var(--gm-sidebar-section-gap) !important;" in stylesheet
     assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet

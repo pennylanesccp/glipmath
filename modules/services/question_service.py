@@ -425,20 +425,19 @@ def filter_question_ids_by_filters(
 
     selected_subjects = set(filters.subjects)
     selected_topics = set(filters.topics)
-    return [
-        entry.id_question
-        for entry in question_index
-        if (normalize_taxonomy_value(entry.subject) in selected_subjects)
-        or (
-            normalize_taxonomy_value(entry.subject) is not None
-            and normalize_taxonomy_value(entry.topic) is not None
-            and (
-                normalize_taxonomy_value(entry.subject),
-                normalize_taxonomy_value(entry.topic),
-            )
-            in selected_topics
+    matching_question_ids: list[int] = []
+    for entry in question_index:
+        subject = normalize_taxonomy_value(entry.subject)
+        topic = normalize_taxonomy_value(entry.topic)
+        matches_subject = not selected_subjects or subject in selected_subjects
+        matches_topic = not selected_topics or (
+            subject is not None
+            and topic is not None
+            and (subject, topic) in selected_topics
         )
-    ]
+        if matches_subject and matches_topic:
+            matching_question_ids.append(entry.id_question)
+    return matching_question_ids
 
 
 def normalize_question_filters(
@@ -503,7 +502,10 @@ def normalize_multi_question_filters(
                 for normalized_subject in [normalize_taxonomy_value(raw_topic[0])]
                 for normalized_topic in [normalize_taxonomy_value(raw_topic[1])]
                 if normalized_subject in available_topics_by_subject
-                and normalized_subject not in selected_subject_set
+                and (
+                    not selected_subject_set
+                    or normalized_subject in selected_subject_set
+                )
                 and normalized_topic in available_topics_by_subject[normalized_subject]
             },
             key=lambda item: (item[0].casefold(), item[1].casefold()),
@@ -593,6 +595,11 @@ def format_question_filter_label(filters: QuestionFilterSelection) -> str:
     if len(filters.topics) == 1 and not filters.subjects:
         subject, topic = filters.topics[0]
         return f"{format_subject_label(subject)} / {format_topic_label(topic)}"
+    if len(filters.subjects) == 1 and len(filters.topics) == 1:
+        subject = filters.subjects[0]
+        topic_subject, topic = filters.topics[0]
+        if subject == topic_subject:
+            return f"{format_subject_label(subject)} / {format_topic_label(topic)}"
     return f"{selection_count} filtros"
 
 

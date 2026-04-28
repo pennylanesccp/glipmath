@@ -237,7 +237,7 @@ def test_subject_option_helpers_build_and_filter_active_ids() -> None:
     ]
 
 
-def test_multi_question_filters_normalize_and_union_subjects_with_topics() -> None:
+def test_multi_question_filters_normalize_and_intersect_subjects_with_topics() -> None:
     question_index = [
         QuestionIndexEntry(id_question=1, subject="Matematica", topic="divisao", cohort_key="ano_1"),
         QuestionIndexEntry(id_question=2, subject="Matematica", topic="radiciacao", cohort_key="ano_1"),
@@ -247,15 +247,26 @@ def test_multi_question_filters_normalize_and_union_subjects_with_topics() -> No
 
     filters = normalize_multi_question_filters(
         question_index,
-        subjects=["Portugues", "MateriaInvalida"],
+        subjects=["Matematica", "MateriaInvalida"],
         topics=[("Matematica", "radiciacao"), ("Matematica", "topico_invalido"), ("Portugues", "gramatica")],
     )
 
     assert filters == QuestionFilterSelection(
-        subjects=("portugues",),
+        subjects=("matematica",),
         topics=(("matematica", "radiciacao"),),
     )
-    assert filter_question_ids_by_filters(question_index, filters) == [2, 3]
+    assert filter_question_ids_by_filters(question_index, filters) == [2]
+
+    topic_only_filters = normalize_multi_question_filters(
+        question_index,
+        subjects=[],
+        topics=[("Portugues", "gramatica")],
+    )
+
+    assert topic_only_filters == QuestionFilterSelection(
+        topics=(("portugues", "gramatica"),),
+    )
+    assert filter_question_ids_by_filters(question_index, topic_only_filters) == [3]
 
 
 def test_format_question_filter_label_summarizes_multi_selection_state() -> None:
@@ -271,11 +282,11 @@ def test_format_question_filter_label_summarizes_multi_selection_state() -> None
     assert (
         format_question_filter_label(
             QuestionFilterSelection(
-                subjects=("portugues",),
+                subjects=("matematica",),
                 topics=(("matematica", "divisao"),),
             )
         )
-        == "2 filtros"
+        == "Matemática / Divisão"
     )
 
 
