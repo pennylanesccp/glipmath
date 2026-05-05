@@ -11,6 +11,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from modules.utils.normalization import normalize_taxonomy_value
+from scripts.question_seed_ids import resolve_seed_question_id
 
 DEFAULT_INPUT_DIR = Path("local/bq_seeds/source")
 DEFAULT_OUTPUT_DIR = Path("local/bq_seeds/sql")
@@ -52,10 +53,12 @@ def render_seed_sql(
         question = _require_mapping(question_raw, f"questions[{index - 1}]")
         merged_question = dict(defaults)
         merged_question.update(question)
-        id_question = _require_int(merged_question.get("id_question"), f"questions[{index - 1}].id_question")
-        if id_question in seen_question_ids:
-            raise ValueError(f"Duplicate id_question in questions: {id_question}")
-        seen_question_ids.add(id_question)
+        id_question = resolve_seed_question_id(
+            merged_question.get("id_question"),
+            field_name=f"questions[{index - 1}].id_question",
+            seen_question_ids=seen_question_ids,
+        )
+        merged_question["id_question"] = id_question
         rendered_selects.append(_render_question_select(merged_question, row_label=f"questions[{index - 1}]"))
 
     delete_lines = []
@@ -187,7 +190,7 @@ def _render_question_select(question: Mapping[str, Any], *, row_label: str) -> s
     return "\n".join(
         [
             "  SELECT",
-            f"    {_require_int(question.get('id_question'), f'{row_label}.id_question')} AS id_question,",
+            f"    {int(question['id_question'])} AS id_question,",
             f"    {_sql_literal(_require_string(question.get('statement'), f'{row_label}.statement'))} AS statement,",
             "    STRUCT(",
             _render_alternative_fields(correct_answer, field_name=f"{row_label}.correct_answer", indent="      "),
@@ -277,13 +280,6 @@ def _optional_string(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
-
-
-def _require_int(value: Any, field_name: str) -> int:
-    try:
-        return int(str(value).strip())
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} must be an integer.") from exc
 
 
 def _require_bool(value: Any, field_name: str) -> bool:

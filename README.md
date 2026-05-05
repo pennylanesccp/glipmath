@@ -202,10 +202,13 @@ Supported question inputs:
 
 - `data/*.csv` in the vestibulinho flat-question format
 - `sql/seeds/question_bank_template.jsonl`
+- local seed JSON payloads under `local/bq_seeds/source` for `scripts/apply_question_seed_jsons.py`
 
 The pipeline converts supported raw files into the canonical nested question-bank rows in memory, then validates and loads them. Both raw CSV and canonical JSONL may carry optional `cohort_key`, and the CLI can stamp a whole import batch with `--cohort-key`.
 
 For the vestibulinho CSV pipeline, `id_question` is derived deterministically from `source`, `question_number`, and `cohort_key` when cohort scope is present.
+
+For local seed JSON payloads, `id_question` is optional. When it is omitted or blank, the seed script generates a high-range random integer ID while keeping explicit IDs supported.
 
 The load script skips invalid rows, writes them to `trash/question_bank_failed_rows.csv` by default, and still loads the valid subset into BigQuery. Use `--failed-rows-output` to override that path.
 

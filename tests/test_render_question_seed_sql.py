@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from scripts import question_seed_ids
 from scripts.render_question_seed_sql import load_seed_payload, render_seed_sql, render_seed_directory
 
 
@@ -94,6 +95,45 @@ def test_render_seed_sql_allows_table_id_override() -> None:
 
     assert "INSERT INTO `override.dataset.question_bank`" in sql
     assert "INSERT INTO `project.dataset.question_bank`" not in sql
+
+
+def test_render_seed_sql_generates_missing_question_id(monkeypatch) -> None:
+    monkeypatch.setattr(
+        question_seed_ids,
+        "generate_random_question_id",
+        lambda seen_question_ids: 9_100_001,
+    )
+
+    sql = render_seed_sql(
+        {
+            "table_id": "project.dataset.question_bank",
+            "defaults": {
+                "subject": "Matematica",
+                "topic": "divisao",
+                "source": "seed_v1",
+                "cohort_key": "ano_1",
+                "is_active": True,
+            },
+            "questions": [
+                {
+                    "statement": "Pergunta",
+                    "difficulty": "facil",
+                    "correct_answer": {
+                        "alternative_text": "1",
+                        "explanation": None,
+                    },
+                    "wrong_answers": [
+                        {
+                            "alternative_text": "2",
+                            "explanation": None,
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    assert "    9100001 AS id_question," in sql
 
 
 def test_load_seed_payload_rejects_invalid_json() -> None:

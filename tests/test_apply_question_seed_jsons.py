@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+from scripts import question_seed_ids
 from scripts.apply_question_seed_jsons import load_seed_batches, materialize_seed_payload
 
 
@@ -76,6 +77,46 @@ def test_materialize_seed_payload_merges_defaults_and_sets_timestamps() -> None:
             "updated_at_utc": "2026-04-09T15:00:00+00:00",
         }
     ]
+
+
+def test_materialize_seed_payload_generates_missing_question_id(monkeypatch) -> None:
+    monkeypatch.setattr(
+        question_seed_ids,
+        "generate_random_question_id",
+        lambda seen_question_ids: 8_100_001,
+    )
+
+    batch = materialize_seed_payload(
+        {
+            "table_id": "project.dataset.question_bank",
+            "defaults": {
+                "subject": "Matematica",
+                "topic": "aritmetica",
+                "source": "seed_v1",
+                "cohort_key": "ano_1",
+                "is_active": True,
+            },
+            "questions": [
+                {
+                    "statement": "Quanto e 2 + 2?",
+                    "difficulty": "facil",
+                    "correct_answer": {
+                        "alternative_text": "4",
+                        "explanation": "2 + 2 = 4.",
+                    },
+                    "wrong_answers": [
+                        {
+                            "alternative_text": "5",
+                            "explanation": "5 passa do resultado correto.",
+                        }
+                    ],
+                }
+            ],
+        },
+        source_path=Path("local/bq_seeds/source/math.json"),
+    )
+
+    assert batch.rows[0]["id_question"] == 8_100_001
 
 
 def test_load_seed_batches_rejects_duplicate_question_ids_across_files() -> None:

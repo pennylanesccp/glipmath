@@ -134,6 +134,7 @@ Definitions:
 Canonical question-bank input:
 
 - `sql/seeds/question_bank_template.jsonl`
+- `local/bq_seeds/source/*.json` for local BigQuery seed payloads
 
 Supported raw import input:
 
@@ -149,6 +150,8 @@ Supported raw import input:
 The import pipeline converts the raw CSV rows into the nested BigQuery schema before validation and load.
 
 For this raw CSV path, `id_question` is generated deterministically from `source`, `question_number`, and `cohort_key` when cohort scope is present. The loader CLI also accepts `--cohort-key` to stamp a whole batch without editing every row.
+
+For local BigQuery seed payloads, `id_question` may be omitted or left blank. The seed scripts generate a high-range random integer ID before loading or rendering SQL, while preserving any explicit `id_question` values provided in the JSON.
 
 Version-controlled schema files:
 

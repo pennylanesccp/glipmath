@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from modules.utils.normalization import normalize_taxonomy_value
 from scripts.bigquery_seed_utils import build_bigquery_client, load_rows_to_bigquery
+from scripts.question_seed_ids import resolve_seed_question_id
 from scripts.render_question_seed_sql import load_seed_payload
 
 DEFAULT_INPUT_DIR = Path("local/bq_seeds/source")
@@ -52,10 +53,11 @@ def materialize_seed_payload(
         question = _require_mapping(question_raw, f"questions[{index}]")
         merged_question = dict(defaults)
         merged_question.update(question)
-        id_question = _require_int(merged_question.get("id_question"), f"questions[{index}].id_question")
-        if id_question in seen_question_ids:
-            raise ValueError(f"Duplicate id_question in questions: {id_question}")
-        seen_question_ids.add(id_question)
+        id_question = resolve_seed_question_id(
+            merged_question.get("id_question"),
+            field_name=f"questions[{index}].id_question",
+            seen_question_ids=seen_question_ids,
+        )
 
         row = {
             "id_question": id_question,
@@ -222,13 +224,6 @@ def _optional_string(value: Any) -> str | None:
 
 def _optional_taxonomy_string(value: Any) -> str | None:
     return normalize_taxonomy_value(value)
-
-
-def _require_int(value: Any, field_name: str) -> int:
-    try:
-        return int(str(value).strip())
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} must be an integer.") from exc
 
 
 def _require_bool(value: Any, field_name: str) -> bool:
