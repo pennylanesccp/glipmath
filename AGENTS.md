@@ -117,7 +117,10 @@ IMPORTANT formatting requirements:
 - That code block must be the last content in the final message.
 - The entire commit message, including subject and bullets, must always be written in English.
 - Use `-` for bullets.
-- The commit message must describe the full set of repository changes that are still uncommitted at that moment, not only the latest turn's edits.
+- Before writing the final commit message, inspect the full current Git working tree state.
+- The commit message must describe every repository change that is still uncommitted at that moment, not only the latest turn's edits.
+- This includes changes made in earlier turns, user-made changes, deleted files, modified tracked files, and untracked files that are not ignored.
+- Do not omit unrelated uncommitted changes from the commit message just because Codex did not create them; instead, summarize the actual pending commit as a whole.
 
 Conventional Commits rules:
 
