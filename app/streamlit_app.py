@@ -14,6 +14,10 @@ if str(REPO_ROOT) not in sys.path:
 
 import streamlit as st
 
+from modules.auth.streamlit_joserfc_patch import install_streamlit_joserfc_auth_patch
+
+install_streamlit_joserfc_auth_patch()
+
 from app.components.theme import apply_app_theme
 from app.pages.login_page import render_login_page, render_not_authorized_page
 from app.pages.main_page import render_main_page

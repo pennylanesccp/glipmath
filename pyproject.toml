@@ -13,6 +13,7 @@ authors = [
 ]
 dependencies = [
     "streamlit[auth]>=1.52,<2",
+    "joserfc>=1.2,<2",
     "pandas>=2.2,<3",
     "google-cloud-bigquery>=3.27,<4",
     "markdown>=3.7,<4",
