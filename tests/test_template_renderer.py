@@ -29,10 +29,16 @@ def test_render_template_preserves_raw_html_fragments() -> None:
         "pages/auth_login.html",
         {
             "LOGO_DATA_URI": "data:image/png;base64,abc",
+            "GOOGLE_G_DATA_URI": "data:image/svg+xml;base64,google",
         },
     )
 
     assert 'src="data:image/png;base64,abc"' in html
+    assert 'url("data:image/svg+xml;base64,google")' in html
     assert "Continuar com Google" not in html
-    assert "Este app pode conter erros." in html
-    assert 'href="mailto:felipeproenca97@gmail.com"' in html
+    assert "Este app pode conter erros." not in html
+
+    footnote_html = render_template("pages/auth_login_footnote.html", {})
+
+    assert "Este app pode conter erros." in footnote_html
+    assert 'href="mailto:felipeproenca97@gmail.com"' in footnote_html

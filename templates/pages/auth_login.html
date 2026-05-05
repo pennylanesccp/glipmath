@@ -40,7 +40,6 @@
     }
 
     .gm-login-shell {
-        min-height: calc(100vh - 36px);
         display: flex;
         flex-direction: column;
     }
@@ -68,7 +67,7 @@
     }
 
     .st-key-gm_login_google_button {
-        margin-top: -92px;
+        margin-top: 16px;
         padding: 0 22px 0;
         position: relative;
         z-index: 2;
@@ -80,12 +79,34 @@
         border-radius: 999px;
         box-shadow: var(--gm-shadow-soft);
         color: var(--gsi-text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
         font-family: "Roboto", Arial, sans-serif;
         font-size: 13px;
         font-weight: 400;
         height: 42px;
         letter-spacing: 0.25px;
         transition: box-shadow .18s ease, transform .18s ease, opacity .18s ease;
+    }
+
+    .st-key-gm_login_google_button button::before {
+        background-image: url("{{GOOGLE_G_DATA_URI}}");
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: contain;
+        content: "";
+        display: inline-block;
+        flex: 0 0 18px;
+        height: 18px;
+        width: 18px;
+    }
+
+    .st-key-gm_login_google_button button [data-testid="stMarkdownContainer"] p {
+        color: var(--gsi-text);
+        line-height: 1;
+        margin: 0;
     }
 
     .st-key-gm_login_google_button button:hover {
@@ -109,8 +130,9 @@
         font-family: "Roboto", Arial, sans-serif;
         font-size: 0.8rem;
         line-height: 1.5;
-        margin-top: auto;
-        padding: 18px 10px 4px;
+        margin: 12px auto 0;
+        max-width: 420px;
+        padding: 0 10px 4px;
         text-align: center;
     }
 
@@ -137,7 +159,7 @@
         }
 
         .st-key-gm_login_google_button {
-            margin-top: -88px;
+            margin-top: 14px;
             padding: 0 18px 0;
         }
 
@@ -156,9 +178,4 @@
             alt="GlipTec"
         />
     </div>
-
-    <p class="gm-login-footnote">
-        Este app pode conter erros. Caso alguma inconsistência seja encontrada, reporte para
-        <a href="mailto:felipeproenca97@gmail.com">felipeproenca97@gmail.com</a>.
-    </p>
 </section>

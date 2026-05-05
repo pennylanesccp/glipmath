@@ -36,6 +36,7 @@ def render_login_page(settings: AppSettings) -> None:
         "pages/auth_login.html",
         {
             "LOGO_DATA_URI": asset_to_data_uri("assets/brand/gliptec-logo.png"),
+            "GOOGLE_G_DATA_URI": asset_to_data_uri("assets/icons/google-g-logo.svg"),
         },
     )
     st.html(login_html)
@@ -60,6 +61,7 @@ def render_login_page(settings: AppSettings) -> None:
         logger.info("Starting Streamlit OAuth login redirect | provider=default")
         trigger_login()
         st.stop()
+    st.html(render_template("pages/auth_login_footnote.html", {}))
     if not settings.auth.is_configured:
         render_auth_setup_warning()
     elif not redirect_status.is_valid:

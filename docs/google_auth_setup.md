@@ -49,6 +49,16 @@ Recommended metadata URL for Google:
 
 - `https://accounts.google.com/.well-known/openid-configuration`
 
+## OAuth State Troubleshooting
+
+If Streamlit logs `MismatchingStateError` during `/oauth2callback`, inspect the callback diagnostics:
+
+- `has_code = true` and `has_state = true` mean Google returned to the app with an OAuth response.
+- `has_streamlit_session_cookie = false` means Authlib could not see Streamlit's temporary session marker for that login attempt.
+- The app sets a short-lived signed `_glipmath_oauth_state` fallback cookie during `/auth/login` so the callback can restore only that missing Authlib state marker when the returned state matches the same browser flow.
+
+If both `has_streamlit_session_cookie` and `has_oauth_state_cookie` are false on the callback, check browser cookie blocking, stale tabs, and whether the deployed app is running the latest code.
+
 ## Beta Access Control
 
 The MVP now resolves authorization from BigQuery `glipmath_core.user_access`.

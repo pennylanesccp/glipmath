@@ -7,18 +7,30 @@ def test_render_login_page_uses_streamlit_html(monkeypatch) -> None:
     html_calls: list[str] = []
     asset_paths: list[str] = []
     button_calls: list[dict[str, object]] = []
+    template_paths: list[str] = []
 
     monkeypatch.setattr(
         login_page,
         "_get_auth_redirect_runtime_status",
-        lambda settings: SimpleNamespace(is_valid=True),
+        lambda settings: SimpleNamespace(
+            is_valid=True,
+            issue_code=None,
+            current_redirect_uri="https://glipmath.streamlit.app/oauth2callback",
+            expected_redirect_uri="https://glipmath.streamlit.app/oauth2callback",
+        ),
     )
     monkeypatch.setattr(
         login_page,
         "asset_to_data_uri",
         lambda relative_path: (asset_paths.append(relative_path) or "data:image/png;base64,abc"),
     )
-    monkeypatch.setattr(login_page, "render_template", lambda template_path, context: "<section>login</section>")
+    monkeypatch.setattr(
+        login_page,
+        "render_template",
+        lambda template_path, context: (
+            template_paths.append(template_path) or f"<section>{template_path}</section>"
+        ),
+    )
     monkeypatch.setattr(login_page.st, "html", lambda html: html_calls.append(html))
     monkeypatch.setattr(
         login_page.st,
@@ -35,8 +47,18 @@ def test_render_login_page_uses_streamlit_html(monkeypatch) -> None:
 
     login_page.render_login_page(settings)
 
-    assert html_calls == ["<section>login</section>"]
-    assert asset_paths[0] == "assets/brand/gliptec-logo.png"
+    assert html_calls == [
+        "<section>pages/auth_login.html</section>",
+        "<section>pages/auth_login_footnote.html</section>",
+    ]
+    assert asset_paths == [
+        "assets/brand/gliptec-logo.png",
+        "assets/icons/google-g-logo.svg",
+    ]
+    assert template_paths == [
+        "pages/auth_login.html",
+        "pages/auth_login_footnote.html",
+    ]
     assert button_calls[0]["label"] == "Continuar com Google"
 
 

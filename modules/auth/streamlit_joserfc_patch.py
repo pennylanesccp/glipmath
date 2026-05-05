@@ -5,14 +5,19 @@ import hashlib
 import importlib
 import json
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, cast
+from urllib.parse import parse_qs, urlparse
 
 from modules.utils.logging_utils import APP_LOGGER_NAME
 
 
 STARLETTE_AUTH_ROUTE_MODULE = "streamlit.web.server.starlette.starlette_auth_routes"
+OAUTH_STATE_COOKIE_NAME = "_glipmath_oauth_state"
+OAUTH_STATE_COOKIE_MAX_AGE_SECONDS = 10 * 60
+AUTHLIB_STATE_SESSION_TTL_SECONDS = 60 * 60
 
 
 def install_streamlit_joserfc_auth_patch() -> None:
@@ -38,7 +43,7 @@ def install_streamlit_joserfc_auth_patch() -> None:
         if getattr(module, "decode_provider_token", None) is original_decode:
             module.decode_provider_token = decode_provider_token
 
-    _patch_starlette_auth_callback_logger()
+    _patch_starlette_auth_routes()
 
 
 def encode_provider_token(provider: str) -> str:
@@ -85,12 +90,34 @@ def _signing_key() -> Any:
     return jwk.import_key(get_signing_secret(), "oct")
 
 
-def _patch_starlette_auth_callback_logger() -> None:
+def _patch_starlette_auth_routes() -> None:
     try:
         route_module = importlib.import_module(STARLETTE_AUTH_ROUTE_MODULE)
     except (ImportError, ModuleNotFoundError):
         return
 
+    _patch_starlette_auth_login(route_module)
+    _patch_starlette_auth_callback_logger(route_module)
+
+
+def _patch_starlette_auth_login(route_module: Any) -> None:
+    auth_login = getattr(route_module, "_auth_login", None)
+    if not callable(auth_login) or getattr(auth_login, "_glipmath_state_cookie", False):
+        return
+
+    @wraps(auth_login)
+    async def auth_login_with_state_cookie(request: Any, base_url: str) -> Any:
+        response = await auth_login(request, base_url)
+        state = _state_from_redirect_response(response)
+        if state:
+            _set_oauth_state_cookie(response, route_module, state)
+        return response
+
+    auth_login_with_state_cookie._glipmath_state_cookie = True
+    route_module._auth_login = auth_login_with_state_cookie
+
+
+def _patch_starlette_auth_callback_logger(route_module: Any) -> None:
     auth_callback = getattr(route_module, "_auth_callback", None)
     if not callable(auth_callback) or getattr(auth_callback, "_glipmath_logged", False):
         return
@@ -102,15 +129,30 @@ def _patch_starlette_auth_callback_logger() -> None:
             "OAuth callback received | details=%s",
             _json_for_log(_oauth_callback_snapshot(request, base_url=base_url)),
         )
+        restored_state_session = _restore_oauth_state_session_marker(
+            request,
+            route_module,
+        )
+        if restored_state_session:
+            logger.info(
+                "Restored OAuth callback state session marker from fallback cookie | details=%s",
+                _json_for_log(_oauth_callback_snapshot(request, base_url=base_url)),
+            )
         try:
             response = await auth_callback(request, base_url)
-        except Exception:
+        except Exception as error:
             logger.exception(
                 "OAuth callback failed inside Streamlit auth | details=%s",
                 _json_for_log(_oauth_callback_snapshot(request, base_url=base_url)),
             )
+            if _is_mismatching_state_error(error):
+                redirect_response = await _redirect_to_base(route_module, base_url)
+                if redirect_response is not None:
+                    _clear_oauth_state_cookie(redirect_response, route_module)
+                    return redirect_response
             raise
 
+        _clear_oauth_state_cookie(response, route_module)
         logger.info(
             "OAuth callback completed | status_code=%s | details=%s",
             getattr(response, "status_code", "<unknown>"),
@@ -142,10 +184,198 @@ def _oauth_callback_snapshot(request: Any, *, base_url: str) -> dict[str, Any]:
         "state_fingerprint": _fingerprint(state),
         "oauth_error": _short_text(error),
         "oauth_error_description": _short_text(error_description),
-        "session_keys": sorted(str(key) for key in _keys(session)),
+        "session_keys": _safe_keys_for_log(session),
         "session_state_keys": _session_state_keys(session),
         "cookie_names": sorted(str(key) for key in _keys(cookies)),
+        "has_streamlit_session_cookie": bool(
+            _get_mapping_value(cookies, "_streamlit_session")
+        ),
+        "has_oauth_state_cookie": bool(
+            _get_mapping_value(cookies, OAUTH_STATE_COOKIE_NAME)
+        ),
     }
+
+
+def _state_from_redirect_response(response: Any) -> str | None:
+    headers = getattr(response, "headers", None)
+    if headers is None:
+        return None
+
+    getter = getattr(headers, "get", None)
+    if not callable(getter):
+        return None
+
+    location = getter("location") or getter("Location")
+    if not location:
+        return None
+
+    parsed_location = urlparse(str(location))
+    state_values = parse_qs(parsed_location.query).get("state")
+    if not state_values:
+        return None
+
+    state = str(state_values[0]).strip()
+    return state or None
+
+
+def _set_oauth_state_cookie(
+    response: Any,
+    route_module: Any,
+    state: str,
+) -> None:
+    set_cookie = getattr(response, "set_cookie", None)
+    if not callable(set_cookie):
+        return
+
+    signed_state = _encode_signed_state_cookie(route_module, state)
+    if signed_state is None:
+        return
+
+    set_cookie(
+        OAUTH_STATE_COOKIE_NAME,
+        signed_state,
+        max_age=OAUTH_STATE_COOKIE_MAX_AGE_SECONDS,
+        httponly=True,
+        samesite="lax",
+        path=_cookie_path(route_module),
+    )
+
+
+def _clear_oauth_state_cookie(response: Any, route_module: Any) -> None:
+    delete_cookie = getattr(response, "delete_cookie", None)
+    if not callable(delete_cookie):
+        return
+
+    delete_cookie(OAUTH_STATE_COOKIE_NAME, path=_cookie_path(route_module))
+
+
+def _restore_oauth_state_session_marker(request: Any, route_module: Any) -> bool:
+    query_params = getattr(request, "query_params", {})
+    state = _get_mapping_value(query_params, "state")
+    if not state:
+        return False
+
+    session = getattr(request, "session", None)
+    if session is None:
+        return False
+
+    provider = _provider_for_state(route_module, state)
+    if not provider:
+        return False
+
+    state_key = _authlib_state_key(provider, state)
+    if state_key in session:
+        return False
+
+    if not _auth_cache_has_state(route_module, state_key):
+        return False
+
+    cookies = getattr(request, "cookies", {}) or {}
+    cookie_state = _decode_signed_state_cookie(
+        route_module,
+        _get_mapping_value(cookies, OAUTH_STATE_COOKIE_NAME),
+    )
+    if cookie_state != state:
+        return False
+
+    session[state_key] = {"exp": time.time() + AUTHLIB_STATE_SESSION_TTL_SECONDS}
+    return True
+
+
+def _encode_signed_state_cookie(route_module: Any, state: str) -> str | None:
+    create_signed_value = getattr(route_module, "create_signed_value", None)
+    get_cookie_secret = getattr(route_module, "get_cookie_secret", None)
+    if not callable(create_signed_value) or not callable(get_cookie_secret):
+        return None
+
+    payload = json.dumps(
+        {"state": state},
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    signed_value = create_signed_value(
+        get_cookie_secret(),
+        OAUTH_STATE_COOKIE_NAME,
+        payload,
+    )
+    if isinstance(signed_value, bytes):
+        return signed_value.decode("utf-8")
+    return str(signed_value)
+
+
+def _decode_signed_state_cookie(route_module: Any, cookie_value: str | None) -> str | None:
+    if not cookie_value:
+        return None
+
+    decode_signed_value = getattr(route_module, "decode_signed_value", None)
+    get_cookie_secret = getattr(route_module, "get_cookie_secret", None)
+    if not callable(decode_signed_value) or not callable(get_cookie_secret):
+        return None
+
+    decoded_value = decode_signed_value(
+        get_cookie_secret(),
+        OAUTH_STATE_COOKIE_NAME,
+        cookie_value,
+        max_age_days=OAUTH_STATE_COOKIE_MAX_AGE_SECONDS / 86400,
+    )
+    if isinstance(decoded_value, bytes):
+        decoded_text = decoded_value.decode("utf-8")
+    elif decoded_value is None:
+        return None
+    else:
+        decoded_text = str(decoded_value)
+
+    try:
+        payload = json.loads(decoded_text)
+    except json.JSONDecodeError:
+        return None
+
+    state = payload.get("state")
+    if not state:
+        return None
+    return str(state)
+
+
+def _provider_for_state(route_module: Any, state: str) -> str | None:
+    provider_getter = getattr(route_module, "_get_provider_by_state", None)
+    if not callable(provider_getter):
+        return None
+
+    provider = provider_getter(state)
+    if not provider:
+        return None
+    return str(provider)
+
+
+def _auth_cache_has_state(route_module: Any, state_key: str) -> bool:
+    auth_cache = getattr(route_module, "_STARLETTE_AUTH_CACHE", None)
+    get_dict = getattr(auth_cache, "get_dict", None)
+    if not callable(get_dict):
+        return False
+
+    return state_key in get_dict()
+
+
+def _authlib_state_key(provider: str, state: str) -> str:
+    return f"_state_{provider}_{state}"
+
+
+def _cookie_path(route_module: Any) -> str:
+    cookie_path_getter = getattr(route_module, "_get_cookie_path", None)
+    if callable(cookie_path_getter):
+        return str(cookie_path_getter())
+    return "/"
+
+
+async def _redirect_to_base(route_module: Any, base_url: str) -> Any:
+    redirect_to_base = getattr(route_module, "_redirect_to_base", None)
+    if not callable(redirect_to_base):
+        return None
+    return await redirect_to_base(base_url)
+
+
+def _is_mismatching_state_error(error: Exception) -> bool:
+    return error.__class__.__name__ == "MismatchingStateError"
 
 
 def _session_state_keys(session: Any) -> list[str]:
@@ -154,7 +384,22 @@ def _session_state_keys(session: Any) -> list[str]:
     state = session.get("_state")
     if not isinstance(state, dict):
         return []
-    return sorted(str(key) for key in state.keys())
+    return _safe_keys_for_log(state)
+
+
+def _safe_keys_for_log(mapping: Any) -> list[str]:
+    return sorted(_safe_key_for_log(key) for key in _keys(mapping))
+
+
+def _safe_key_for_log(key: Any) -> str:
+    text = str(key)
+    if not text.startswith("_state_"):
+        return text
+
+    parts = text.split("_", 3)
+    if len(parts) == 4 and parts[2] and parts[3]:
+        return f"_state_{parts[2]}_{_fingerprint(parts[3])}"
+    return "_state_<redacted>"
 
 
 def _safe_request_path(request: Any) -> str:

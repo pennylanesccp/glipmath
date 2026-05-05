@@ -39,9 +39,19 @@ def build_login_preview_html(*, button_disabled: bool) -> str:
         "pages/auth_login.html",
         {
             "LOGO_DATA_URI": asset_to_data_uri("assets/brand/gliptec-logo.png"),
+            "GOOGLE_G_DATA_URI": asset_to_data_uri("assets/icons/google-g-logo.svg"),
         },
     )
-    return _make_static_preview(html)
+    disabled_attr = " disabled" if button_disabled else ""
+    static_button = (
+        '<div class="st-key-gm_login_google_button">'
+        f'<button type="button"{disabled_attr}>'
+        '<span data-testid="stMarkdownContainer"><p>Continuar com Google</p></span>'
+        "</button>"
+        "</div>"
+    )
+    footnote_html = render_template("pages/auth_login_footnote.html", {})
+    return _make_static_preview(f"{html}\n{static_button}\n{footnote_html}")
 
 
 def build_question_preview_html(
