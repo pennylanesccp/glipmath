@@ -3,7 +3,11 @@ from __future__ import annotations
 import streamlit as st
 
 from modules.domain.models import AuthIdentity
+from modules.utils.logging_utils import get_logger
 from modules.utils.normalization import normalize_email
+
+
+logger = get_logger(__name__)
 
 
 def get_authenticated_identity() -> AuthIdentity | None:
@@ -22,12 +26,14 @@ def get_authenticated_identity() -> AuthIdentity | None:
 def trigger_login() -> None:
     """Start the Streamlit login flow."""
 
+    logger.info("Calling Streamlit login | provider=default")
     st.login()
 
 
 def trigger_logout() -> None:
     """End the current Streamlit session."""
 
+    logger.info("Calling Streamlit logout")
     st.logout()
 
 
