@@ -29,15 +29,10 @@ def test_render_template_preserves_raw_html_fragments() -> None:
         "pages/auth_login.html",
         {
             "LOGO_DATA_URI": "data:image/png;base64,abc",
-            "GOOGLE_ICON_DATA_URI": "data:image/svg+xml;base64,xyz",
-            "GOOGLE_BUTTON_HREF": "?action=login",
-            "GOOGLE_BUTTON_CLASS": raw_html(" is-disabled"),
         },
     )
 
-    assert 'class="gsi-material-button is-disabled"' in html
-    assert 'src="data:image/svg+xml;base64,xyz"' in html
-    assert "Continuar com Google" in html
+    assert 'src="data:image/png;base64,abc"' in html
+    assert "Continuar com Google" not in html
     assert "Este app pode conter erros." in html
     assert 'href="mailto:felipeproenca97@gmail.com"' in html
-    assert "Continue with Google" not in html

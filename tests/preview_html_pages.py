@@ -39,9 +39,6 @@ def build_login_preview_html(*, button_disabled: bool) -> str:
         "pages/auth_login.html",
         {
             "LOGO_DATA_URI": asset_to_data_uri("assets/brand/gliptec-logo.png"),
-            "GOOGLE_ICON_DATA_URI": asset_to_data_uri("assets/icons/google-g-logo.svg"),
-            "GOOGLE_BUTTON_HREF": NOOP_TARGET,
-            "GOOGLE_BUTTON_CLASS": " is-disabled" if button_disabled else "",
         },
     )
     return _make_static_preview(html)

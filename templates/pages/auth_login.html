@@ -67,10 +67,41 @@
         height: auto;
     }
 
-    .gm-google-button-wrap {
-        width: 100%;
-        display: flex;
-        justify-content: center;
+    .st-key-gm_login_google_button {
+        margin-top: -92px;
+        padding: 0 22px 0;
+        position: relative;
+        z-index: 2;
+    }
+
+    .st-key-gm_login_google_button button {
+        background-color: var(--gsi-bg);
+        border: 1px solid var(--gsi-border);
+        border-radius: 999px;
+        box-shadow: var(--gm-shadow-soft);
+        color: var(--gsi-text);
+        font-family: "Roboto", Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 400;
+        height: 42px;
+        letter-spacing: 0.25px;
+        transition: box-shadow .18s ease, transform .18s ease, opacity .18s ease;
+    }
+
+    .st-key-gm_login_google_button button:hover {
+        border-color: var(--gsi-border);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
+        color: var(--gsi-text);
+        transform: translateY(-1px);
+    }
+
+    .st-key-gm_login_google_button button:active {
+        transform: translateY(1px);
+    }
+
+    .st-key-gm_login_google_button button:disabled {
+        cursor: default;
+        opacity: 0.58;
     }
 
     .gm-login-footnote {
@@ -93,113 +124,6 @@
         text-decoration: underline;
     }
 
-    .gsi-material-button {
-        -moz-user-select: none;
-        -webkit-user-select: none;
-        -ms-user-select: none;
-        -webkit-appearance: none;
-        appearance: none;
-        background-color: var(--gsi-bg);
-        background-image: none;
-        border: 1px solid var(--gsi-border);
-        border-radius: 999px;
-        box-sizing: border-box;
-        color: var(--gsi-text);
-        cursor: pointer;
-        font-family: "Roboto", Arial, sans-serif;
-        font-size: 13px;
-        font-weight: 400;
-        height: 42px;
-        letter-spacing: 0.25px;
-        outline: none;
-        overflow: hidden;
-        padding: 0 22px;
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        transition: box-shadow .18s ease, transform .18s ease, opacity .18s ease;
-        vertical-align: middle;
-        white-space: nowrap;
-        width: fit-content;
-        max-width: 100%;
-        box-shadow: var(--gm-shadow-soft);
-        text-decoration: none;
-    }
-
-    .gsi-material-button:hover {
-        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
-        transform: translateY(-1px);
-    }
-
-    .gsi-material-button:active {
-        transform: translateY(1px);
-    }
-
-    .gsi-material-button.is-disabled {
-        cursor: default;
-        opacity: 0.58;
-        pointer-events: none;
-    }
-
-    .gsi-material-button .gsi-material-button-state {
-        transition: opacity .218s;
-        background-color: currentColor;
-        opacity: 0;
-        position: absolute;
-        inset: 0;
-    }
-
-    .gsi-material-button:hover .gsi-material-button-state {
-        opacity: 0.08;
-    }
-
-    .gsi-material-button:focus .gsi-material-button-state,
-    .gsi-material-button:focus-visible .gsi-material-button-state {
-        opacity: 0.12;
-    }
-
-    .gsi-material-button:active .gsi-material-button-state {
-        opacity: 0.16;
-    }
-
-    .gsi-material-button-content-wrapper {
-        align-items: center;
-        display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        height: 100%;
-        gap: 10px;
-        justify-content: center;
-        position: relative;
-        width: auto;
-    }
-
-    .gsi-material-button-icon {
-        flex: 0 0 18px;
-        height: 18px;
-        min-width: 18px;
-        width: 18px;
-    }
-
-    .gsi-material-button-icon-image {
-        display: block;
-        height: 18px;
-        width: 18px;
-    }
-
-    .gsi-material-button-contents {
-        flex-grow: 0;
-        font-family: "Roboto", Arial, sans-serif;
-        font-size: 13px;
-        font-weight: 400;
-        line-height: 20px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
     @media (max-width: 420px) {
         .gm-login-card {
             border-radius: 24px;
@@ -210,6 +134,11 @@
 
         .gm-logo {
             max-width: 280px;
+        }
+
+        .st-key-gm_login_google_button {
+            margin-top: -88px;
+            padding: 0 18px 0;
         }
 
         .gm-login-footnote {
@@ -226,29 +155,6 @@
             src="{{LOGO_DATA_URI}}"
             alt="GlipTec"
         />
-
-        <div class="gm-google-button-wrap">
-            <a
-                href="{{GOOGLE_BUTTON_HREF}}"
-                class="gsi-material-button{{GOOGLE_BUTTON_CLASS}}"
-                target="_self"
-                rel="noopener noreferrer"
-                aria-label="Continuar com Google"
-            >
-                <div class="gsi-material-button-state"></div>
-                <div class="gsi-material-button-content-wrapper">
-                    <div class="gsi-material-button-icon">
-                        <img
-                            class="gsi-material-button-icon-image"
-                            src="{{GOOGLE_ICON_DATA_URI}}"
-                            alt=""
-                        />
-                    </div>
-                    <span class="gsi-material-button-contents">Continuar com Google</span>
-                    <span style="display: none;">Continuar com Google</span>
-                </div>
-            </a>
-        </div>
     </div>
 
     <p class="gm-login-footnote">
