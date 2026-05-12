@@ -128,6 +128,8 @@ def test_render_authenticated_shell_clears_professor_tool_for_student_only_user(
     fake_st = SimpleNamespace(
         sidebar=FakeSidebar(),
         session_state={},
+        container=lambda: FakeSidebar(),
+        html=lambda *args, **kwargs: None,
         caption=lambda *args, **kwargs: None,
         segmented_control=lambda *args, **kwargs: "practice",
         rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
@@ -172,6 +174,8 @@ def test_render_authenticated_shell_sidebar_reads_current_sidebar_choices_withou
     fake_st = SimpleNamespace(
         sidebar=FakeSidebar(),
         session_state={},
+        container=lambda: FakeSidebar(),
+        html=lambda *args, **kwargs: None,
         caption=lambda *args, **kwargs: None,
         selectbox=lambda *args, **kwargs: "rumo_etec",
         segmented_control=_segmented_control,
@@ -230,18 +234,24 @@ def test_render_sidebar_logout_button_triggers_streamlit_logout(monkeypatch) -> 
 
     streamlit_app._render_sidebar_logout_button()
 
-    assert calls == ['<div class="gm-sidebar-logout-button-hook"></div>', "divider", "logout"]
+    assert calls == ['<div class="gm-sidebar-section-hook gm-sidebar-logout-button-hook"></div>', "divider", "logout"]
 
 
 def test_apply_workspace_shell_styles_formats_logout_divider_spacing(monkeypatch) -> None:
     rendered_html: list[str] = []
 
-    monkeypatch.setattr(streamlit_app.st, "html", lambda html: rendered_html.append(html))
+    monkeypatch.setattr(
+        streamlit_app.st,
+        "markdown",
+        lambda html, **kwargs: rendered_html.append(html),
+    )
 
     streamlit_app._apply_workspace_shell_styles()
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
     assert "gm-sidebar-logout-button-hook" in stylesheet
-    assert "padding-top: 0.42rem !important;" in stylesheet
-    assert "margin: 0 0 0.44rem !important;" in stylesheet
+    assert "--gm-sidebar-section-margin-bottom: 24px;" in stylesheet
+    assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
+    assert "margin: 0.25rem 0 0.78rem !important;" in stylesheet
+    assert "background: #ffffff !important;" in stylesheet

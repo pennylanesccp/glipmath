@@ -95,26 +95,45 @@ def test_use_topic_only_filter_is_enabled_for_single_subject_group() -> None:
     )
 
 
-def test_ensure_sidebar_subject_topic_filter_widget_state_initializes_from_applied_filters(monkeypatch) -> None:
-    fake_st = SimpleNamespace(session_state={})
+def test_ensure_sidebar_subject_topic_filter_widget_state_initializes_dynamic_filters(monkeypatch) -> None:
+    fake_st = SimpleNamespace(
+        session_state={
+            main_page._sidebar_dynamic_multiselect_key(main_page.SIDEBAR_FILTER_SUBJECT_COLUMN): [
+                "Seleção antiga"
+            ],
+        }
+    )
+    subject_topic_groups = [
+        SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance")),
+        SubjectTopicGroup(subject="matematica", topics=("divisao",)),
+    ]
 
     monkeypatch.setattr(main_page, "st", fake_st)
 
     main_page._ensure_sidebar_subject_topic_filter_widget_state(
-        subject_topic_groups=[
-            SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance")),
-            SubjectTopicGroup(subject="matematica", topics=("divisao",)),
-        ],
+        subject_topic_groups=subject_topic_groups,
         selected_subjects=("databricks",),
-        selected_topics=(),
+        selected_topics=(("databricks", "ingestion"),),
     )
 
-    assert fake_st.session_state[main_page._select_all_filters_checkbox_key()] is False
-    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is True
-    assert fake_st.session_state[main_page._subject_checkbox_key("matematica")] is False
+    state = fake_st.session_state[main_page._sidebar_dynamic_filters_key()]
+    assert state[main_page.SIDEBAR_FILTER_SUBJECT_COLUMN] == [
+        main_page.format_subject_label("databricks")
+    ]
+    assert state[main_page.SIDEBAR_FILTER_TOPIC_COLUMN] == [
+        main_page._sidebar_topic_filter_label(
+            subject="databricks",
+            topic="ingestion",
+            single_subject_mode=False,
+        )
+    ]
+    assert (
+        main_page._sidebar_dynamic_multiselect_key(main_page.SIDEBAR_FILTER_SUBJECT_COLUMN)
+        not in fake_st.session_state
+    )
 
 
-def test_ensure_sidebar_subject_topic_filter_widget_state_marks_empty_filters_as_all(monkeypatch) -> None:
+def test_ensure_sidebar_subject_topic_filter_widget_state_marks_empty_filters_as_all_questions(monkeypatch) -> None:
     fake_st = SimpleNamespace(session_state={})
 
     monkeypatch.setattr(main_page, "st", fake_st)
@@ -128,9 +147,11 @@ def test_ensure_sidebar_subject_topic_filter_widget_state_marks_empty_filters_as
         selected_topics=(),
     )
 
-    assert fake_st.session_state[main_page._select_all_filters_checkbox_key()] is True
-    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is False
-    assert fake_st.session_state[main_page._topic_checkbox_key("matematica", "divisao")] is False
+    state = fake_st.session_state[main_page._sidebar_dynamic_filters_key()]
+    assert state == {
+        main_page.SIDEBAR_FILTER_SUBJECT_COLUMN: [],
+        main_page.SIDEBAR_FILTER_TOPIC_COLUMN: [],
+    }
 
 
 def test_ensure_sidebar_subject_topic_filter_widget_state_preserves_unapplied_draft(monkeypatch) -> None:
@@ -145,12 +166,10 @@ def test_ensure_sidebar_subject_topic_filter_widget_state_preserves_unapplied_dr
                 selected_subjects=("databricks",),
                 selected_topics=(),
             ),
-            main_page._select_all_filters_checkbox_key(): False,
-            main_page._subject_checkbox_key("databricks"): False,
-            main_page._subject_checkbox_key("matematica"): False,
-            main_page._topic_checkbox_key("databricks", "ingestion"): False,
-            main_page._topic_checkbox_key("databricks", "governance"): False,
-            main_page._topic_checkbox_key("matematica", "divisao"): False,
+            main_page._sidebar_dynamic_filters_key(): {
+                main_page.SIDEBAR_FILTER_SUBJECT_COLUMN: [],
+                main_page.SIDEBAR_FILTER_TOPIC_COLUMN: [],
+            },
         }
     )
 
@@ -162,34 +181,34 @@ def test_ensure_sidebar_subject_topic_filter_widget_state_preserves_unapplied_dr
         selected_topics=(),
     )
 
-    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is False
-
-
-def test_toggle_all_sidebar_subject_topic_filter_widgets_clears_local_widget_state(monkeypatch) -> None:
-    fake_st = SimpleNamespace(session_state={main_page._select_all_filters_checkbox_key(): True})
-
-    monkeypatch.setattr(main_page, "st", fake_st)
-
-    main_page._toggle_all_sidebar_subject_topic_filter_widgets(
-        (
-            ("databricks", ("ingestion", "governance")),
-            ("matematica", ("divisao",)),
-        )
-    )
-
-    assert fake_st.session_state[main_page._subject_checkbox_key("databricks")] is False
-    assert fake_st.session_state[main_page._topic_checkbox_key("databricks", "ingestion")] is False
-    assert fake_st.session_state[main_page._topic_checkbox_key("matematica", "divisao")] is False
+    assert fake_st.session_state[main_page._sidebar_dynamic_filters_key()] == {
+        main_page.SIDEBAR_FILTER_SUBJECT_COLUMN: [],
+        main_page.SIDEBAR_FILTER_TOPIC_COLUMN: [],
+    }
 
 
 def test_read_sidebar_subject_topic_filter_widget_state_returns_pending_selection(monkeypatch) -> None:
+    databricks_ingestion_label = main_page._sidebar_topic_filter_label(
+        subject="databricks",
+        topic="ingestion",
+        single_subject_mode=False,
+    )
+    matematica_divisao_label = main_page._sidebar_topic_filter_label(
+        subject="matematica",
+        topic="divisao",
+        single_subject_mode=False,
+    )
     fake_st = SimpleNamespace(
         session_state={
-            main_page._subject_checkbox_key("databricks"): True,
-            main_page._subject_checkbox_key("matematica"): False,
-            main_page._topic_checkbox_key("databricks", "ingestion"): True,
-            main_page._topic_checkbox_key("databricks", "governance"): False,
-            main_page._topic_checkbox_key("matematica", "divisao"): True,
+            main_page._sidebar_dynamic_filters_key(): {
+                main_page.SIDEBAR_FILTER_SUBJECT_COLUMN: [
+                    main_page.format_subject_label("databricks")
+                ],
+                main_page.SIDEBAR_FILTER_TOPIC_COLUMN: [
+                    databricks_ingestion_label,
+                    matematica_divisao_label,
+                ],
+            },
         }
     )
 
@@ -203,7 +222,7 @@ def test_read_sidebar_subject_topic_filter_widget_state_returns_pending_selectio
     )
 
     assert selected_subjects == ("databricks",)
-    assert selected_topics == (("databricks", "ingestion"), ("matematica", "divisao"))
+    assert selected_topics == (("databricks", "ingestion"),)
 
 
 def test_render_sidebar_subject_topic_filters_applies_draft_only_on_apply_click(monkeypatch) -> None:
@@ -221,27 +240,24 @@ def test_render_sidebar_subject_topic_filters_applies_draft_only_on_apply_click(
         sidebar=FakeSidebar(),
         divider=lambda: None,
         caption=lambda *args, **kwargs: None,
-        checkbox=lambda *args, **kwargs: False,
         button=lambda *args, **kwargs: kwargs.get("key") == "gm_sidebar_apply_subject_topic_filters",
         container=lambda: FakeSidebar(),
         html=lambda *args, **kwargs: None,
     )
 
+    class FakeDynamicFilters:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def display_filters(self):
+            return None
+
     monkeypatch.setattr(main_page, "st", fake_st)
+    monkeypatch.setattr(main_page, "DynamicFiltersHierarchical", FakeDynamicFilters)
     monkeypatch.setattr(
         main_page,
         "_ensure_sidebar_subject_topic_filter_widget_state",
         lambda **kwargs: None,
-    )
-    monkeypatch.setattr(
-        main_page,
-        "_refresh_select_all_filters_checkbox_state",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        main_page,
-        "_all_filter_widgets_checked",
-        lambda *args, **kwargs: False,
     )
     monkeypatch.setattr(
         main_page,
@@ -282,27 +298,24 @@ def test_render_sidebar_subject_topic_filters_renders_spacing_hooks(monkeypatch)
         sidebar=FakeSidebar(),
         divider=lambda: None,
         caption=lambda *args, **kwargs: None,
-        checkbox=lambda *args, **kwargs: False,
         button=lambda *args, **kwargs: False,
         container=lambda: FakeSidebar(),
         html=lambda html: rendered_html.append(html),
     )
 
+    class FakeDynamicFilters:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def display_filters(self):
+            return None
+
     monkeypatch.setattr(main_page, "st", fake_st)
+    monkeypatch.setattr(main_page, "DynamicFiltersHierarchical", FakeDynamicFilters)
     monkeypatch.setattr(
         main_page,
         "_ensure_sidebar_subject_topic_filter_widget_state",
         lambda **kwargs: None,
-    )
-    monkeypatch.setattr(
-        main_page,
-        "_refresh_select_all_filters_checkbox_state",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        main_page,
-        "_all_filter_widgets_checked",
-        lambda *args, **kwargs: False,
     )
     monkeypatch.setattr(
         main_page,
@@ -654,7 +667,11 @@ def test_render_pending_alternative_radio_groups_label_and_options(monkeypatch) 
 def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch) -> None:
     rendered_html: list[str] = []
 
-    monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
+    monkeypatch.setattr(
+        main_page.st,
+        "markdown",
+        lambda html, **kwargs: rendered_html.append(html),
+    )
 
     main_page._apply_live_page_styles()
 
@@ -678,7 +695,11 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
 def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch) -> None:
     rendered_html: list[str] = []
 
-    monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
+    monkeypatch.setattr(
+        main_page.st,
+        "markdown",
+        lambda html, **kwargs: rendered_html.append(html),
+    )
 
     main_page._apply_live_page_styles()
 
@@ -693,24 +714,28 @@ def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch
 def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_primary_button_text(monkeypatch) -> None:
     rendered_html: list[str] = []
 
-    monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
+    monkeypatch.setattr(
+        main_page.st,
+        "markdown",
+        lambda html, **kwargs: rendered_html.append(html),
+    )
 
     main_page._apply_live_page_styles()
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-sidebar-section-gap: 0.34rem;" in stylesheet
-    assert "--gm-sidebar-group-gap: 0.18rem;" in stylesheet
-    assert "--gm-sidebar-group-indent: 1.18rem;" in stylesheet
-    assert "--gm-sidebar-actions-padding-top: 0.34rem;" in stylesheet
+    assert "--gm-sidebar-section-gap: 0.5rem;" in stylesheet
+    assert "--gm-sidebar-section-margin-bottom: 24px;" in stylesheet
+    assert "--gm-sidebar-horizontal-padding: 1.25rem;" in stylesheet
+    assert "--gm-sidebar-actions-padding-top: 0.92rem;" in stylesheet
     assert "gm-sidebar-filter-stack-hook" in stylesheet
     assert "gm-sidebar-subject-topic-filters-hook" in stylesheet
-    assert "gm-sidebar-topic-filter-group-hook--separate" in stylesheet
     assert "gm-sidebar-logout-button-hook" in stylesheet
     assert "gap: var(--gm-sidebar-section-gap) !important;" in stylesheet
     assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
     assert "border-color: #dbeafe !important;" in stylesheet
-    assert "margin-bottom: 0 !important;" in stylesheet
+    assert '[data-testid="stMultiSelect"]' in stylesheet
+    assert "border-top: 1px solid #e2e8f0;" in stylesheet
     assert 'button[kind="primary"] {' in stylesheet
     assert "color: #ffffff !important;" in stylesheet
 

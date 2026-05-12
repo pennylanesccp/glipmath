@@ -515,28 +515,32 @@ def _render_authenticated_shell_sidebar(
 
     with st.sidebar:
         if len(project_options) > 1:
-            st.caption("Projeto")
-            project_choice = st.selectbox(
-                "Projeto",
-                options=project_options,
-                index=project_options.index(selected_project) if selected_project in project_options else 0,
-                format_func=_format_project_option_label,
-                key="gm_global_project_filter_select",
-                label_visibility="collapsed",
-            )
+            with st.container():
+                st.html('<div class="gm-sidebar-section-hook gm-sidebar-project-section-hook"></div>')
+                st.caption("Projeto")
+                project_choice = st.selectbox(
+                    "Projeto",
+                    options=project_options,
+                    index=project_options.index(selected_project) if selected_project in project_options else 0,
+                    format_func=_format_project_option_label,
+                    key="gm_global_project_filter_select",
+                    label_visibility="collapsed",
+                )
 
         if user.can_access_professor_space:
-            st.caption("Espaço")
-            current_workspace = get_current_workspace()
-            workspace_choice = st.segmented_control(
-                "Espaço",
-                options=["student", "professor"],
-                default=current_workspace,
-                format_func=_format_workspace_label,
-                key="gm_workspace_segmented_control",
-                label_visibility="collapsed",
-                width="stretch",
-            )
+            with st.container():
+                st.html('<div class="gm-sidebar-section-hook gm-sidebar-workspace-section-hook"></div>')
+                st.caption("Espaço")
+                current_workspace = get_current_workspace()
+                workspace_choice = st.segmented_control(
+                    "Espaço",
+                    options=["student", "professor"],
+                    default=current_workspace,
+                    format_func=_format_workspace_label,
+                    key="gm_workspace_segmented_control",
+                    label_visibility="collapsed",
+                    width="stretch",
+                )
             normalized_workspace = workspace_choice if workspace_choice in {"student", "professor"} else "student"
             if normalized_workspace != current_workspace:
                 set_current_workspace(normalized_workspace)
@@ -550,17 +554,19 @@ def _render_authenticated_shell_sidebar(
                 set_current_professor_tool(None)
 
         if current_workspace == "student":
-            st.caption("Visão")
-            current_student_view = get_current_student_view()
-            student_view_choice = st.segmented_control(
-                "Visão do aluno",
-                options=["practice", "stats"],
-                default=current_student_view,
-                format_func=_format_student_view_label,
-                key="gm_student_view_segmented_control",
-                label_visibility="collapsed",
-                width="stretch",
-            )
+            with st.container():
+                st.html('<div class="gm-sidebar-section-hook gm-sidebar-view-section-hook"></div>')
+                st.caption("Visão")
+                current_student_view = get_current_student_view()
+                student_view_choice = st.segmented_control(
+                    "Visão do aluno",
+                    options=["practice", "stats"],
+                    default=current_student_view,
+                    format_func=_format_student_view_label,
+                    key="gm_student_view_segmented_control",
+                    label_visibility="collapsed",
+                    width="stretch",
+                )
             normalized_student_view = (
                 student_view_choice if student_view_choice in {"practice", "stats"} else "practice"
             )
@@ -584,7 +590,7 @@ def _render_authenticated_shell_sidebar(
 def _render_sidebar_logout_button() -> None:
     with st.sidebar:
         with st.container():
-            st.html('<div class="gm-sidebar-logout-button-hook"></div>')
+            st.html('<div class="gm-sidebar-section-hook gm-sidebar-logout-button-hook"></div>')
             st.divider()
             if st.button(
                 "Sair",
@@ -1024,9 +1030,23 @@ def _format_student_view_label(view_name: str) -> str:
 
 
 def _apply_workspace_shell_styles() -> None:
-    st.html(
+    st.markdown(
         """
         <style>
+        :root {
+            --gm-sidebar-section-gap: 0.5rem;
+            --gm-sidebar-section-margin-bottom: 24px;
+            --gm-sidebar-horizontal-padding: 1.25rem;
+            --gm-sidebar-caption-margin-top: 0.08rem;
+            --gm-sidebar-caption-margin-bottom: 0.42rem;
+            --gm-sidebar-actions-padding-top: 0.92rem;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {
+            padding-left: var(--gm-sidebar-horizontal-padding) !important;
+            padding-right: var(--gm-sidebar-horizontal-padding) !important;
+        }
+
         div[data-testid="stSelectbox"] label p,
         div[data-testid="stSelectbox"] label span {
             color: #334155 !important;
@@ -1035,14 +1055,14 @@ def _apply_workspace_shell_styles() -> None:
 
         div[data-testid="stSelectbox"] {
             cursor: pointer !important;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0;
         }
 
         div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
             background: #ffffff !important;
             border: 1px solid #cbd5e1 !important;
-            border-radius: 999px !important;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+            border-radius: 0.78rem !important;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05) !important;
             cursor: pointer !important;
             min-height: 2.55rem !important;
         }
@@ -1093,25 +1113,44 @@ def _apply_workspace_shell_styles() -> None:
         }
 
         section[data-testid="stSidebar"] div[data-testid="stCaptionContainer"] {
-            margin-top: 0.1rem !important;
+            margin: var(--gm-sidebar-caption-margin-top) 0 var(--gm-sidebar-caption-margin-bottom) !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stCaptionContainer"] p {
-            color: #475569 !important;
-            font-size: 0.76rem !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.08em !important;
+            color: #64748b !important;
+            font-size: 0.68rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.14em !important;
+            line-height: 1.1 !important;
             text-transform: uppercase !important;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-section-hook) {
+            gap: var(--gm-sidebar-section-gap) !important;
+            margin-bottom: var(--gm-sidebar-section-margin-bottom) !important;
+        }
+
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) {
-            gap: 0.32rem !important;
-            padding-top: 0.42rem !important;
+            gap: 0.44rem !important;
+            margin-bottom: 0 !important;
+            padding-top: var(--gm-sidebar-actions-padding-top) !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) hr {
-            margin: 0 0 0.44rem !important;
+            margin: 0.25rem 0 0.78rem !important;
             border-color: #dbe5f1 !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #475569 !important;
+            box-shadow: none !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:hover {
+            border-color: #94a3b8 !important;
+            color: #0f172a !important;
         }
 
         div[data-testid="stSegmentedControl"] > div {
@@ -1122,18 +1161,17 @@ def _apply_workspace_shell_styles() -> None:
         div[data-testid="stSegmentedControl"] [data-baseweb="button-group"],
         div[data-testid="stSegmentedControl"] [role="radiogroup"] {
             display: flex !important;
-            justify-content: flex-start !important;
-            align-items: flex-end !important;
-            gap: 1.6rem !important;
+            justify-content: stretch !important;
+            align-items: center !important;
+            gap: 0.2rem !important;
             width: 100% !important;
             max-width: 100% !important;
-            padding: 0 !important;
+            padding: 0.2rem !important;
             margin: 0 !important;
-            background: transparent !important;
-            border: none !important;
-            border-bottom: 1px solid #dbe5f1 !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
+            background: #f1f5f9 !important;
+            border: 1px solid #dbe5f1 !important;
+            border-radius: 0.9rem !important;
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04) !important;
         }
 
         div[data-testid="stSegmentedControl"] [data-baseweb="button-group"] > div,
@@ -1150,14 +1188,14 @@ def _apply_workspace_shell_styles() -> None:
             position: relative !important;
             flex: 1 1 0 !important;
             min-height: auto !important;
-            padding: 0.1rem 0 0.78rem !important;
+            padding: 0.48rem 0.42rem !important;
             margin: 0 !important;
             background: transparent !important;
             border: none !important;
-            border-radius: 0 !important;
+            border-radius: 0.68rem !important;
             box-shadow: none !important;
-            color: #7b8498 !important;
-            font-size: 1rem !important;
+            color: #64748b !important;
+            font-size: 0.86rem !important;
             font-weight: 700 !important;
             justify-content: center !important;
             line-height: 1.15 !important;
@@ -1167,7 +1205,7 @@ def _apply_workspace_shell_styles() -> None:
         div[data-testid="stSegmentedControl"] [role="radio"]:hover,
         div[data-testid="stSegmentedControl"] button:hover {
             color: #334155 !important;
-            background: transparent !important;
+            background: rgba(255, 255, 255, 0.64) !important;
         }
 
         div[data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"],
@@ -1177,26 +1215,12 @@ def _apply_workspace_shell_styles() -> None:
         div[data-testid="stSegmentedControl"] button[aria-selected="true"],
         div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
             color: #0f172a !important;
-            background: transparent !important;
-        }
-
-        div[data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"]::after,
-        div[data-testid="stSegmentedControl"] [role="radio"][aria-selected="true"]::after,
-        div[data-testid="stSegmentedControl"] [role="radio"][aria-pressed="true"]::after,
-        div[data-testid="stSegmentedControl"] button[aria-checked="true"]::after,
-        div[data-testid="stSegmentedControl"] button[aria-selected="true"]::after,
-        div[data-testid="stSegmentedControl"] button[aria-pressed="true"]::after {
-            content: "";
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: -1px;
-            height: 0.2rem;
-            background: #2563eb;
-            border-radius: 999px 999px 0 0;
+            background: #ffffff !important;
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08) !important;
         }
         </style>
-        """
+        """,
+        unsafe_allow_html=True,
     )
 
 

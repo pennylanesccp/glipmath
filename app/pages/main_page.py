@@ -4,7 +4,13 @@ from datetime import datetime
 from html import escape
 import re
 
+import pandas as pd
 import streamlit as st
+
+try:
+    from streamlit_dynamic_filters import DynamicFiltersHierarchical
+except ModuleNotFoundError:  # pragma: no cover - dependency is installed in app runtime.
+    DynamicFiltersHierarchical = None
 
 from app.state.session_state import (
     append_user_answer_attempt,
@@ -47,6 +53,8 @@ PODIUM_ICON_RELATIVE_PATH = "assets/icons/pedestal-podium-svgrepo-com.svg"
 TIMER_ICON_RELATIVE_PATH = "assets/icons/timer-outline-svgrepo-com.svg"
 TIMER_WARNING_THRESHOLD_SECONDS = 120
 FENCED_CODE_BLOCK_PATTERN = re.compile(r"```[^\n`]*\n(.*?)```", re.DOTALL)
+SIDEBAR_FILTER_SUBJECT_COLUMN = "Mat\u00e9ria"
+SIDEBAR_FILTER_TOPIC_COLUMN = "T\u00f3pico"
 DAY_STREAK_DESCRIPTION = "Dias seguidos com atividade."
 QUESTION_STREAK_DESCRIPTION = "Sequência atual de respostas corretas."
 RANK_DESCRIPTION = "Sua posição atual no ranking."
@@ -185,67 +193,21 @@ def _render_sidebar_subject_topic_filters(
     if not subject_topic_groups:
         return
 
-    single_subject_mode = _use_topic_only_filter(subject_topic_groups)
-    group_specs = _subject_topic_group_specs(subject_topic_groups)
     _ensure_sidebar_subject_topic_filter_widget_state(
         subject_topic_groups=subject_topic_groups,
         selected_subjects=selected_subjects,
         selected_topics=selected_topics,
     )
-    _refresh_select_all_filters_checkbox_state(subject_topic_groups)
-    draft_subjects, draft_topics = _read_sidebar_subject_topic_filter_widget_state(subject_topic_groups)
-    select_all_active = _all_filter_widgets_checked(subject_topic_groups)
 
     with st.sidebar:
         with st.container():
-            st.html('<div class="gm-sidebar-filter-stack-hook"></div>')
+            st.html('<div class="gm-sidebar-section-hook gm-sidebar-filter-stack-hook"></div>')
+            st.divider()
+            st.caption("Filtros")
 
             with st.container():
                 st.html('<div class="gm-sidebar-subject-topic-filters-hook"></div>')
-                st.divider()
-                st.caption("Filtros")
-                st.checkbox(
-                    "Todas as questões",
-                    key=_select_all_filters_checkbox_key(),
-                    on_change=_toggle_all_sidebar_subject_topic_filter_widgets,
-                    args=(group_specs,),
-                )
-
-                if not single_subject_mode:
-                    with st.container():
-                        st.html('<div class="gm-sidebar-subject-filter-section-hook"></div>')
-                        st.caption("Matérias")
-                        for group in subject_topic_groups:
-                            st.checkbox(
-                                format_subject_label(group.subject),
-                                key=_subject_checkbox_key(group.subject),
-                                disabled=select_all_active,
-                            )
-
-                if _all_topic_filter_keys(group_specs):
-                    with st.container():
-                        st.html(
-                            '<div class="gm-sidebar-topic-filter-group-hook '
-                            'gm-sidebar-topic-filter-group-hook--separate"></div>'
-                        )
-                        st.caption("Tópicos")
-                        for group in subject_topic_groups:
-                            for topic in group.topics:
-                                label = format_topic_label(topic)
-                                if not single_subject_mode:
-                                    label = f"{format_subject_label(group.subject)} / {label}"
-                                st.checkbox(
-                                    label,
-                                    key=_topic_checkbox_key(group.subject, topic),
-                                    disabled=select_all_active,
-                                )
-                elif single_subject_mode:
-                    for group in subject_topic_groups:
-                        st.checkbox(
-                            format_subject_label(group.subject),
-                            key=_subject_checkbox_key(group.subject),
-                            disabled=select_all_active,
-                        )
+                _render_sidebar_dynamic_subject_topic_filters(subject_topic_groups)
 
             draft_subjects, draft_topics = _read_sidebar_subject_topic_filter_widget_state(subject_topic_groups)
             has_pending_changes = draft_subjects != selected_subjects or draft_topics != selected_topics
@@ -259,6 +221,28 @@ def _render_sidebar_subject_topic_filters(
                     disabled=not has_pending_changes,
                 ):
                     _apply_subject_topic_filters(subjects=draft_subjects, topics=draft_topics)
+
+
+def _render_sidebar_dynamic_subject_topic_filters(
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> None:
+    if DynamicFiltersHierarchical is None:
+        st.warning(
+            "Instale streamlit-dynamic-filters para carregar os filtros din\u00e2micos."
+        )
+        return
+
+    filter_frame = _build_sidebar_dynamic_filter_frame(subject_topic_groups)
+    filter_columns = _sidebar_dynamic_filter_columns(subject_topic_groups)
+    if filter_frame.empty or not filter_columns:
+        return
+
+    dynamic_filters = DynamicFiltersHierarchical(
+        filter_frame,
+        filters=list(filter_columns),
+        filters_name=_sidebar_dynamic_filters_key(),
+    )
+    dynamic_filters.display_filters()
 
 
 def _render_subject_topic_filter_multiselect(
@@ -914,6 +898,164 @@ def _use_topic_only_filter(subject_topic_groups: list[SubjectTopicGroup]) -> boo
     return len(subject_topic_groups) == 1
 
 
+def _sidebar_dynamic_filters_key() -> str:
+    return "gm_sidebar_subject_topic_dynamic_filters"
+
+
+def _sidebar_dynamic_multiselect_key(filter_column: str) -> str:
+    return f"{_sidebar_dynamic_filters_key()}{filter_column}"
+
+
+def _clear_sidebar_dynamic_multiselect_widget_keys() -> None:
+    for filter_column in (SIDEBAR_FILTER_SUBJECT_COLUMN, SIDEBAR_FILTER_TOPIC_COLUMN):
+        st.session_state.pop(_sidebar_dynamic_multiselect_key(filter_column), None)
+
+
+def _sidebar_dynamic_filter_columns(
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> tuple[str, ...]:
+    if not any(group.topics for group in subject_topic_groups):
+        return (SIDEBAR_FILTER_SUBJECT_COLUMN,)
+    if _use_topic_only_filter(subject_topic_groups):
+        return (SIDEBAR_FILTER_TOPIC_COLUMN,)
+    return (SIDEBAR_FILTER_SUBJECT_COLUMN, SIDEBAR_FILTER_TOPIC_COLUMN)
+
+
+def _build_sidebar_dynamic_filter_frame(
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> pd.DataFrame:
+    rows: list[dict[str, str]] = []
+    single_subject_mode = _use_topic_only_filter(subject_topic_groups)
+    for group in subject_topic_groups:
+        subject_label = format_subject_label(group.subject)
+        for topic in group.topics:
+            rows.append(
+                {
+                    SIDEBAR_FILTER_SUBJECT_COLUMN: subject_label,
+                    SIDEBAR_FILTER_TOPIC_COLUMN: _sidebar_topic_filter_label(
+                        subject=group.subject,
+                        topic=topic,
+                        single_subject_mode=single_subject_mode,
+                    ),
+                }
+            )
+
+        if not group.topics and not single_subject_mode:
+            rows.append(
+                {
+                    SIDEBAR_FILTER_SUBJECT_COLUMN: subject_label,
+                    SIDEBAR_FILTER_TOPIC_COLUMN: "",
+                }
+            )
+
+    columns = list(_sidebar_dynamic_filter_columns(subject_topic_groups))
+    return pd.DataFrame(rows, columns=columns)
+
+
+def _sidebar_topic_filter_label(
+    *,
+    subject: str,
+    topic: str,
+    single_subject_mode: bool,
+) -> str:
+    topic_label = format_topic_label(topic)
+    if single_subject_mode:
+        return topic_label
+    return f"{format_subject_label(subject)} / {topic_label}"
+
+
+def _sidebar_subject_label_by_key(
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> dict[str, str]:
+    return {
+        group.subject: format_subject_label(group.subject)
+        for group in subject_topic_groups
+    }
+
+
+def _sidebar_subject_key_by_label(
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> dict[str, str]:
+    return {
+        label: subject
+        for subject, label in _sidebar_subject_label_by_key(subject_topic_groups).items()
+    }
+
+
+def _sidebar_topic_label_by_key(
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> dict[tuple[str, str], str]:
+    single_subject_mode = _use_topic_only_filter(subject_topic_groups)
+    return {
+        (group.subject, topic): _sidebar_topic_filter_label(
+            subject=group.subject,
+            topic=topic,
+            single_subject_mode=single_subject_mode,
+        )
+        for group in subject_topic_groups
+        for topic in group.topics
+    }
+
+
+def _sidebar_topic_keys_by_label(
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> dict[str, tuple[tuple[str, str], ...]]:
+    topics_by_label: dict[str, list[tuple[str, str]]] = {}
+    for topic_key, label in _sidebar_topic_label_by_key(subject_topic_groups).items():
+        topics_by_label.setdefault(label, []).append(topic_key)
+    return {
+        label: tuple(topic_keys)
+        for label, topic_keys in topics_by_label.items()
+    }
+
+
+def _coerce_dynamic_filter_values(value: object) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, (list, tuple, set)):
+        return tuple(str(item) for item in value if str(item))
+    return ()
+
+
+def _sync_sidebar_dynamic_filter_widget_state(
+    *,
+    subject_topic_groups: list[SubjectTopicGroup],
+    selected_subjects: tuple[str, ...],
+    selected_topics: tuple[tuple[str, str], ...],
+) -> None:
+    subject_labels = _sidebar_subject_label_by_key(subject_topic_groups)
+    topic_labels = _sidebar_topic_label_by_key(subject_topic_groups)
+    state: dict[str, list[str]] = {
+        column: []
+        for column in _sidebar_dynamic_filter_columns(subject_topic_groups)
+    }
+
+    if SIDEBAR_FILTER_SUBJECT_COLUMN in state:
+        subject_order = _all_subject_filter_keys(
+            _subject_topic_group_specs(subject_topic_groups)
+        )
+        state[SIDEBAR_FILTER_SUBJECT_COLUMN] = [
+            subject_labels[subject]
+            for subject in subject_order
+            if subject in selected_subjects and subject in subject_labels
+        ]
+
+    if SIDEBAR_FILTER_TOPIC_COLUMN in state:
+        selected_topic_set = set(selected_topics)
+        topic_order = _all_topic_filter_keys(
+            _subject_topic_group_specs(subject_topic_groups)
+        )
+        state[SIDEBAR_FILTER_TOPIC_COLUMN] = [
+            topic_labels[topic_key]
+            for topic_key in topic_order
+            if topic_key in selected_topic_set and topic_key in topic_labels
+        ]
+
+    st.session_state[_sidebar_dynamic_filters_key()] = state
+
+
 def _subject_checkbox_key(subject: str) -> str:
     return f"gm_filter_subject_checkbox_{subject}"
 
@@ -994,15 +1136,13 @@ def _sync_subject_topic_filter_widget_state(
 
 
 def _sidebar_filter_widgets_ready(subject_topic_groups: list[SubjectTopicGroup]) -> bool:
-    if _select_all_filters_checkbox_key() not in st.session_state:
+    state = st.session_state.get(_sidebar_dynamic_filters_key())
+    if not isinstance(state, dict):
         return False
 
-    for group in subject_topic_groups:
-        if _subject_checkbox_key(group.subject) not in st.session_state:
+    for column in _sidebar_dynamic_filter_columns(subject_topic_groups):
+        if column not in state:
             return False
-        for topic in group.topics:
-            if _topic_checkbox_key(group.subject, topic) not in st.session_state:
-                return False
     return True
 
 
@@ -1030,7 +1170,8 @@ def _ensure_sidebar_subject_topic_filter_widget_state(
         or st.session_state.get(_sidebar_filter_widget_applied_signature_key()) != applied_signature
         or not _sidebar_filter_widgets_ready(subject_topic_groups)
     ):
-        _sync_subject_topic_filter_widget_state(
+        _clear_sidebar_dynamic_multiselect_widget_keys()
+        _sync_sidebar_dynamic_filter_widget_state(
             subject_topic_groups=subject_topic_groups,
             selected_subjects=selected_subjects,
             selected_topics=selected_topics,
@@ -1054,18 +1195,37 @@ def _read_sidebar_subject_topic_filter_widget_state(
     if not group_specs:
         return (), ()
 
-    if _all_filter_widgets_checked(subject_topic_groups):
+    state = st.session_state.get(_sidebar_dynamic_filters_key(), {})
+    if not isinstance(state, dict):
         return (), ()
 
+    subject_by_label = _sidebar_subject_key_by_label(subject_topic_groups)
+    selected_subject_set = {
+        subject_by_label[label]
+        for label in _coerce_dynamic_filter_values(
+            state.get(SIDEBAR_FILTER_SUBJECT_COLUMN)
+        )
+        if label in subject_by_label
+    }
     selected_subjects = tuple(
         subject
         for subject in _all_subject_filter_keys(group_specs)
-        if bool(st.session_state.get(_subject_checkbox_key(subject)))
+        if subject in selected_subject_set
     )
+
+    topics_by_label = _sidebar_topic_keys_by_label(subject_topic_groups)
+    selected_topic_set = {
+        topic_key
+        for label in _coerce_dynamic_filter_values(
+            state.get(SIDEBAR_FILTER_TOPIC_COLUMN)
+        )
+        for topic_key in topics_by_label.get(label, ())
+        if not selected_subject_set or topic_key[0] in selected_subject_set
+    }
     selected_topics = tuple(
         (subject, topic)
         for subject, topic in _all_topic_filter_keys(group_specs)
-        if bool(st.session_state.get(_topic_checkbox_key(subject, topic)))
+        if (subject, topic) in selected_topic_set
     )
     return selected_subjects, selected_topics
 
@@ -1188,7 +1348,7 @@ def _load_icon_data_uri(relative_path: str) -> str:
 
 
 def _apply_live_page_styles() -> None:
-    st.html(
+    st.markdown(
         """
         <style>
         :root {
@@ -1198,15 +1358,15 @@ def _apply_live_page_styles() -> None:
             --gm-pending-choice-label-gap: 0.16rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
-            --gm-sidebar-section-gap: 0.34rem;
-            --gm-sidebar-group-gap: 0.18rem;
-            --gm-sidebar-group-indent: 1.18rem;
-            --gm-sidebar-divider-margin-top: 0.12rem;
-            --gm-sidebar-divider-margin-bottom: 0.28rem;
-            --gm-sidebar-caption-margin-top: 0.22rem;
-            --gm-sidebar-caption-margin-bottom: 0.02rem;
-            --gm-sidebar-actions-gap: 0.16rem;
-            --gm-sidebar-actions-padding-top: 0.34rem;
+            --gm-sidebar-section-gap: 0.5rem;
+            --gm-sidebar-section-margin-bottom: 24px;
+            --gm-sidebar-divider-margin-top: 0.1rem;
+            --gm-sidebar-divider-margin-bottom: 0.95rem;
+            --gm-sidebar-caption-margin-top: 0.08rem;
+            --gm-sidebar-caption-margin-bottom: 0.42rem;
+            --gm-sidebar-actions-gap: 0.44rem;
+            --gm-sidebar-actions-padding-top: 0.92rem;
+            --gm-sidebar-horizontal-padding: 1.25rem;
         }
 
         [data-testid="stAppViewContainer"] {
@@ -1247,46 +1407,69 @@ def _apply_live_page_styles() -> None:
             background: rgba(255, 255, 255, 0.96) !important;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stCaptionContainer"] p {
+            color: #64748b !important;
+            font-size: 0.68rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.14em !important;
+            line-height: 1.1 !important;
+            text-transform: uppercase !important;
+        }
+
         section[data-testid="stSidebar"] [data-testid="stButton"] > button {
             border-radius: 1rem;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {
+            padding-left: var(--gm-sidebar-horizontal-padding) !important;
+            padding-right: var(--gm-sidebar-horizontal-padding) !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-section-hook) {
+            gap: var(--gm-sidebar-section-gap) !important;
+            margin-bottom: var(--gm-sidebar-section-margin-bottom) !important;
+        }
+
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-filter-stack-hook) {
             gap: var(--gm-sidebar-section-gap) !important;
-            padding-top: 0.04rem !important;
+            padding-top: 0 !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) {
-            gap: var(--gm-sidebar-section-gap) !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) hr,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-filter-stack-hook) hr,
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) hr {
             margin: var(--gm-sidebar-divider-margin-top) 0 var(--gm-sidebar-divider-margin-bottom) !important;
             border-color: #dbeafe !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stCaptionContainer"] {
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-section-hook) [data-testid="stCaptionContainer"] {
             margin: var(--gm-sidebar-caption-margin-top) 0 var(--gm-sidebar-caption-margin-bottom) !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook) {
-            gap: var(--gm-sidebar-group-gap) !important;
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) {
+            gap: 0.68rem !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook) [data-testid="stCheckbox"] {
-            margin-bottom: 0 !important;
-            margin-left: var(--gm-sidebar-group-indent) !important;
-            width: calc(100% - var(--gm-sidebar-group-indent)) !important;
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stMultiSelect"] {
+            margin-bottom: 0.22rem !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook--single-subject) [data-testid="stCheckbox"],
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-topic-filter-group-hook--separate) [data-testid="stCheckbox"] {
-            margin-left: 0 !important;
-            width: 100% !important;
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stMultiSelect"] label {
+            padding-bottom: 0.3rem !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook),
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-baseweb="select"] > div {
+            border-color: #d7e0eb !important;
+            border-radius: 0.78rem !important;
+            min-height: 2.55rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) {
+            border-top: 1px solid #e2e8f0;
+            gap: var(--gm-sidebar-actions-gap) !important;
+            margin-top: 0.35rem !important;
+            padding-top: var(--gm-sidebar-actions-padding-top) !important;
+        }
+
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) {
             gap: var(--gm-sidebar-actions-gap) !important;
             padding-top: var(--gm-sidebar-actions-padding-top) !important;
@@ -2069,5 +2252,6 @@ def _apply_live_page_styles() -> None:
             color: #0f172a !important;
         }
         </style>
-        """
+        """,
+        unsafe_allow_html=True,
     )
