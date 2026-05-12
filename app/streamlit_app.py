@@ -1034,12 +1034,12 @@ def _apply_workspace_shell_styles() -> None:
         """
         <style>
         :root {
-            --gm-sidebar-section-gap: 0.5rem;
-            --gm-sidebar-section-margin-bottom: 24px;
+            --gm-sidebar-section-gap: 0.36rem;
+            --gm-sidebar-section-margin-bottom: 16px;
             --gm-sidebar-horizontal-padding: 1.25rem;
-            --gm-sidebar-caption-margin-top: 0.08rem;
-            --gm-sidebar-caption-margin-bottom: 0.42rem;
-            --gm-sidebar-actions-padding-top: 0.92rem;
+            --gm-sidebar-caption-margin-top: 0;
+            --gm-sidebar-caption-margin-bottom: 0.32rem;
+            --gm-sidebar-actions-padding-top: 0.72rem;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {
@@ -1107,7 +1107,7 @@ def _apply_workspace_shell_styles() -> None:
         }
 
         div[data-testid="stSegmentedControl"] {
-            margin: 0.05rem 0 0.35rem;
+            margin: 0;
             width: 100% !important;
             max-width: 100% !important;
         }
@@ -1120,7 +1120,7 @@ def _apply_workspace_shell_styles() -> None:
             color: #64748b !important;
             font-size: 0.68rem !important;
             font-weight: 800 !important;
-            letter-spacing: 0.14em !important;
+            letter-spacing: 0.12em !important;
             line-height: 1.1 !important;
             text-transform: uppercase !important;
         }
@@ -1158,24 +1158,24 @@ def _apply_workspace_shell_styles() -> None:
             max-width: 100% !important;
         }
 
-        div[data-testid="stSegmentedControl"] [data-baseweb="button-group"],
-        div[data-testid="stSegmentedControl"] [role="radiogroup"] {
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [data-baseweb="button-group"],
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [role="radiogroup"] {
             display: flex !important;
             justify-content: stretch !important;
             align-items: center !important;
-            gap: 0.2rem !important;
+            gap: 0.18rem !important;
             width: 100% !important;
             max-width: 100% !important;
-            padding: 0.2rem !important;
+            padding: 0.18rem !important;
             margin: 0 !important;
             background: #f1f5f9 !important;
             border: 1px solid #dbe5f1 !important;
-            border-radius: 0.9rem !important;
+            border-radius: 0.78rem !important;
             box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04) !important;
         }
 
-        div[data-testid="stSegmentedControl"] [data-baseweb="button-group"] > div,
-        div[data-testid="stSegmentedControl"] [role="radiogroup"] > div {
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [data-baseweb="button-group"] > div,
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [role="radiogroup"] > div {
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
@@ -1183,40 +1183,51 @@ def _apply_workspace_shell_styles() -> None:
             margin: 0 !important;
         }
 
-        div[data-testid="stSegmentedControl"] [role="radio"],
-        div[data-testid="stSegmentedControl"] button {
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [role="radio"],
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] button,
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] button[kind="primary"],
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] button[kind="secondary"] {
             position: relative !important;
             flex: 1 1 0 !important;
             min-height: auto !important;
-            padding: 0.48rem 0.42rem !important;
+            padding: 0.42rem 0.4rem !important;
             margin: 0 !important;
             background: transparent !important;
-            border: none !important;
-            border-radius: 0.68rem !important;
+            border: 1px solid transparent !important;
+            border-radius: 0.6rem !important;
             box-shadow: none !important;
             color: #64748b !important;
-            font-size: 0.86rem !important;
+            font-size: 0.78rem !important;
             font-weight: 700 !important;
             justify-content: center !important;
             line-height: 1.15 !important;
             text-align: center !important;
         }
 
-        div[data-testid="stSegmentedControl"] [role="radio"]:hover,
-        div[data-testid="stSegmentedControl"] button:hover {
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [role="radio"] p,
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] button p {
+            color: inherit !important;
+            font-size: inherit !important;
+            line-height: inherit !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [role="radio"]:hover,
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] button:hover {
             color: #334155 !important;
             background: rgba(255, 255, 255, 0.64) !important;
         }
 
-        div[data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"],
-        div[data-testid="stSegmentedControl"] [role="radio"][aria-selected="true"],
-        div[data-testid="stSegmentedControl"] [role="radio"][aria-pressed="true"],
-        div[data-testid="stSegmentedControl"] button[aria-checked="true"],
-        div[data-testid="stSegmentedControl"] button[aria-selected="true"],
-        div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"],
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [role="radio"][aria-selected="true"],
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] [role="radio"][aria-pressed="true"],
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] button[aria-checked="true"],
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] button[aria-selected="true"],
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+        section[data-testid="stSidebar"] div[data-testid="stSegmentedControl"] button[kind="primary"] {
             color: #0f172a !important;
             background: #ffffff !important;
-            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08) !important;
+            border-color: #dbe5f1 !important;
+            box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08) !important;
         }
         </style>
         """,

@@ -249,11 +249,13 @@ def test_render_sidebar_subject_topic_filters_applies_draft_only_on_apply_click(
         def __init__(self, *args, **kwargs):
             pass
 
-        def display_filters(self):
-            return None
-
     monkeypatch.setattr(main_page, "st", fake_st)
     monkeypatch.setattr(main_page, "DynamicFiltersHierarchical", FakeDynamicFilters)
+    monkeypatch.setattr(
+        main_page,
+        "_display_sidebar_dynamic_filter_controls",
+        lambda **kwargs: None,
+    )
     monkeypatch.setattr(
         main_page,
         "_ensure_sidebar_subject_topic_filter_widget_state",
@@ -307,11 +309,13 @@ def test_render_sidebar_subject_topic_filters_renders_spacing_hooks(monkeypatch)
         def __init__(self, *args, **kwargs):
             pass
 
-        def display_filters(self):
-            return None
-
     monkeypatch.setattr(main_page, "st", fake_st)
     monkeypatch.setattr(main_page, "DynamicFiltersHierarchical", FakeDynamicFilters)
+    monkeypatch.setattr(
+        main_page,
+        "_display_sidebar_dynamic_filter_controls",
+        lambda **kwargs: None,
+    )
     monkeypatch.setattr(
         main_page,
         "_ensure_sidebar_subject_topic_filter_widget_state",
@@ -333,6 +337,39 @@ def test_render_sidebar_subject_topic_filters_renders_spacing_hooks(monkeypatch)
     assert any("gm-sidebar-filter-stack-hook" in html for html in rendered_html)
     assert any("gm-sidebar-subject-topic-filters-hook" in html for html in rendered_html)
     assert any("gm-sidebar-apply-filters-hook" in html for html in rendered_html)
+
+
+def test_display_sidebar_dynamic_filter_controls_uses_portuguese_multiselect_copy(monkeypatch) -> None:
+    calls: list[dict[str, object]] = []
+    subject_topic_groups = [
+        SubjectTopicGroup(subject="matematica", topics=("divisao", "fracoes")),
+    ]
+    filter_frame = main_page._build_sidebar_dynamic_filter_frame(subject_topic_groups)
+    filters_key = main_page._sidebar_dynamic_filters_key()
+
+    class FakeDynamicFilters:
+        filters_name = filters_key
+
+        def filter_df(self, *, except_filter_tab):
+            return filter_frame
+
+    fake_st = SimpleNamespace(
+        session_state={filters_key: {main_page.SIDEBAR_FILTER_TOPIC_COLUMN: []}},
+        multiselect=lambda label, options, **kwargs: (
+            calls.append({"label": label, "options": options, **kwargs}) or []
+        ),
+        rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
+    )
+
+    monkeypatch.setattr(main_page, "st", fake_st)
+
+    main_page._display_sidebar_dynamic_filter_controls(
+        dynamic_filters=FakeDynamicFilters(),
+        filter_columns=(main_page.SIDEBAR_FILTER_TOPIC_COLUMN,),
+    )
+
+    assert calls[0]["label"] == "Tópico"
+    assert calls[0]["placeholder"] == "Selecione os tópicos"
 
 
 def test_submit_selected_answer_rejects_missing_option(monkeypatch) -> None:
@@ -724,10 +761,10 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_primary_button_
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-sidebar-section-gap: 0.5rem;" in stylesheet
-    assert "--gm-sidebar-section-margin-bottom: 24px;" in stylesheet
+    assert "--gm-sidebar-section-gap: 0.36rem;" in stylesheet
+    assert "--gm-sidebar-section-margin-bottom: 16px;" in stylesheet
     assert "--gm-sidebar-horizontal-padding: 1.25rem;" in stylesheet
-    assert "--gm-sidebar-actions-padding-top: 0.92rem;" in stylesheet
+    assert "--gm-sidebar-actions-padding-top: 0.72rem;" in stylesheet
     assert "gm-sidebar-filter-stack-hook" in stylesheet
     assert "gm-sidebar-subject-topic-filters-hook" in stylesheet
     assert "gm-sidebar-logout-button-hook" in stylesheet
@@ -738,6 +775,8 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_primary_button_
     assert "border-top: 1px solid #e2e8f0;" in stylesheet
     assert 'button[kind="primary"] {' in stylesheet
     assert "color: #ffffff !important;" in stylesheet
+    assert "button:disabled" in stylesheet
+    assert "color: #94a3b8 !important;" in stylesheet
 
 
 def test_format_pending_widget_label_unwraps_fenced_code_blocks() -> None:

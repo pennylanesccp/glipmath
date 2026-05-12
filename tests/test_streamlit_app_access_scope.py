@@ -251,7 +251,7 @@ def test_apply_workspace_shell_styles_formats_logout_divider_spacing(monkeypatch
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
     assert "gm-sidebar-logout-button-hook" in stylesheet
-    assert "--gm-sidebar-section-margin-bottom: 24px;" in stylesheet
+    assert "--gm-sidebar-section-margin-bottom: 16px;" in stylesheet
     assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
     assert "margin: 0.25rem 0 0.78rem !important;" in stylesheet
     assert "background: #ffffff !important;" in stylesheet

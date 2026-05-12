@@ -216,7 +216,7 @@ def _render_sidebar_subject_topic_filters(
                 if st.button(
                     "Aplicar filtros",
                     key="gm_sidebar_apply_subject_topic_filters",
-                    type="primary",
+                    type="primary" if has_pending_changes else "secondary",
                     use_container_width=True,
                     disabled=not has_pending_changes,
                 ):
@@ -242,7 +242,60 @@ def _render_sidebar_dynamic_subject_topic_filters(
         filters=list(filter_columns),
         filters_name=_sidebar_dynamic_filters_key(),
     )
-    dynamic_filters.display_filters()
+    _display_sidebar_dynamic_filter_controls(
+        dynamic_filters=dynamic_filters,
+        filter_columns=filter_columns,
+    )
+
+
+def _display_sidebar_dynamic_filter_controls(
+    *,
+    dynamic_filters: DynamicFiltersHierarchical,
+    filter_columns: tuple[str, ...],
+) -> None:
+    filters_changed = False
+    remaining_hierarchy = list(filter_columns)
+    filters_state_key = dynamic_filters.filters_name
+
+    for filter_column in filter_columns:
+        filtered_frame = dynamic_filters.filter_df(except_filter_tab=remaining_hierarchy)
+        remaining_hierarchy.remove(filter_column)
+        options = sorted(
+            (
+                str(option)
+                for option in filtered_frame[filter_column].dropna().unique().tolist()
+                if str(option)
+            ),
+            key=str.casefold,
+        )
+
+        current_values = _coerce_dynamic_filter_values(
+            st.session_state[filters_state_key].get(filter_column)
+        )
+        valid_values = [value for value in current_values if value in options]
+        if list(current_values) != valid_values:
+            st.session_state[filters_state_key][filter_column] = valid_values
+            filters_changed = True
+
+        selected_values = st.multiselect(
+            filter_column,
+            options,
+            default=valid_values,
+            key=_sidebar_dynamic_multiselect_key(filter_column),
+            placeholder=_sidebar_filter_placeholder(filter_column),
+        )
+        if selected_values != st.session_state[filters_state_key][filter_column]:
+            st.session_state[filters_state_key][filter_column] = selected_values
+            filters_changed = True
+
+    if filters_changed:
+        st.rerun()
+
+
+def _sidebar_filter_placeholder(filter_column: str) -> str:
+    if filter_column == SIDEBAR_FILTER_SUBJECT_COLUMN:
+        return "Selecione as mat\u00e9rias"
+    return "Selecione os t\u00f3picos"
 
 
 def _render_subject_topic_filter_multiselect(
@@ -1358,14 +1411,14 @@ def _apply_live_page_styles() -> None:
             --gm-pending-choice-label-gap: 0.16rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
-            --gm-sidebar-section-gap: 0.5rem;
-            --gm-sidebar-section-margin-bottom: 24px;
-            --gm-sidebar-divider-margin-top: 0.1rem;
-            --gm-sidebar-divider-margin-bottom: 0.95rem;
-            --gm-sidebar-caption-margin-top: 0.08rem;
-            --gm-sidebar-caption-margin-bottom: 0.42rem;
-            --gm-sidebar-actions-gap: 0.44rem;
-            --gm-sidebar-actions-padding-top: 0.92rem;
+            --gm-sidebar-section-gap: 0.36rem;
+            --gm-sidebar-section-margin-bottom: 16px;
+            --gm-sidebar-divider-margin-top: 0.05rem;
+            --gm-sidebar-divider-margin-bottom: 0.72rem;
+            --gm-sidebar-caption-margin-top: 0;
+            --gm-sidebar-caption-margin-bottom: 0.32rem;
+            --gm-sidebar-actions-gap: 0.36rem;
+            --gm-sidebar-actions-padding-top: 0.72rem;
             --gm-sidebar-horizontal-padding: 1.25rem;
         }
 
@@ -1411,7 +1464,7 @@ def _apply_live_page_styles() -> None:
             color: #64748b !important;
             font-size: 0.68rem !important;
             font-weight: 800 !important;
-            letter-spacing: 0.14em !important;
+            letter-spacing: 0.12em !important;
             line-height: 1.1 !important;
             text-transform: uppercase !important;
         }
@@ -1446,27 +1499,40 @@ def _apply_live_page_styles() -> None:
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) {
-            gap: 0.68rem !important;
+            gap: 0.42rem !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stMultiSelect"] {
-            margin-bottom: 0.22rem !important;
+            margin-bottom: 0.1rem !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stMultiSelect"] label {
-            padding-bottom: 0.3rem !important;
+            padding-bottom: 0.18rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stMultiSelect"] label p {
+            color: #334155 !important;
+            font-size: 0.78rem !important;
+            font-weight: 700 !important;
+            line-height: 1.2 !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-baseweb="select"] > div {
+            background: #ffffff !important;
             border-color: #d7e0eb !important;
             border-radius: 0.78rem !important;
             min-height: 2.55rem !important;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-baseweb="select"] input::placeholder {
+            color: #64748b !important;
+            opacity: 1 !important;
+        }
+
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) {
             border-top: 1px solid #e2e8f0;
             gap: var(--gm-sidebar-actions-gap) !important;
-            margin-top: 0.35rem !important;
+            margin-top: 0.2rem !important;
             padding-top: var(--gm-sidebar-actions-padding-top) !important;
         }
 
@@ -1481,6 +1547,19 @@ def _apply_live_page_styles() -> None:
 
         section[data-testid="stSidebar"] [data-testid="stButton"] > button[kind="primary"] p {
             color: #ffffff !important;
+        }
+
+        section[data-testid="stSidebar"] [data-testid="stButton"] > button:disabled,
+        section[data-testid="stSidebar"] [data-testid="stButton"] > button[disabled] {
+            background: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #94a3b8 !important;
+            opacity: 1 !important;
+        }
+
+        section[data-testid="stSidebar"] [data-testid="stButton"] > button:disabled p,
+        section[data-testid="stSidebar"] [data-testid="stButton"] > button[disabled] p {
+            color: #94a3b8 !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) {
