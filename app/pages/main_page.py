@@ -142,47 +142,6 @@ def render_main_page(
     )
 
 
-def _render_controls_bar(
-    *,
-    subject_topic_groups: list[SubjectTopicGroup],
-    selected_subjects: tuple[str, ...],
-    selected_topics: tuple[tuple[str, str], ...],
-    selected_filter_label: str,
-    streak_text: str,
-    rank_text: str,
-    timer_elapsed_seconds: int,
-    timer_started_at: datetime | None,
-    timer_running: bool,
-    fire_icon_data_uri: str,
-    podium_icon_data_uri: str,
-    timer_icon_data_uri: str,
-) -> None:
-    subject_col, metrics_col = st.columns(
-        [1.65, 1.35],
-        vertical_alignment="center",
-    )
-
-    with subject_col:
-        _render_subject_topic_filter_multiselect(
-            subject_topic_groups=subject_topic_groups,
-            selected_subjects=selected_subjects,
-            selected_topics=selected_topics,
-            selected_filter_label=selected_filter_label,
-        )
-
-    with metrics_col:
-        _render_metrics_bar(
-            streak_text=streak_text,
-            rank_text=rank_text,
-            timer_elapsed_seconds=timer_elapsed_seconds,
-            timer_started_at=timer_started_at,
-            timer_running=timer_running,
-            fire_icon_data_uri=fire_icon_data_uri,
-            podium_icon_data_uri=podium_icon_data_uri,
-            timer_icon_data_uri=timer_icon_data_uri,
-        )
-
-
 def _render_sidebar_subject_topic_filters(
     *,
     subject_topic_groups: list[SubjectTopicGroup],
@@ -203,7 +162,7 @@ def _render_sidebar_subject_topic_filters(
         with st.container():
             st.html('<div class="gm-sidebar-section-hook gm-sidebar-filter-stack-hook"></div>')
             st.divider()
-            st.caption("Filtros")
+            st.caption("FILTROS")
 
             with st.container():
                 st.html('<div class="gm-sidebar-subject-topic-filters-hook"></div>')
@@ -216,7 +175,7 @@ def _render_sidebar_subject_topic_filters(
                 if st.button(
                     "Aplicar filtros",
                     key="gm_sidebar_apply_subject_topic_filters",
-                    type="primary" if has_pending_changes else "secondary",
+                    type="primary",
                     use_container_width=True,
                     disabled=not has_pending_changes,
                 ):
@@ -283,6 +242,7 @@ def _display_sidebar_dynamic_filter_controls(
             default=valid_values,
             key=_sidebar_dynamic_multiselect_key(filter_column),
             placeholder=_sidebar_filter_placeholder(filter_column),
+            label_visibility="collapsed",
         )
         if selected_values != st.session_state[filters_state_key][filter_column]:
             st.session_state[filters_state_key][filter_column] = selected_values
@@ -296,109 +256,6 @@ def _sidebar_filter_placeholder(filter_column: str) -> str:
     if filter_column == SIDEBAR_FILTER_SUBJECT_COLUMN:
         return "Selecione as mat\u00e9rias"
     return "Selecione os t\u00f3picos"
-
-
-def _render_subject_topic_filter_multiselect(
-    *,
-    subject_topic_groups: list[SubjectTopicGroup],
-    selected_subjects: tuple[str, ...],
-    selected_topics: tuple[tuple[str, str], ...],
-    selected_filter_label: str,
-) -> None:
-    single_subject_mode = _use_topic_only_filter(subject_topic_groups)
-    group_specs = _subject_topic_group_specs(subject_topic_groups)
-    _sync_subject_topic_filter_widget_state(
-        subject_topic_groups=subject_topic_groups,
-        selected_subjects=selected_subjects,
-        selected_topics=selected_topics,
-    )
-
-    with st.popover(
-        selected_filter_label,
-        use_container_width=True,
-        width="stretch",
-        key="gm_subject_topic_filter_popover",
-    ):
-        if selected_subjects or selected_topics:
-            if st.button(
-                "Limpar filtro",
-                key="gm_clear_subject_topic_filters",
-                type="tertiary",
-                use_container_width=True,
-            ):
-                _apply_subject_topic_filters(subjects=(), topics=())
-
-        for group in subject_topic_groups:
-            if not single_subject_mode:
-                st.checkbox(
-                    format_subject_label(group.subject),
-                    key=_subject_checkbox_key(group.subject),
-                    on_change=_toggle_subject_filter,
-                    args=(group.subject, group_specs),
-                )
-
-            with st.container():
-                hook_class = "gm-topic-filter-group-hook"
-                if single_subject_mode:
-                    hook_class += " gm-topic-filter-group-hook--single-subject"
-                st.html(f'<div class="{hook_class}"></div>')
-                for topic in group.topics:
-                    st.checkbox(
-                        format_topic_label(topic),
-                        key=_topic_checkbox_key(group.subject, topic),
-                        on_change=_toggle_topic_filter,
-                        args=(group.subject, topic, group_specs),
-                    )
-
-def _render_subject_topic_filter(
-    *,
-    subject_topic_groups: list[SubjectTopicGroup],
-    selected_subjects: tuple[str, ...],
-    selected_topics: tuple[tuple[str, str], ...],
-    selected_filter_label: str,
-) -> None:
-    with st.popover(
-        selected_filter_label,
-        use_container_width=True,
-        width="stretch",
-        key="gm_subject_topic_filter_popover",
-    ):
-        if st.button(
-            "Todas as matérias",
-            key="gm_filter_all_subjects",
-            type="tertiary",
-            use_container_width=True,
-        ):
-            _apply_subject_topic_filter(subject=None, topic=None)
-
-        for group in subject_topic_groups:
-            expander_label = format_subject_label(group.subject)
-            with st.expander(
-                expander_label,
-                expanded=selected_subject == group.subject,
-            ):
-                if st.button(
-                    f"Toda {expander_label}",
-                    key=f"gm_filter_subject_{group.subject}",
-                    type="tertiary",
-                    use_container_width=True,
-                ):
-                    _apply_subject_topic_filter(subject=group.subject, topic=None)
-
-                for topic in group.topics:
-                    topic_label = format_topic_label(topic)
-                    button_label = (
-                        f"✓ {topic_label}"
-                        if selected_subject == group.subject and selected_topic == topic
-                        else topic_label
-                    )
-                    if st.button(
-                        button_label,
-                        key=f"gm_filter_topic_{group.subject}_{topic}",
-                        type="tertiary",
-                        use_container_width=True,
-                    ):
-                        _apply_subject_topic_filter(subject=group.subject, topic=topic)
 
 
 def _render_pending_state_compact(
@@ -1109,18 +966,6 @@ def _sync_sidebar_dynamic_filter_widget_state(
     st.session_state[_sidebar_dynamic_filters_key()] = state
 
 
-def _subject_checkbox_key(subject: str) -> str:
-    return f"gm_filter_subject_checkbox_{subject}"
-
-
-def _select_all_filters_checkbox_key() -> str:
-    return "gm_filter_select_all_checkbox"
-
-
-def _topic_checkbox_key(subject: str, topic: str) -> str:
-    return f"gm_filter_topic_checkbox_{subject}_{topic}"
-
-
 def _sidebar_filter_widget_scope_key() -> str:
     return "gm_sidebar_filter_widget_scope"
 
@@ -1149,43 +994,6 @@ def _all_topic_filter_keys(
         for subject, topics in subject_topic_group_specs
         for topic in topics
     )
-
-
-def _all_filters_selected(
-    *,
-    subject_topic_groups: list[SubjectTopicGroup],
-    selected_subjects: tuple[str, ...],
-    selected_topics: tuple[tuple[str, str], ...],
-) -> bool:
-    return not selected_subjects and not selected_topics
-
-
-def _sync_subject_topic_filter_widget_state(
-    *,
-    subject_topic_groups: list[SubjectTopicGroup],
-    selected_subjects: tuple[str, ...],
-    selected_topics: tuple[tuple[str, str], ...],
-) -> None:
-    all_selected = _all_filters_selected(
-        subject_topic_groups=subject_topic_groups,
-        selected_subjects=selected_subjects,
-        selected_topics=selected_topics,
-    )
-    selected_subject_set = set(selected_subjects)
-    selected_topic_set = set(selected_topics)
-
-    st.session_state[_select_all_filters_checkbox_key()] = all_selected
-
-    for group in subject_topic_groups:
-        st.session_state[_subject_checkbox_key(group.subject)] = (
-            not all_selected
-            and group.subject in selected_subject_set
-        )
-        for topic in group.topics:
-            st.session_state[_topic_checkbox_key(group.subject, topic)] = (
-                not all_selected
-                and (group.subject, topic) in selected_topic_set
-            )
 
 
 def _sidebar_filter_widgets_ready(subject_topic_groups: list[SubjectTopicGroup]) -> bool:
@@ -1233,14 +1041,6 @@ def _ensure_sidebar_subject_topic_filter_widget_state(
         st.session_state[_sidebar_filter_widget_applied_signature_key()] = applied_signature
 
 
-def _all_filter_widgets_checked(_subject_topic_groups: list[SubjectTopicGroup]) -> bool:
-    return bool(st.session_state.get(_select_all_filters_checkbox_key()))
-
-
-def _refresh_select_all_filters_checkbox_state(_subject_topic_groups: list[SubjectTopicGroup]) -> None:
-    st.session_state.setdefault(_select_all_filters_checkbox_key(), False)
-
-
 def _read_sidebar_subject_topic_filter_widget_state(
     subject_topic_groups: list[SubjectTopicGroup],
 ) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
@@ -1283,73 +1083,6 @@ def _read_sidebar_subject_topic_filter_widget_state(
     return selected_subjects, selected_topics
 
 
-def _toggle_all_sidebar_subject_topic_filter_widgets(
-    subject_topic_group_specs: tuple[tuple[str, tuple[str, ...]], ...],
-) -> None:
-    target_value = bool(st.session_state.get(_select_all_filters_checkbox_key()))
-    if not target_value:
-        return
-
-    for subject, topics in subject_topic_group_specs:
-        st.session_state[_subject_checkbox_key(subject)] = False
-        for topic in topics:
-            st.session_state[_topic_checkbox_key(subject, topic)] = False
-
-
-def _toggle_all_subject_topic_filters() -> None:
-    if bool(st.session_state.get(_select_all_filters_checkbox_key())):
-        set_subject_filters(())
-        set_topic_filters(())
-        clear_current_question()
-        return
-
-    if not get_subject_filters() and not get_topic_filters():
-        st.session_state[_select_all_filters_checkbox_key()] = True
-
-
-def _toggle_subject_filter(
-    subject: str,
-    _subject_topic_group_specs: tuple[tuple[str, tuple[str, ...]], ...] | None = None,
-) -> None:
-    selected_subjects = set(get_subject_filters())
-    selected_topics = set(get_topic_filters())
-
-    if bool(st.session_state.get(_subject_checkbox_key(subject))):
-        selected_subjects.add(subject)
-    else:
-        selected_subjects.discard(subject)
-
-    if selected_subjects:
-        selected_topics = {
-            topic_pair
-            for topic_pair in selected_topics
-            if topic_pair[0] in selected_subjects
-        }
-
-    set_subject_filters(selected_subjects)
-    set_topic_filters(selected_topics)
-    clear_current_question()
-
-
-def _toggle_topic_filter(
-    subject: str,
-    topic: str,
-    _subject_topic_group_specs: tuple[tuple[str, tuple[str, ...]], ...] | None = None,
-) -> None:
-    selected_subjects = set(get_subject_filters())
-    selected_topics = set(get_topic_filters())
-    topic_pair = (subject, topic)
-
-    if bool(st.session_state.get(_topic_checkbox_key(subject, topic))):
-        selected_topics.add(topic_pair)
-    else:
-        selected_topics.discard(topic_pair)
-
-    set_subject_filters(selected_subjects)
-    set_topic_filters(selected_topics)
-    clear_current_question()
-
-
 def _apply_subject_topic_filters(
     *,
     subjects: tuple[str, ...],
@@ -1362,16 +1095,6 @@ def _apply_subject_topic_filters(
     set_topic_filters(topics)
     clear_current_question()
     st.rerun()
-
-
-def _apply_subject_topic_filter(
-    *,
-    subject: str | None,
-    topic: str | None,
-) -> None:
-    subjects = (subject,) if subject else ()
-    topics = ((subject, topic),) if subject and topic else ()
-    _apply_subject_topic_filters(subjects=subjects, topics=topics)
 
 
 def _format_day_streak_text(day_streak: int) -> str:
@@ -1411,14 +1134,14 @@ def _apply_live_page_styles() -> None:
             --gm-pending-choice-label-gap: 0.16rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
-            --gm-sidebar-section-gap: 0.36rem;
-            --gm-sidebar-section-margin-bottom: 16px;
+            --gm-sidebar-section-gap: 0.28rem;
+            --gm-sidebar-section-margin-bottom: 24px;
             --gm-sidebar-divider-margin-top: 0.05rem;
             --gm-sidebar-divider-margin-bottom: 0.72rem;
             --gm-sidebar-caption-margin-top: 0;
-            --gm-sidebar-caption-margin-bottom: 0.32rem;
+            --gm-sidebar-caption-margin-bottom: 0.24rem;
             --gm-sidebar-actions-gap: 0.36rem;
-            --gm-sidebar-actions-padding-top: 0.72rem;
+            --gm-sidebar-actions-padding-top: 1rem;
             --gm-sidebar-horizontal-padding: 1.25rem;
         }
 
@@ -1461,10 +1184,10 @@ def _apply_live_page_styles() -> None:
         }
 
         section[data-testid="stSidebar"] div[data-testid="stCaptionContainer"] p {
-            color: #64748b !important;
-            font-size: 0.68rem !important;
+            color: #94a3b8 !important;
+            font-size: 0.64rem !important;
             font-weight: 800 !important;
-            letter-spacing: 0.12em !important;
+            letter-spacing: 0.16em !important;
             line-height: 1.1 !important;
             text-transform: uppercase !important;
         }
@@ -1507,7 +1230,7 @@ def _apply_live_page_styles() -> None:
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stMultiSelect"] label {
-            padding-bottom: 0.18rem !important;
+            padding-bottom: 0.08rem !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stMultiSelect"] label p {
@@ -1534,6 +1257,18 @@ def _apply_live_page_styles() -> None:
             gap: var(--gm-sidebar-actions-gap) !important;
             margin-top: 0.2rem !important;
             padding-top: var(--gm-sidebar-actions-padding-top) !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button[kind="primary"] {
+            background: #2563eb !important;
+            border: 1px solid #1d4ed8 !important;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22) !important;
+            color: #ffffff !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button[kind="primary"]:hover {
+            background: #1d4ed8 !important;
+            border-color: #1e40af !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) {

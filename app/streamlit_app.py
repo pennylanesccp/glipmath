@@ -178,7 +178,6 @@ def main() -> None:
                 authorized_user.email,
             )
             mark_authenticated_run_logged()
-        _apply_workspace_shell_styles()
         question_table_id = settings.bigquery.question_bank_table_id(settings.gcp.project_id)
         answers_table_id = settings.bigquery.answers_table_id(settings.gcp.project_id)
         user_access_table_id = settings.bigquery.user_access_table_id(settings.gcp.project_id)
@@ -192,7 +191,7 @@ def main() -> None:
             user=authorized_user,
             project_options=project_options,
         )
-        selected_project, current_workspace = _render_authenticated_shell_sidebar(
+        selected_project, current_workspace = render_sidebar_ui(
             user=authorized_user,
             project_options=project_options,
             selected_project=selected_project,
@@ -432,76 +431,20 @@ def _resolve_selected_project_for_user(
     return default_project
 
 
-def _render_authenticated_shell(
+def render_sidebar_ui(
     *,
     user: User,
     project_options: list[str],
     selected_project: str | None,
 ) -> tuple[str | None, str]:
-    project_choice = selected_project
-    if len(project_options) > 1:
-        project_choice = st.selectbox(
-            "Projeto",
-            options=project_options,
-            index=project_options.index(selected_project) if selected_project in project_options else 0,
-            format_func=_format_project_option_label,
-            key="gm_global_project_filter_select",
-            label_visibility="collapsed",
-        )
+    """Apply sidebar styles and render authenticated navigation controls."""
 
-    if project_choice != get_project_filter():
-        st.session_state.pop("gm_subject_filter_select", None)
-        set_project_filter(project_choice)
-        set_subject_filters(())
-        set_topic_filters(())
-        clear_current_question()
-        st.rerun()
-
-    current_workspace = "student"
-    if user.can_access_professor_space:
-        current_workspace = get_current_workspace()
-        workspace_choice = st.segmented_control(
-            "Espaço",
-            options=["student", "professor"],
-            default=current_workspace,
-            format_func=_format_workspace_label,
-            key="gm_workspace_segmented_control",
-            label_visibility="collapsed",
-            width="stretch",
-        )
-        normalized_workspace = workspace_choice if workspace_choice in {"student", "professor"} else "student"
-        if normalized_workspace != current_workspace:
-            set_current_workspace(normalized_workspace)
-            clear_current_question()
-            st.rerun()
-        current_workspace = normalized_workspace
-    else:
-        if get_current_workspace() != "student":
-            set_current_workspace("student")
-        if get_current_professor_tool() is not None:
-            set_current_professor_tool(None)
-
-    if current_workspace == "student":
-        current_student_view = get_current_student_view()
-        student_view_choice = st.segmented_control(
-            "Visão do aluno",
-            options=["practice", "stats"],
-            default=current_student_view,
-            format_func=_format_student_view_label,
-            key="gm_student_view_segmented_control",
-            label_visibility="collapsed",
-            width="stretch",
-        )
-        normalized_student_view = (
-            student_view_choice if student_view_choice in {"practice", "stats"} else "practice"
-        )
-        if normalized_student_view != current_student_view:
-            set_current_student_view(normalized_student_view)
-            if normalized_student_view == "practice":
-                clear_current_question()
-            st.rerun()
-
-    return project_choice, current_workspace
+    _apply_workspace_shell_styles()
+    return _render_authenticated_shell_sidebar(
+        user=user,
+        project_options=project_options,
+        selected_project=selected_project,
+    )
 
 
 def _render_authenticated_shell_sidebar(
@@ -517,7 +460,7 @@ def _render_authenticated_shell_sidebar(
         if len(project_options) > 1:
             with st.container():
                 st.html('<div class="gm-sidebar-section-hook gm-sidebar-project-section-hook"></div>')
-                st.caption("Projeto")
+                st.caption("PROJETO")
                 project_choice = st.selectbox(
                     "Projeto",
                     options=project_options,
@@ -530,17 +473,10 @@ def _render_authenticated_shell_sidebar(
         if user.can_access_professor_space:
             with st.container():
                 st.html('<div class="gm-sidebar-section-hook gm-sidebar-workspace-section-hook"></div>')
-                st.caption("Espaço")
+                st.caption("ESPA\u00c7O")
                 current_workspace = get_current_workspace()
-                workspace_choice = st.segmented_control(
-                    "Espaço",
-                    options=["student", "professor"],
-                    default=current_workspace,
-                    format_func=_format_workspace_label,
-                    key="gm_workspace_segmented_control",
-                    label_visibility="collapsed",
-                    width="stretch",
-                )
+                st.html('<div class="gm-sidebar-workspace-buttons-hook"></div>')
+                workspace_choice = _render_workspace_button_group(current_workspace)
             normalized_workspace = workspace_choice if workspace_choice in {"student", "professor"} else "student"
             if normalized_workspace != current_workspace:
                 set_current_workspace(normalized_workspace)
@@ -556,10 +492,10 @@ def _render_authenticated_shell_sidebar(
         if current_workspace == "student":
             with st.container():
                 st.html('<div class="gm-sidebar-section-hook gm-sidebar-view-section-hook"></div>')
-                st.caption("Visão")
+                st.caption("VIS\u00c3O")
                 current_student_view = get_current_student_view()
                 student_view_choice = st.segmented_control(
-                    "Visão do aluno",
+                    "Vis\u00e3o do aluno",
                     options=["practice", "stats"],
                     default=current_student_view,
                     format_func=_format_student_view_label,
@@ -585,6 +521,30 @@ def _render_authenticated_shell_sidebar(
         st.rerun()
 
     return project_choice, current_workspace
+
+
+def _render_workspace_button_group(current_workspace: str) -> str:
+    student_col, professor_col = st.columns(2, gap="small")
+    with student_col:
+        student_clicked = st.button(
+            "Aluno",
+            key="gm_workspace_student_button",
+            type="primary" if current_workspace == "student" else "secondary",
+            use_container_width=True,
+        )
+    with professor_col:
+        professor_clicked = st.button(
+            "Professor",
+            key="gm_workspace_professor_button",
+            type="primary" if current_workspace == "professor" else "secondary",
+            use_container_width=True,
+        )
+
+    if student_clicked:
+        return "student"
+    if professor_clicked:
+        return "professor"
+    return current_workspace
 
 
 def _render_sidebar_logout_button() -> None:
@@ -1021,10 +981,6 @@ def _format_project_option_label(project_key: str) -> str:
     return format_project_label(project_key)
 
 
-def _format_workspace_label(workspace: str) -> str:
-    return "Espaço Professor" if workspace == "professor" else "Espaço Aluno"
-
-
 def _format_student_view_label(view_name: str) -> str:
     return "Estat\u00edsticas" if view_name == "stats" else "Quest\u00f5es"
 
@@ -1034,12 +990,12 @@ def _apply_workspace_shell_styles() -> None:
         """
         <style>
         :root {
-            --gm-sidebar-section-gap: 0.36rem;
-            --gm-sidebar-section-margin-bottom: 16px;
+            --gm-sidebar-section-gap: 0.28rem;
+            --gm-sidebar-section-margin-bottom: 24px;
             --gm-sidebar-horizontal-padding: 1.25rem;
             --gm-sidebar-caption-margin-top: 0;
-            --gm-sidebar-caption-margin-bottom: 0.32rem;
-            --gm-sidebar-actions-padding-top: 0.72rem;
+            --gm-sidebar-caption-margin-bottom: 0.24rem;
+            --gm-sidebar-actions-padding-top: 1rem;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {
@@ -1117,10 +1073,10 @@ def _apply_workspace_shell_styles() -> None:
         }
 
         section[data-testid="stSidebar"] div[data-testid="stCaptionContainer"] p {
-            color: #64748b !important;
-            font-size: 0.68rem !important;
+            color: #94a3b8 !important;
+            font-size: 0.64rem !important;
             font-weight: 800 !important;
-            letter-spacing: 0.12em !important;
+            letter-spacing: 0.16em !important;
             line-height: 1.1 !important;
             text-transform: uppercase !important;
         }
@@ -1136,21 +1092,56 @@ def _apply_workspace_shell_styles() -> None:
             padding-top: var(--gm-sidebar-actions-padding-top) !important;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stHorizontalBlock"] {
+            gap: 0.42rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stHorizontalBlock"] > div {
+            min-width: 0 !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stButton"] > button {
+            min-height: 2.45rem !important;
+            border-radius: 0.78rem !important;
+            box-shadow: none !important;
+            font-size: 0.82rem !important;
+            font-weight: 750 !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stButton"] > button[kind="primary"] {
+            background: #eff6ff !important;
+            border: 1px solid #93c5fd !important;
+            color: #1d4ed8 !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stButton"] > button[kind="primary"] p {
+            color: #1d4ed8 !important;
+        }
+
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) hr {
             margin: 0.25rem 0 0.78rem !important;
             border-color: #dbe5f1 !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button {
-            background: #ffffff !important;
-            border: 1px solid #cbd5e1 !important;
-            color: #475569 !important;
+            background: #fff7f7 !important;
+            border: 1px solid #fecaca !important;
+            color: #b91c1c !important;
             box-shadow: none !important;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button p {
+            color: #b91c1c !important;
+        }
+
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:hover {
-            border-color: #94a3b8 !important;
-            color: #0f172a !important;
+            background: #fee2e2 !important;
+            border-color: #fca5a5 !important;
+            color: #991b1b !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:hover p {
+            color: #991b1b !important;
         }
 
         div[data-testid="stSegmentedControl"] > div {

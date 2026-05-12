@@ -166,11 +166,6 @@ def test_render_authenticated_shell_sidebar_reads_current_sidebar_choices_withou
         def __exit__(self, exc_type, exc, tb):
             return False
 
-    def _segmented_control(*args, **kwargs):
-        if kwargs.get("key") == "gm_workspace_segmented_control":
-            return "student"
-        return "stats"
-
     fake_st = SimpleNamespace(
         sidebar=FakeSidebar(),
         session_state={},
@@ -178,7 +173,9 @@ def test_render_authenticated_shell_sidebar_reads_current_sidebar_choices_withou
         html=lambda *args, **kwargs: None,
         caption=lambda *args, **kwargs: None,
         selectbox=lambda *args, **kwargs: "rumo_etec",
-        segmented_control=_segmented_control,
+        columns=lambda *args, **kwargs: (FakeSidebar(), FakeSidebar()),
+        button=lambda *args, **kwargs: False,
+        segmented_control=lambda *args, **kwargs: "stats",
         rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
     )
 
@@ -195,6 +192,66 @@ def test_render_authenticated_shell_sidebar_reads_current_sidebar_choices_withou
 
     assert selected_project == "rumo_etec"
     assert current_workspace == "student"
+
+
+def test_render_sidebar_ui_applies_styles_before_controls(monkeypatch) -> None:
+    calls: list[str] = []
+    user = User(email="aluno@example.com", role="student", cohort_key="ano_1")
+
+    monkeypatch.setattr(streamlit_app, "_apply_workspace_shell_styles", lambda: calls.append("styles"))
+    monkeypatch.setattr(
+        streamlit_app,
+        "_render_authenticated_shell_sidebar",
+        lambda **kwargs: calls.append("controls") or ("ano_1", "student"),
+    )
+
+    selected_project, current_workspace = streamlit_app.render_sidebar_ui(
+        user=user,
+        project_options=["ano_1"],
+        selected_project="ano_1",
+    )
+
+    assert (selected_project, current_workspace) == ("ano_1", "student")
+    assert calls == ["styles", "controls"]
+
+
+def test_render_workspace_button_group_uses_full_width_column_buttons(monkeypatch) -> None:
+    calls: list[dict[str, object]] = []
+
+    class FakeColumn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    fake_st = SimpleNamespace(
+        columns=lambda *args, **kwargs: (FakeColumn(), FakeColumn()),
+        button=lambda label, **kwargs: (
+            calls.append({"label": label, **kwargs})
+            or kwargs.get("key") == "gm_workspace_professor_button"
+        ),
+    )
+
+    monkeypatch.setattr(streamlit_app, "st", fake_st)
+
+    selected_workspace = streamlit_app._render_workspace_button_group("student")
+
+    assert selected_workspace == "professor"
+    assert calls == [
+        {
+            "label": "Aluno",
+            "key": "gm_workspace_student_button",
+            "type": "primary",
+            "use_container_width": True,
+        },
+        {
+            "label": "Professor",
+            "key": "gm_workspace_professor_button",
+            "type": "secondary",
+            "use_container_width": True,
+        },
+    ]
 
 
 def test_student_view_label_uses_portuguese_accents_without_mojibake() -> None:
@@ -251,7 +308,9 @@ def test_apply_workspace_shell_styles_formats_logout_divider_spacing(monkeypatch
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
     assert "gm-sidebar-logout-button-hook" in stylesheet
-    assert "--gm-sidebar-section-margin-bottom: 16px;" in stylesheet
+    assert "--gm-sidebar-section-margin-bottom: 24px;" in stylesheet
     assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
     assert "margin: 0.25rem 0 0.78rem !important;" in stylesheet
-    assert "background: #ffffff !important;" in stylesheet
+    assert "background: #fff7f7 !important;" in stylesheet
+    assert "color: #b91c1c !important;" in stylesheet
+    assert "gm-sidebar-workspace-buttons-hook" in stylesheet
