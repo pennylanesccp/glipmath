@@ -282,7 +282,6 @@ def test_render_sidebar_logout_button_triggers_streamlit_logout(monkeypatch) -> 
         sidebar=FakeSidebar(),
         container=lambda: FakeSidebar(),
         html=lambda html: calls.append(html),
-        divider=lambda: calls.append("divider"),
         button=lambda *args, **kwargs: True,
     )
 
@@ -291,7 +290,11 @@ def test_render_sidebar_logout_button_triggers_streamlit_logout(monkeypatch) -> 
 
     streamlit_app._render_sidebar_logout_button()
 
-    assert calls == ['<div class="gm-sidebar-section-hook gm-sidebar-logout-button-hook"></div>', "divider", "logout"]
+    assert calls == [
+        '<div class="gm-sidebar-section-hook gm-sidebar-logout-button-hook"></div>',
+        '<div class="gm-sidebar-separator gm-sidebar-logout-separator-hook"></div>',
+        "logout",
+    ]
 
 
 def test_apply_workspace_shell_styles_formats_logout_divider_spacing(monkeypatch) -> None:
@@ -310,7 +313,8 @@ def test_apply_workspace_shell_styles_formats_logout_divider_spacing(monkeypatch
     assert "gm-sidebar-logout-button-hook" in stylesheet
     assert "--gm-sidebar-section-margin-bottom: 24px;" in stylesheet
     assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
-    assert "margin: 0.25rem 0 0.78rem !important;" in stylesheet
+    assert "gm-sidebar-logout-separator-hook" in stylesheet
+    assert "margin-bottom: 1.05rem;" in stylesheet
     assert "background: #fff7f7 !important;" in stylesheet
     assert "color: #b91c1c !important;" in stylesheet
     assert "gm-sidebar-workspace-buttons-hook" in stylesheet

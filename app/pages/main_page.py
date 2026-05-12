@@ -161,7 +161,7 @@ def _render_sidebar_subject_topic_filters(
     with st.sidebar:
         with st.container():
             st.html('<div class="gm-sidebar-section-hook gm-sidebar-filter-stack-hook"></div>')
-            st.divider()
+            st.html('<div class="gm-sidebar-separator gm-sidebar-filter-separator-hook"></div>')
             st.caption("FILTROS")
 
             with st.container():
@@ -1206,15 +1206,16 @@ def _apply_live_page_styles() -> None:
             margin-bottom: var(--gm-sidebar-section-margin-bottom) !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-filter-stack-hook) {
-            gap: var(--gm-sidebar-section-gap) !important;
-            padding-top: 0 !important;
+        section[data-testid="stSidebar"] .gm-sidebar-separator {
+            background: #dbeafe;
+            height: 1px;
+            margin: 0.42rem 0 0.95rem;
+            width: 100%;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-filter-stack-hook) hr,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) hr {
-            margin: var(--gm-sidebar-divider-margin-top) 0 var(--gm-sidebar-divider-margin-bottom) !important;
-            border-color: #dbeafe !important;
+        section[data-testid="stSidebar"] .gm-sidebar-filter-separator-hook {
+            margin-top: 0.34rem;
+            margin-bottom: 1rem;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-section-hook) [data-testid="stCaptionContainer"] {
@@ -1253,10 +1254,9 @@ def _apply_live_page_styles() -> None:
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) {
-            border-top: 1px solid #e2e8f0;
             gap: var(--gm-sidebar-actions-gap) !important;
-            margin-top: 0.2rem !important;
-            padding-top: var(--gm-sidebar-actions-padding-top) !important;
+            margin-top: 0.1rem !important;
+            padding-top: 0.72rem !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button[kind="primary"] {

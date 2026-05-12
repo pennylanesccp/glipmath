@@ -239,7 +239,6 @@ def test_render_sidebar_subject_topic_filters_applies_draft_only_on_apply_click(
     fake_st = SimpleNamespace(
         session_state={},
         sidebar=FakeSidebar(),
-        divider=lambda: None,
         caption=lambda *args, **kwargs: None,
         button=lambda *args, **kwargs: (
             button_calls.append(kwargs)
@@ -304,7 +303,6 @@ def test_render_sidebar_subject_topic_filters_renders_spacing_hooks(monkeypatch)
     fake_st = SimpleNamespace(
         session_state={},
         sidebar=FakeSidebar(),
-        divider=lambda: None,
         caption=lambda *args, **kwargs: None,
         button=lambda *args, **kwargs: False,
         container=lambda: FakeSidebar(),
@@ -341,6 +339,7 @@ def test_render_sidebar_subject_topic_filters_renders_spacing_hooks(monkeypatch)
     )
 
     assert any("gm-sidebar-filter-stack-hook" in html for html in rendered_html)
+    assert any("gm-sidebar-filter-separator-hook" in html for html in rendered_html)
     assert any("gm-sidebar-subject-topic-filters-hook" in html for html in rendered_html)
     assert any("gm-sidebar-apply-filters-hook" in html for html in rendered_html)
 
@@ -772,14 +771,14 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_primary_button_
     assert "--gm-sidebar-section-margin-bottom: 24px;" in stylesheet
     assert "--gm-sidebar-horizontal-padding: 1.25rem;" in stylesheet
     assert "--gm-sidebar-actions-padding-top: 1rem;" in stylesheet
-    assert "gm-sidebar-filter-stack-hook" in stylesheet
+    assert "gm-sidebar-filter-separator-hook" in stylesheet
     assert "gm-sidebar-subject-topic-filters-hook" in stylesheet
     assert "gm-sidebar-logout-button-hook" in stylesheet
     assert "gap: var(--gm-sidebar-section-gap) !important;" in stylesheet
     assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
-    assert "border-color: #dbeafe !important;" in stylesheet
+    assert "margin-bottom: 1rem;" in stylesheet
     assert '[data-testid="stMultiSelect"]' in stylesheet
-    assert "border-top: 1px solid #e2e8f0;" in stylesheet
+    assert "padding-top: 0.72rem !important;" in stylesheet
     assert 'button[kind="primary"] {' in stylesheet
     assert "background: #2563eb !important;" in stylesheet
     assert "color: #ffffff !important;" in stylesheet

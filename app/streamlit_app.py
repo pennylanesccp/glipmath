@@ -551,7 +551,7 @@ def _render_sidebar_logout_button() -> None:
     with st.sidebar:
         with st.container():
             st.html('<div class="gm-sidebar-section-hook gm-sidebar-logout-button-hook"></div>')
-            st.divider()
+            st.html('<div class="gm-sidebar-separator gm-sidebar-logout-separator-hook"></div>')
             if st.button(
                 "Sair",
                 key="gm_sidebar_logout_button",
@@ -1092,6 +1092,18 @@ def _apply_workspace_shell_styles() -> None:
             padding-top: var(--gm-sidebar-actions-padding-top) !important;
         }
 
+        section[data-testid="stSidebar"] .gm-sidebar-separator {
+            background: #dbeafe;
+            height: 1px;
+            margin: 0.42rem 0 0.95rem;
+            width: 100%;
+        }
+
+        section[data-testid="stSidebar"] .gm-sidebar-logout-separator-hook {
+            margin-top: 0.2rem;
+            margin-bottom: 1.05rem;
+        }
+
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stHorizontalBlock"] {
             gap: 0.42rem !important;
         }
@@ -1116,11 +1128,6 @@ def _apply_workspace_shell_styles() -> None:
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stButton"] > button[kind="primary"] p {
             color: #1d4ed8 !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) hr {
-            margin: 0.25rem 0 0.78rem !important;
-            border-color: #dbe5f1 !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button {
