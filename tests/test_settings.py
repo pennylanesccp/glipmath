@@ -40,6 +40,15 @@ def test_runtime_redirect_status_accepts_matching_cloud_callback() -> None:
     assert status.issue_code is None
 
 
+def test_runtime_redirect_status_ignores_streamlit_cloud_iframe_path() -> None:
+    auth_settings = _build_auth_settings("https://glipmath.streamlit.app/oauth2callback")
+
+    status = auth_settings.runtime_redirect_status("https://glipmath.streamlit.app/~/+")
+
+    assert status.is_valid is True
+    assert status.expected_redirect_uri == "https://glipmath.streamlit.app/oauth2callback"
+
+
 def test_load_settings_reads_public_repo_config(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("GLIPMATH_APP_NAME", raising=False)
     monkeypatch.delenv("GLIPMATH_GCP_PROJECT_ID", raising=False)

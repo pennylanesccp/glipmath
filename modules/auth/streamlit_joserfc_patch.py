@@ -1,23 +1,45 @@
 from __future__ import annotations
 
-import sys
 import hashlib
 import importlib
 import json
 import logging
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, cast
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from modules.utils.logging_utils import APP_LOGGER_NAME
 
 
 STARLETTE_AUTH_ROUTE_MODULE = "streamlit.web.server.starlette.starlette_auth_routes"
 OAUTH_STATE_COOKIE_NAME = "_glipmath_oauth_state"
+STREAMLIT_XSRF_COOKIE_NAME = "_streamlit_xsrf"
+STREAMLIT_SESSION_COOKIE_NAME = "_streamlit_session"
+STREAMLIT_USER_COOKIE_NAME = "_streamlit_user"
+STREAMLIT_TOKENS_COOKIE_NAME = "_streamlit_user_tokens"
 OAUTH_STATE_COOKIE_MAX_AGE_SECONDS = 10 * 60
 AUTHLIB_STATE_SESSION_TTL_SECONDS = 60 * 60
+OAUTH_STATE_BROWSER_BINDING_TTL_SECONDS = 10 * 60
+OAUTH_COOKIE_PATH = "/"
+OAUTH_COOKIE_SAMESITE = "none"
+OAUTH_COOKIE_SECURE = True
+LOGIN_ERROR_QUERY_PARAM = "auth_error"
+LOGIN_ERROR_SESSION_EXPIRED = "login_session_expired"
+_AUTH_COOKIE_CHUNK_DELETE_LIMIT = 8
+_OAUTH_STATE_BROWSER_BINDINGS: dict[str, tuple[str, str, float]] = {}
+_SERVER_CLEARED_COOKIE_NAMES = (
+    OAUTH_STATE_COOKIE_NAME,
+    STREAMLIT_SESSION_COOKIE_NAME,
+    STREAMLIT_USER_COOKIE_NAME,
+    STREAMLIT_TOKENS_COOKIE_NAME,
+)
+_CLIENT_CLEARED_COOKIE_PREFIXES = (
+    f"{STREAMLIT_USER_COOKIE_NAME}_",
+    f"{STREAMLIT_TOKENS_COOKIE_NAME}_",
+)
 
 
 def install_streamlit_joserfc_auth_patch() -> None:
@@ -43,6 +65,7 @@ def install_streamlit_joserfc_auth_patch() -> None:
         if getattr(module, "decode_provider_token", None) is original_decode:
             module.decode_provider_token = decode_provider_token
 
+    _patch_starlette_session_middleware()
     _patch_starlette_auth_routes()
 
 
@@ -96,8 +119,168 @@ def _patch_starlette_auth_routes() -> None:
     except (ImportError, ModuleNotFoundError):
         return
 
+    _patch_streamlit_auth_cookie_helpers(route_module)
     _patch_starlette_auth_login(route_module)
     _patch_starlette_auth_callback_logger(route_module)
+
+
+def build_client_oauth_cookie_cleanup_html() -> str:
+    """Return hidden HTML that clears client-readable stale OAuth cookies."""
+
+    cookie_names = json.dumps(_SERVER_CLEARED_COOKIE_NAMES, ensure_ascii=True)
+    cookie_prefixes = json.dumps(_CLIENT_CLEARED_COOKIE_PREFIXES, ensure_ascii=True)
+    return f"""
+<script>
+(() => {{
+  const baseNames = {cookie_names};
+  const chunkPrefixes = {cookie_prefixes};
+  const names = new Set(baseNames);
+  for (const rawCookie of document.cookie.split(";")) {{
+    const name = rawCookie.split("=")[0].trim();
+    if (chunkPrefixes.some((prefix) => name.startsWith(prefix))) {{
+      names.add(name);
+    }}
+  }}
+  for (const name of names) {{
+    document.cookie = `${{name}}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=None; Secure`;
+  }}
+}})();
+</script>
+""".strip()
+
+
+def is_oauth_flow_cookie_name(cookie_name: str) -> bool:
+    """Return whether a cookie is owned by Streamlit's OAuth flow."""
+
+    return cookie_name in _SERVER_CLEARED_COOKIE_NAMES or any(
+        cookie_name.startswith(prefix) for prefix in _CLIENT_CLEARED_COOKIE_PREFIXES
+    )
+
+
+def _patch_starlette_session_middleware() -> None:
+    try:
+        from starlette.middleware import sessions
+    except (ImportError, ModuleNotFoundError):
+        return
+
+    session_middleware = getattr(sessions, "SessionMiddleware", None)
+    if session_middleware is None or getattr(
+        session_middleware,
+        "_glipmath_cross_site_cookie",
+        False,
+    ):
+        return
+
+    original_init = session_middleware.__init__
+    original_call = session_middleware.__call__
+
+    @wraps(original_init)
+    def init_with_cross_site_streamlit_session_cookie(
+        self: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        if kwargs.get("session_cookie") == STREAMLIT_SESSION_COOKIE_NAME:
+            kwargs["same_site"] = OAUTH_COOKIE_SAMESITE
+            kwargs["https_only"] = OAUTH_COOKIE_SECURE
+            kwargs["path"] = OAUTH_COOKIE_PATH
+        original_init(self, *args, **kwargs)
+        if getattr(self, "session_cookie", None) == STREAMLIT_SESSION_COOKIE_NAME:
+            _configure_streamlit_session_middleware_cookie(self)
+
+    @wraps(original_call)
+    async def call_with_cross_site_streamlit_session_cookie(
+        self: Any,
+        scope: Any,
+        receive: Any,
+        send: Any,
+    ) -> Any:
+        if getattr(self, "session_cookie", None) == STREAMLIT_SESSION_COOKIE_NAME:
+            _configure_streamlit_session_middleware_cookie(self)
+        return await original_call(self, scope, receive, send)
+
+    session_middleware.__init__ = init_with_cross_site_streamlit_session_cookie
+    session_middleware.__call__ = call_with_cross_site_streamlit_session_cookie
+    session_middleware._glipmath_cross_site_cookie = True
+
+
+def _configure_streamlit_session_middleware_cookie(session_middleware: Any) -> None:
+    session_middleware.path = OAUTH_COOKIE_PATH
+    session_middleware.security_flags = (
+        f"httponly; samesite={OAUTH_COOKIE_SAMESITE}; secure"
+    )
+
+
+def _patch_streamlit_auth_cookie_helpers(route_module: Any) -> None:
+    _patch_streamlit_auth_cookie_setter(route_module)
+    _patch_streamlit_auth_cookie_clearer(route_module)
+
+
+def _patch_streamlit_auth_cookie_setter(route_module: Any) -> None:
+    set_single_cookie = getattr(route_module, "_set_single_cookie", None)
+    if not callable(set_single_cookie) or getattr(
+        set_single_cookie,
+        "_glipmath_cross_site_cookie",
+        False,
+    ):
+        return
+
+    @wraps(set_single_cookie)
+    def set_single_cookie_with_cross_site_attrs(
+        response: Any,
+        cookie_name: str,
+        serialized_value: str,
+    ) -> None:
+        create_signed_value = getattr(route_module, "create_signed_value", None)
+        get_cookie_secret = getattr(route_module, "get_cookie_secret", None)
+        set_cookie = getattr(response, "set_cookie", None)
+        if (
+            not callable(create_signed_value)
+            or not callable(get_cookie_secret)
+            or not callable(set_cookie)
+        ):
+            set_single_cookie(response, cookie_name, serialized_value)
+            return
+
+        signed_value = create_signed_value(
+            get_cookie_secret(),
+            cookie_name,
+            serialized_value,
+        )
+        if isinstance(signed_value, bytes):
+            cookie_payload = signed_value.decode("utf-8")
+        else:
+            cookie_payload = str(signed_value)
+
+        set_cookie(
+            cookie_name,
+            cookie_payload,
+            httponly=True,
+            secure=OAUTH_COOKIE_SECURE,
+            samesite=OAUTH_COOKIE_SAMESITE,
+            path=OAUTH_COOKIE_PATH,
+        )
+
+    set_single_cookie_with_cross_site_attrs._glipmath_cross_site_cookie = True
+    route_module._set_single_cookie = set_single_cookie_with_cross_site_attrs
+
+
+def _patch_streamlit_auth_cookie_clearer(route_module: Any) -> None:
+    clear_auth_cookie = getattr(route_module, "_clear_auth_cookie", None)
+    if not callable(clear_auth_cookie) or getattr(
+        clear_auth_cookie,
+        "_glipmath_cross_site_cookie",
+        False,
+    ):
+        return
+
+    @wraps(clear_auth_cookie)
+    def clear_auth_cookie_with_cross_site_attrs(response: Any, request: Any) -> None:
+        clear_auth_cookie(response, request)
+        _clear_oauth_flow_cookies(response, route_module, request=request)
+
+    clear_auth_cookie_with_cross_site_attrs._glipmath_cross_site_cookie = True
+    route_module._clear_auth_cookie = clear_auth_cookie_with_cross_site_attrs
 
 
 def _patch_starlette_auth_login(route_module: Any) -> None:
@@ -108,9 +291,19 @@ def _patch_starlette_auth_login(route_module: Any) -> None:
     @wraps(auth_login)
     async def auth_login_with_state_cookie(request: Any, base_url: str) -> Any:
         response = await auth_login(request, base_url)
+        _clear_oauth_flow_cookies(response, route_module, request=request)
         state = _state_from_redirect_response(response)
         if state:
             _set_oauth_state_cookie(response, route_module, state)
+            binding_cookie_name = _remember_oauth_state_browser_binding(
+                request,
+                state,
+            )
+            _logger().info(
+                "Prepared OAuth login state fallback | state_fingerprint=%s | binding_cookie=%s",
+                _fingerprint(state),
+                binding_cookie_name or "<none>",
+            )
         return response
 
     auth_login_with_state_cookie._glipmath_state_cookie = True
@@ -135,21 +328,34 @@ def _patch_starlette_auth_callback_logger(route_module: Any) -> None:
         )
         if restored_state_session:
             logger.info(
-                "Restored OAuth callback state session marker from fallback cookie | details=%s",
+                "Restored OAuth callback state session marker from fallback binding | details=%s",
                 _json_for_log(_oauth_callback_snapshot(request, base_url=base_url)),
             )
         try:
             response = await auth_callback(request, base_url)
         except Exception as error:
-            logger.exception(
-                "OAuth callback failed inside Streamlit auth | details=%s",
-                _json_for_log(_oauth_callback_snapshot(request, base_url=base_url)),
-            )
             if _is_mismatching_state_error(error):
-                redirect_response = await _redirect_to_base(route_module, base_url)
+                logger.warning(
+                    "OAuth callback rejected because the returned state did not match the browser session | details=%s",
+                    _json_for_log(_oauth_callback_snapshot(request, base_url=base_url)),
+                )
+                _forget_oauth_state_browser_binding(_callback_state(request))
+                redirect_response = await _redirect_to_login_retry(
+                    route_module,
+                    base_url,
+                )
                 if redirect_response is not None:
-                    _clear_oauth_state_cookie(redirect_response, route_module)
+                    _clear_oauth_flow_cookies(
+                        redirect_response,
+                        route_module,
+                        request=request,
+                    )
                     return redirect_response
+            else:
+                logger.exception(
+                    "OAuth callback failed inside Streamlit auth | details=%s",
+                    _json_for_log(_oauth_callback_snapshot(request, base_url=base_url)),
+                )
             raise
 
         _clear_oauth_state_cookie(response, route_module)
@@ -188,10 +394,16 @@ def _oauth_callback_snapshot(request: Any, *, base_url: str) -> dict[str, Any]:
         "session_state_keys": _session_state_keys(session),
         "cookie_names": sorted(str(key) for key in _keys(cookies)),
         "has_streamlit_session_cookie": bool(
-            _get_mapping_value(cookies, "_streamlit_session")
+            _get_mapping_value(cookies, STREAMLIT_SESSION_COOKIE_NAME)
+        ),
+        "has_streamlit_xsrf_cookie": bool(
+            _get_mapping_value(cookies, STREAMLIT_XSRF_COOKIE_NAME)
         ),
         "has_oauth_state_cookie": bool(
             _get_mapping_value(cookies, OAUTH_STATE_COOKIE_NAME)
+        ),
+        "has_oauth_state_browser_binding": bool(
+            state and _oauth_state_browser_binding_exists(state)
         ),
     }
 
@@ -236,17 +448,54 @@ def _set_oauth_state_cookie(
         signed_state,
         max_age=OAUTH_STATE_COOKIE_MAX_AGE_SECONDS,
         httponly=True,
-        samesite="lax",
-        path=_cookie_path(route_module),
+        secure=OAUTH_COOKIE_SECURE,
+        samesite=OAUTH_COOKIE_SAMESITE,
+        path=OAUTH_COOKIE_PATH,
     )
 
 
 def _clear_oauth_state_cookie(response: Any, route_module: Any) -> None:
+    _delete_cookie(response, OAUTH_STATE_COOKIE_NAME, route_module)
+
+
+def _clear_oauth_flow_cookies(
+    response: Any,
+    route_module: Any,
+    *,
+    request: Any | None = None,
+) -> None:
+    for cookie_name in _oauth_flow_cookie_names_to_clear(request):
+        _delete_cookie(response, cookie_name, route_module)
+
+
+def _oauth_flow_cookie_names_to_clear(request: Any | None) -> list[str]:
+    cookie_names = set(_SERVER_CLEARED_COOKIE_NAMES)
+    for cookie_name in (STREAMLIT_USER_COOKIE_NAME, STREAMLIT_TOKENS_COOKIE_NAME):
+        for chunk_index in range(1, _AUTH_COOKIE_CHUNK_DELETE_LIMIT + 1):
+            cookie_names.add(f"{cookie_name}_{chunk_index}")
+
+    cookies = getattr(request, "cookies", {}) if request is not None else {}
+    for cookie_name in _keys(cookies or {}):
+        text_name = str(cookie_name)
+        if is_oauth_flow_cookie_name(text_name):
+            cookie_names.add(text_name)
+
+    return sorted(cookie_names)
+
+
+def _delete_cookie(response: Any, cookie_name: str, route_module: Any) -> None:
     delete_cookie = getattr(response, "delete_cookie", None)
     if not callable(delete_cookie):
         return
 
-    delete_cookie(OAUTH_STATE_COOKIE_NAME, path=_cookie_path(route_module))
+    for cookie_path in _cookie_delete_paths(route_module):
+        delete_cookie(
+            cookie_name,
+            path=cookie_path,
+            secure=OAUTH_COOKIE_SECURE,
+            httponly=True,
+            samesite=OAUTH_COOKIE_SAMESITE,
+        )
 
 
 def _restore_oauth_state_session_marker(request: Any, route_module: Any) -> bool:
@@ -275,11 +524,72 @@ def _restore_oauth_state_session_marker(request: Any, route_module: Any) -> bool
         route_module,
         _get_mapping_value(cookies, OAUTH_STATE_COOKIE_NAME),
     )
-    if cookie_state != state:
+    if cookie_state != state and not _oauth_state_browser_binding_matches(
+        request,
+        state,
+    ):
         return False
 
     session[state_key] = {"exp": time.time() + AUTHLIB_STATE_SESSION_TTL_SECONDS}
+    _forget_oauth_state_browser_binding(state)
     return True
+
+
+def _remember_oauth_state_browser_binding(request: Any, state: str) -> str | None:
+    binding = _request_browser_binding(request)
+    if binding is None:
+        return None
+
+    cookie_name, cookie_fingerprint = binding
+    _evict_expired_oauth_state_browser_bindings()
+    _OAUTH_STATE_BROWSER_BINDINGS[state] = (
+        cookie_name,
+        cookie_fingerprint,
+        time.time() + OAUTH_STATE_BROWSER_BINDING_TTL_SECONDS,
+    )
+    return cookie_name
+
+
+def _oauth_state_browser_binding_matches(request: Any, state: str) -> bool:
+    _evict_expired_oauth_state_browser_bindings()
+    stored_binding = _OAUTH_STATE_BROWSER_BINDINGS.get(state)
+    request_binding = _request_browser_binding(request)
+    if stored_binding is None or request_binding is None:
+        return False
+
+    stored_cookie_name, stored_fingerprint, _ = stored_binding
+    request_cookie_name, request_fingerprint = request_binding
+    return (
+        request_cookie_name == stored_cookie_name
+        and request_fingerprint == stored_fingerprint
+    )
+
+
+def _oauth_state_browser_binding_exists(state: str) -> bool:
+    _evict_expired_oauth_state_browser_bindings()
+    return state in _OAUTH_STATE_BROWSER_BINDINGS
+
+
+def _forget_oauth_state_browser_binding(state: str | None) -> None:
+    if not state:
+        return
+    _OAUTH_STATE_BROWSER_BINDINGS.pop(state, None)
+
+
+def _evict_expired_oauth_state_browser_bindings() -> None:
+    now = time.time()
+    for state, (_, _, expires_at) in list(_OAUTH_STATE_BROWSER_BINDINGS.items()):
+        if expires_at <= now:
+            _OAUTH_STATE_BROWSER_BINDINGS.pop(state, None)
+
+
+def _request_browser_binding(request: Any) -> tuple[str, str] | None:
+    cookies = getattr(request, "cookies", {}) or {}
+    xsrf_cookie = _get_mapping_value(cookies, STREAMLIT_XSRF_COOKIE_NAME)
+    xsrf_fingerprint = _fingerprint(xsrf_cookie)
+    if xsrf_fingerprint is None:
+        return None
+    return STREAMLIT_XSRF_COOKIE_NAME, xsrf_fingerprint
 
 
 def _encode_signed_state_cookie(route_module: Any, state: str) -> str | None:
@@ -367,6 +677,13 @@ def _cookie_path(route_module: Any) -> str:
     return "/"
 
 
+def _cookie_delete_paths(route_module: Any) -> tuple[str, ...]:
+    configured_path = _cookie_path(route_module)
+    if configured_path == OAUTH_COOKIE_PATH:
+        return (OAUTH_COOKIE_PATH,)
+    return (OAUTH_COOKIE_PATH, configured_path)
+
+
 async def _redirect_to_base(route_module: Any, base_url: str) -> Any:
     redirect_to_base = getattr(route_module, "_redirect_to_base", None)
     if not callable(redirect_to_base):
@@ -374,8 +691,50 @@ async def _redirect_to_base(route_module: Any, base_url: str) -> Any:
     return await redirect_to_base(base_url)
 
 
+async def _redirect_to_login_retry(route_module: Any, base_url: str) -> Any:
+    response = await _redirect_to_base(route_module, base_url)
+    if response is None:
+        return None
+
+    headers = getattr(response, "headers", None)
+    getter = getattr(headers, "get", None)
+    if not callable(getter):
+        return response
+
+    location = getter("location") or getter("Location")
+    if not location:
+        return response
+
+    headers["location"] = _url_with_query_param(
+        str(location),
+        LOGIN_ERROR_QUERY_PARAM,
+        LOGIN_ERROR_SESSION_EXPIRED,
+    )
+    return response
+
+
+def _url_with_query_param(url: str, key: str, value: str) -> str:
+    parsed = urlparse(url)
+    query_values = dict(parse_qs(parsed.query, keep_blank_values=True))
+    query_values[key] = [value]
+    return urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            urlencode(query_values, doseq=True),
+            parsed.fragment,
+        )
+    )
+
+
 def _is_mismatching_state_error(error: Exception) -> bool:
     return error.__class__.__name__ == "MismatchingStateError"
+
+
+def _callback_state(request: Any) -> str | None:
+    return _get_mapping_value(getattr(request, "query_params", {}), "state")
 
 
 def _session_state_keys(session: Any) -> list[str]:

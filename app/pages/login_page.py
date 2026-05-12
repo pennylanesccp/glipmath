@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from app.components.auth_status import (
     render_access_message,
@@ -9,6 +10,12 @@ from app.components.auth_status import (
 )
 from app.ui.template_renderer import asset_to_data_uri, render_template
 from modules.auth.auth_service import trigger_login, trigger_logout
+from modules.auth.streamlit_joserfc_patch import (
+    LOGIN_ERROR_QUERY_PARAM,
+    LOGIN_ERROR_SESSION_EXPIRED,
+    build_client_oauth_cookie_cleanup_html,
+    is_oauth_flow_cookie_name,
+)
 from modules.config.settings import AppSettings, AuthRedirectRuntimeStatus
 from modules.utils.logging_utils import get_logger
 
@@ -19,6 +26,7 @@ logger = get_logger(__name__)
 def render_login_page(settings: AppSettings) -> None:
     """Render the template-driven login page and handle login actions."""
 
+    _render_login_clean_slate()
     redirect_status = _get_auth_redirect_runtime_status(settings)
     login_is_enabled = settings.auth.is_configured and redirect_status.is_valid
     logger.debug(
@@ -40,6 +48,8 @@ def render_login_page(settings: AppSettings) -> None:
         },
     )
     st.html(login_html)
+    if _login_error_code() == LOGIN_ERROR_SESSION_EXPIRED:
+        st.warning("Sua sessao de login expirou. Tente novamente.")
     login_clicked = st.button(
         "Continuar com Google",
         key="gm_login_google_button",
@@ -83,6 +93,45 @@ def render_not_authorized_page(settings: AppSettings, email: str | None) -> None
 
 def _get_auth_redirect_runtime_status(settings: AppSettings) -> AuthRedirectRuntimeStatus:
     return settings.auth.runtime_redirect_status(_get_runtime_app_url())
+
+
+def _render_login_clean_slate() -> None:
+    if _streamlit_user_is_logged_in():
+        return
+
+    stale_cookie_names = [
+        cookie_name
+        for cookie_name in _get_request_cookie_names()
+        if is_oauth_flow_cookie_name(cookie_name)
+    ]
+    if stale_cookie_names:
+        logger.info(
+            "Clearing stale OAuth cookies before login | cookie_names=%s",
+            stale_cookie_names,
+        )
+    components.html(
+        build_client_oauth_cookie_cleanup_html(),
+        height=0,
+        width=0,
+    )
+
+
+def _streamlit_user_is_logged_in() -> bool:
+    return bool(getattr(st.user, "is_logged_in", False))
+
+
+def _login_error_code() -> str | None:
+    return _get_query_param_value(LOGIN_ERROR_QUERY_PARAM)
+
+
+def _get_query_param_value(key: str) -> str | None:
+    value = st.query_params.get(key)
+    if isinstance(value, list):
+        value = value[0] if value else None
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def _get_runtime_app_url() -> str | None:

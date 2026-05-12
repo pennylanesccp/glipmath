@@ -1,10 +1,15 @@
 from types import SimpleNamespace
 
 from app.pages import login_page
+from modules.auth.streamlit_joserfc_patch import (
+    LOGIN_ERROR_QUERY_PARAM,
+    LOGIN_ERROR_SESSION_EXPIRED,
+)
 
 
 def test_render_login_page_uses_streamlit_html(monkeypatch) -> None:
     html_calls: list[str] = []
+    cleanup_calls: list[dict[str, object]] = []
     asset_paths: list[str] = []
     button_calls: list[dict[str, object]] = []
     template_paths: list[str] = []
@@ -22,7 +27,9 @@ def test_render_login_page_uses_streamlit_html(monkeypatch) -> None:
     monkeypatch.setattr(
         login_page,
         "asset_to_data_uri",
-        lambda relative_path: (asset_paths.append(relative_path) or "data:image/png;base64,abc"),
+        lambda relative_path: (
+            asset_paths.append(relative_path) or "data:image/png;base64,abc"
+        ),
     )
     monkeypatch.setattr(
         login_page,
@@ -33,20 +40,39 @@ def test_render_login_page_uses_streamlit_html(monkeypatch) -> None:
     )
     monkeypatch.setattr(login_page.st, "html", lambda html: html_calls.append(html))
     monkeypatch.setattr(
+        login_page.components,
+        "html",
+        lambda html, **kwargs: cleanup_calls.append({"html": html, **kwargs}),
+    )
+    monkeypatch.setattr(login_page, "_streamlit_user_is_logged_in", lambda: False)
+    monkeypatch.setattr(login_page, "_login_error_code", lambda: None)
+    monkeypatch.setattr(
         login_page.st,
         "button",
-        lambda label, **kwargs: (button_calls.append({"label": label, **kwargs}) or False),
+        lambda label, **kwargs: (
+            button_calls.append({"label": label, **kwargs}) or False
+        ),
     )
     monkeypatch.setattr(
         login_page.st,
         "markdown",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("st.markdown should not be used here")),
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("st.markdown should not be used here")
+        ),
+    )
+    monkeypatch.setattr(
+        login_page.st,
+        "warning",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("st.warning should not be used here")
+        ),
     )
 
     settings = SimpleNamespace(auth=SimpleNamespace(is_configured=True))
 
     login_page.render_login_page(settings)
 
+    assert cleanup_calls
     assert html_calls == [
         "<section>pages/auth_login.html</section>",
         "<section>pages/auth_login_footnote.html</section>",
@@ -75,9 +101,20 @@ def test_render_login_page_click_starts_streamlit_login(monkeypatch) -> None:
             expected_redirect_uri="https://glipmath.streamlit.app/oauth2callback",
         ),
     )
-    monkeypatch.setattr(login_page, "asset_to_data_uri", lambda relative_path: "data:image/png;base64,abc")
-    monkeypatch.setattr(login_page, "render_template", lambda template_path, context: "<section>login</section>")
+    monkeypatch.setattr(
+        login_page,
+        "asset_to_data_uri",
+        lambda relative_path: "data:image/png;base64,abc",
+    )
+    monkeypatch.setattr(
+        login_page,
+        "render_template",
+        lambda template_path, context: "<section>login</section>",
+    )
     monkeypatch.setattr(login_page.st, "html", lambda html: None)
+    monkeypatch.setattr(login_page.components, "html", lambda html, **kwargs: None)
+    monkeypatch.setattr(login_page, "_streamlit_user_is_logged_in", lambda: False)
+    monkeypatch.setattr(login_page, "_login_error_code", lambda: None)
     monkeypatch.setattr(login_page.st, "button", lambda label, **kwargs: True)
     monkeypatch.setattr(login_page, "trigger_login", lambda: events.append("login"))
 
@@ -97,3 +134,94 @@ def test_render_login_page_click_starts_streamlit_login(monkeypatch) -> None:
         raise AssertionError("st.stop should interrupt the login flow")
 
     assert events == ["login", "stop"]
+
+
+def test_render_login_page_shows_login_expired_message(monkeypatch) -> None:
+    warning_calls: list[str] = []
+
+    monkeypatch.setattr(
+        login_page,
+        "_get_auth_redirect_runtime_status",
+        lambda settings: SimpleNamespace(
+            is_valid=True,
+            issue_code=None,
+            current_redirect_uri="https://glipmath.streamlit.app/oauth2callback",
+            expected_redirect_uri="https://glipmath.streamlit.app/oauth2callback",
+        ),
+    )
+    monkeypatch.setattr(
+        login_page,
+        "asset_to_data_uri",
+        lambda relative_path: "data:image/png;base64,abc",
+    )
+    monkeypatch.setattr(
+        login_page,
+        "render_template",
+        lambda template_path, context: "<section>login</section>",
+    )
+    monkeypatch.setattr(login_page.st, "html", lambda html: None)
+    monkeypatch.setattr(login_page.components, "html", lambda html, **kwargs: None)
+    monkeypatch.setattr(login_page, "_streamlit_user_is_logged_in", lambda: False)
+    monkeypatch.setattr(
+        login_page,
+        "_login_error_code",
+        lambda: LOGIN_ERROR_SESSION_EXPIRED,
+    )
+    monkeypatch.setattr(login_page.st, "warning", lambda text: warning_calls.append(text))
+    monkeypatch.setattr(login_page.st, "button", lambda label, **kwargs: False)
+
+    settings = SimpleNamespace(auth=SimpleNamespace(is_configured=True))
+
+    login_page.render_login_page(settings)
+
+    assert warning_calls == ["Sua sessao de login expirou. Tente novamente."]
+
+
+def test_render_login_page_skips_clean_slate_when_authenticated(monkeypatch) -> None:
+    cleanup_calls: list[str] = []
+
+    monkeypatch.setattr(
+        login_page,
+        "_get_auth_redirect_runtime_status",
+        lambda settings: SimpleNamespace(
+            is_valid=True,
+            issue_code=None,
+            current_redirect_uri="https://glipmath.streamlit.app/oauth2callback",
+            expected_redirect_uri="https://glipmath.streamlit.app/oauth2callback",
+        ),
+    )
+    monkeypatch.setattr(
+        login_page,
+        "asset_to_data_uri",
+        lambda relative_path: "data:image/png;base64,abc",
+    )
+    monkeypatch.setattr(
+        login_page,
+        "render_template",
+        lambda template_path, context: "<section>login</section>",
+    )
+    monkeypatch.setattr(login_page.st, "html", lambda html: None)
+    monkeypatch.setattr(
+        login_page.components,
+        "html",
+        lambda html, **kwargs: cleanup_calls.append(html),
+    )
+    monkeypatch.setattr(login_page, "_streamlit_user_is_logged_in", lambda: True)
+    monkeypatch.setattr(login_page, "_login_error_code", lambda: None)
+    monkeypatch.setattr(login_page.st, "button", lambda label, **kwargs: False)
+
+    settings = SimpleNamespace(auth=SimpleNamespace(is_configured=True))
+
+    login_page.render_login_page(settings)
+
+    assert cleanup_calls == []
+
+
+def test_login_error_code_reads_query_param(monkeypatch) -> None:
+    monkeypatch.setattr(
+        login_page.st,
+        "query_params",
+        {LOGIN_ERROR_QUERY_PARAM: LOGIN_ERROR_SESSION_EXPIRED},
+    )
+
+    assert login_page._login_error_code() == LOGIN_ERROR_SESSION_EXPIRED
