@@ -175,7 +175,7 @@ def _render_sidebar_subject_topic_filters(
                 if st.button(
                     "Aplicar filtros",
                     key="gm_sidebar_apply_subject_topic_filters",
-                    type="primary",
+                    type="secondary",
                     use_container_width=True,
                     disabled=not has_pending_changes,
                 ):
@@ -1134,14 +1134,14 @@ def _apply_live_page_styles() -> None:
             --gm-pending-choice-label-gap: 0.16rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
-            --gm-sidebar-section-gap: 0.28rem;
-            --gm-sidebar-section-margin-bottom: 24px;
+            --gm-sidebar-section-gap: 0.24rem;
+            --gm-sidebar-section-margin-bottom: 16px;
             --gm-sidebar-divider-margin-top: 0.05rem;
             --gm-sidebar-divider-margin-bottom: 0.72rem;
             --gm-sidebar-caption-margin-top: 0;
             --gm-sidebar-caption-margin-bottom: 0.24rem;
-            --gm-sidebar-actions-gap: 0.36rem;
-            --gm-sidebar-actions-padding-top: 1rem;
+            --gm-sidebar-actions-gap: 0.3rem;
+            --gm-sidebar-actions-padding-top: 0.45rem;
             --gm-sidebar-horizontal-padding: 1.25rem;
         }
 
@@ -1209,13 +1209,13 @@ def _apply_live_page_styles() -> None:
         section[data-testid="stSidebar"] .gm-sidebar-separator {
             background: #dbeafe;
             height: 1px;
-            margin: 0.42rem 0 0.95rem;
+            margin: 0.16rem 0 0.72rem;
             width: 100%;
         }
 
         section[data-testid="stSidebar"] .gm-sidebar-filter-separator-hook {
-            margin-top: 0.34rem;
-            margin-bottom: 1rem;
+            margin-top: 0;
+            margin-bottom: 0.78rem;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-section-hook) [data-testid="stCaptionContainer"] {
@@ -1223,7 +1223,7 @@ def _apply_live_page_styles() -> None:
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) {
-            gap: 0.42rem !important;
+            gap: 0.34rem !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stMultiSelect"] {
@@ -1255,20 +1255,8 @@ def _apply_live_page_styles() -> None:
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) {
             gap: var(--gm-sidebar-actions-gap) !important;
-            margin-top: 0.1rem !important;
-            padding-top: 0.72rem !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button[kind="primary"] {
-            background: #2563eb !important;
-            border: 1px solid #1d4ed8 !important;
-            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22) !important;
-            color: #ffffff !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button[kind="primary"]:hover {
-            background: #1d4ed8 !important;
-            border-color: #1e40af !important;
+            margin-top: 0.04rem !important;
+            padding-top: 0.38rem !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) {

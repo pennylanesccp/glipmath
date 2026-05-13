@@ -475,7 +475,7 @@ def _render_authenticated_shell_sidebar(
                 st.html('<div class="gm-sidebar-section-hook gm-sidebar-workspace-section-hook"></div>')
                 st.caption("ESPA\u00c7O")
                 current_workspace = get_current_workspace()
-                st.html('<div class="gm-sidebar-workspace-buttons-hook"></div>')
+                st.html('<div class="gm-sidebar-workspace-control-hook"></div>')
                 workspace_choice = _render_workspace_button_group(current_workspace)
             normalized_workspace = workspace_choice if workspace_choice in {"student", "professor"} else "student"
             if normalized_workspace != current_workspace:
@@ -524,27 +524,16 @@ def _render_authenticated_shell_sidebar(
 
 
 def _render_workspace_button_group(current_workspace: str) -> str:
-    student_col, professor_col = st.columns(2, gap="small")
-    with student_col:
-        student_clicked = st.button(
-            "Aluno",
-            key="gm_workspace_student_button",
-            type="primary" if current_workspace == "student" else "secondary",
-            use_container_width=True,
-        )
-    with professor_col:
-        professor_clicked = st.button(
-            "Professor",
-            key="gm_workspace_professor_button",
-            type="primary" if current_workspace == "professor" else "secondary",
-            use_container_width=True,
-        )
-
-    if student_clicked:
-        return "student"
-    if professor_clicked:
-        return "professor"
-    return current_workspace
+    workspace_choice = st.segmented_control(
+        "Espa\u00e7o",
+        options=["student", "professor"],
+        default=current_workspace,
+        format_func=_format_workspace_label,
+        key="gm_workspace_segmented_control",
+        label_visibility="collapsed",
+        width="stretch",
+    )
+    return workspace_choice if workspace_choice in {"student", "professor"} else current_workspace
 
 
 def _render_sidebar_logout_button() -> None:
@@ -559,6 +548,10 @@ def _render_sidebar_logout_button() -> None:
                 use_container_width=True,
             ):
                 trigger_logout()
+
+
+def _format_workspace_label(workspace_name: str) -> str:
+    return "Professor" if workspace_name == "professor" else "Aluno"
 
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -990,12 +983,12 @@ def _apply_workspace_shell_styles() -> None:
         """
         <style>
         :root {
-            --gm-sidebar-section-gap: 0.28rem;
-            --gm-sidebar-section-margin-bottom: 24px;
+            --gm-sidebar-section-gap: 0.24rem;
+            --gm-sidebar-section-margin-bottom: 16px;
             --gm-sidebar-horizontal-padding: 1.25rem;
             --gm-sidebar-caption-margin-top: 0;
             --gm-sidebar-caption-margin-bottom: 0.24rem;
-            --gm-sidebar-actions-padding-top: 1rem;
+            --gm-sidebar-actions-padding-top: 0.45rem;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {
@@ -1095,39 +1088,13 @@ def _apply_workspace_shell_styles() -> None:
         section[data-testid="stSidebar"] .gm-sidebar-separator {
             background: #dbeafe;
             height: 1px;
-            margin: 0.42rem 0 0.95rem;
+            margin: 0.16rem 0 0.72rem;
             width: 100%;
         }
 
         section[data-testid="stSidebar"] .gm-sidebar-logout-separator-hook {
-            margin-top: 0.2rem;
-            margin-bottom: 1.05rem;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stHorizontalBlock"] {
-            gap: 0.42rem !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stHorizontalBlock"] > div {
-            min-width: 0 !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stButton"] > button {
-            min-height: 2.45rem !important;
-            border-radius: 0.78rem !important;
-            box-shadow: none !important;
-            font-size: 0.82rem !important;
-            font-weight: 750 !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stButton"] > button[kind="primary"] {
-            background: #eff6ff !important;
-            border: 1px solid #93c5fd !important;
-            color: #1d4ed8 !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-workspace-buttons-hook) [data-testid="stButton"] > button[kind="primary"] p {
-            color: #1d4ed8 !important;
+            margin-top: 0.08rem;
+            margin-bottom: 0.78rem;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button {
