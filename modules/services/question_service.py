@@ -319,8 +319,10 @@ def select_question_batch_ids(
         return []
 
     chooser = randomizer or random.Random()
-    chooser.shuffle(available_question_ids)
-    return available_question_ids[:limit]
+    if len(available_question_ids) <= limit:
+        chooser.shuffle(available_question_ids)
+        return available_question_ids
+    return chooser.sample(available_question_ids, k=limit)
 
 
 def build_subject_options(question_index: Sequence[QuestionIndexEntry]) -> list[str]:

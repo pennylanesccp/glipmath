@@ -286,7 +286,7 @@ def test_render_sidebar_subject_topic_filters_applies_draft_only_on_apply_click(
         "subjects": ("matematica",),
         "topics": (),
     }
-    assert button_calls[-1]["type"] == "primary"
+    assert button_calls[-1]["type"] == "secondary"
     assert button_calls[-1]["use_container_width"] is True
 
 
@@ -754,7 +754,7 @@ def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch
     assert 'section[data-testid="stSidebar"][aria-expanded="false"]' not in stylesheet
 
 
-def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_primary_button_text(monkeypatch) -> None:
+def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_apply_button_text(monkeypatch) -> None:
     rendered_html: list[str] = []
 
     monkeypatch.setattr(
@@ -767,21 +767,22 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_primary_button_
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-sidebar-section-gap: 0.28rem;" in stylesheet
-    assert "--gm-sidebar-section-margin-bottom: 24px;" in stylesheet
+    assert "--gm-sidebar-section-gap: 0.24rem;" in stylesheet
+    assert "--gm-sidebar-section-margin-bottom: 16px;" in stylesheet
     assert "--gm-sidebar-horizontal-padding: 1.25rem;" in stylesheet
-    assert "--gm-sidebar-actions-padding-top: 1rem;" in stylesheet
+    assert "--gm-sidebar-actions-padding-top: 0.45rem;" in stylesheet
     assert "gm-sidebar-filter-separator-hook" in stylesheet
     assert "gm-sidebar-subject-topic-filters-hook" in stylesheet
     assert "gm-sidebar-logout-button-hook" in stylesheet
     assert "gap: var(--gm-sidebar-section-gap) !important;" in stylesheet
     assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
-    assert "margin-bottom: 1rem;" in stylesheet
+    assert "margin-bottom: 0.78rem;" in stylesheet
     assert '[data-testid="stMultiSelect"]' in stylesheet
-    assert "padding-top: 0.72rem !important;" in stylesheet
-    assert 'button[kind="primary"] {' in stylesheet
-    assert "background: #2563eb !important;" in stylesheet
-    assert "color: #ffffff !important;" in stylesheet
+    assert "padding-top: 0.38rem !important;" in stylesheet
+    assert "gm-sidebar-apply-filters-hook" in stylesheet
+    assert 'button[kind="secondary"]' in stylesheet
+    assert "background: #edf4ff !important;" in stylesheet
+    assert "color: #1d4ed8 !important;" in stylesheet
     assert "button:disabled" in stylesheet
     assert "color: #94a3b8 !important;" in stylesheet
 

@@ -2,6 +2,7 @@ import pandas as pd
 from types import SimpleNamespace
 
 from app import streamlit_app
+from app.components import sidebar
 from app.state.session_state import (
     get_current_professor_tool,
     initialize_session_state,
@@ -135,11 +136,11 @@ def test_render_authenticated_shell_clears_professor_tool_for_student_only_user(
         rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
     )
 
-    monkeypatch.setattr(streamlit_app, "st", fake_st)
-    monkeypatch.setattr(streamlit_app, "get_project_filter", lambda: "crescer_e_conectar")
-    monkeypatch.setattr(streamlit_app, "get_current_student_view", lambda: "practice")
+    monkeypatch.setattr(sidebar, "st", fake_st)
+    monkeypatch.setattr(sidebar, "get_project_filter", lambda: "crescer_e_conectar")
+    monkeypatch.setattr(sidebar, "get_current_student_view", lambda: "practice")
 
-    selected_project, current_workspace = streamlit_app._render_authenticated_shell_sidebar(
+    selected_project, current_workspace = sidebar._render_authenticated_shell_sidebar(
         user=user,
         project_options=["crescer_e_conectar"],
         selected_project="crescer_e_conectar",
@@ -179,12 +180,12 @@ def test_render_authenticated_shell_sidebar_reads_current_sidebar_choices_withou
         rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
     )
 
-    monkeypatch.setattr(streamlit_app, "st", fake_st)
-    monkeypatch.setattr(streamlit_app, "get_project_filter", lambda: "rumo_etec")
-    monkeypatch.setattr(streamlit_app, "get_current_workspace", lambda: "student")
-    monkeypatch.setattr(streamlit_app, "get_current_student_view", lambda: "stats")
+    monkeypatch.setattr(sidebar, "st", fake_st)
+    monkeypatch.setattr(sidebar, "get_project_filter", lambda: "rumo_etec")
+    monkeypatch.setattr(sidebar, "get_current_workspace", lambda: "student")
+    monkeypatch.setattr(sidebar, "get_current_student_view", lambda: "stats")
 
-    selected_project, current_workspace = streamlit_app._render_authenticated_shell_sidebar(
+    selected_project, current_workspace = sidebar._render_authenticated_shell_sidebar(
         user=user,
         project_options=["crescer_e_conectar", "rumo_etec"],
         selected_project="rumo_etec",
@@ -198,14 +199,14 @@ def test_render_sidebar_ui_applies_styles_before_controls(monkeypatch) -> None:
     calls: list[str] = []
     user = User(email="aluno@example.com", role="student", cohort_key="ano_1")
 
-    monkeypatch.setattr(streamlit_app, "_apply_workspace_shell_styles", lambda: calls.append("styles"))
+    monkeypatch.setattr(sidebar, "_apply_workspace_shell_styles", lambda: calls.append("styles"))
     monkeypatch.setattr(
-        streamlit_app,
+        sidebar,
         "_render_authenticated_shell_sidebar",
         lambda **kwargs: calls.append("controls") or ("ano_1", "student"),
     )
 
-    selected_project, current_workspace = streamlit_app.render_sidebar_ui(
+    selected_project, current_workspace = sidebar.render_sidebar_ui(
         user=user,
         project_options=["ano_1"],
         selected_project="ano_1",
@@ -215,48 +216,34 @@ def test_render_sidebar_ui_applies_styles_before_controls(monkeypatch) -> None:
     assert calls == ["styles", "controls"]
 
 
-def test_render_workspace_button_group_uses_full_width_column_buttons(monkeypatch) -> None:
+def test_render_workspace_button_group_uses_full_width_segmented_control(monkeypatch) -> None:
     calls: list[dict[str, object]] = []
 
-    class FakeColumn:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
     fake_st = SimpleNamespace(
-        columns=lambda *args, **kwargs: (FakeColumn(), FakeColumn()),
-        button=lambda label, **kwargs: (
+        segmented_control=lambda label, **kwargs: (
             calls.append({"label": label, **kwargs})
-            or kwargs.get("key") == "gm_workspace_professor_button"
+            or "professor"
         ),
     )
 
-    monkeypatch.setattr(streamlit_app, "st", fake_st)
+    monkeypatch.setattr(sidebar, "st", fake_st)
 
-    selected_workspace = streamlit_app._render_workspace_button_group("student")
+    selected_workspace = sidebar._render_workspace_button_group("student")
 
     assert selected_workspace == "professor"
-    assert calls == [
-        {
-            "label": "Aluno",
-            "key": "gm_workspace_student_button",
-            "type": "primary",
-            "use_container_width": True,
-        },
-        {
-            "label": "Professor",
-            "key": "gm_workspace_professor_button",
-            "type": "secondary",
-            "use_container_width": True,
-        },
-    ]
+    assert calls[0]["label"] == "Espa\u00e7o"
+    assert calls[0]["options"] == ["student", "professor"]
+    assert calls[0]["default"] == "student"
+    assert calls[0]["key"] == "gm_workspace_segmented_control"
+    assert calls[0]["label_visibility"] == "collapsed"
+    assert calls[0]["width"] == "stretch"
+    assert calls[0]["format_func"]("student") == "Aluno"
+    assert calls[0]["format_func"]("professor") == "Professor"
 
 
 def test_student_view_label_uses_portuguese_accents_without_mojibake() -> None:
-    assert streamlit_app._format_student_view_label("practice") == "Questões"
-    assert streamlit_app._format_student_view_label("stats") == "Estatísticas"
+    assert sidebar._format_student_view_label("practice") == "Questões"
+    assert sidebar._format_student_view_label("stats") == "Estatísticas"
 
 
 def test_normalize_filters_for_subject_group_shape_clears_full_subject_selection_in_single_subject_mode() -> None:
@@ -285,10 +272,10 @@ def test_render_sidebar_logout_button_triggers_streamlit_logout(monkeypatch) -> 
         button=lambda *args, **kwargs: True,
     )
 
-    monkeypatch.setattr(streamlit_app, "st", fake_st)
-    monkeypatch.setattr(streamlit_app, "trigger_logout", lambda: calls.append("logout"))
+    monkeypatch.setattr(sidebar, "st", fake_st)
+    monkeypatch.setattr(sidebar, "trigger_logout", lambda: calls.append("logout"))
 
-    streamlit_app._render_sidebar_logout_button()
+    sidebar.render_sidebar_logout_button()
 
     assert calls == [
         '<div class="gm-sidebar-section-hook gm-sidebar-logout-button-hook"></div>',
@@ -301,20 +288,20 @@ def test_apply_workspace_shell_styles_formats_logout_divider_spacing(monkeypatch
     rendered_html: list[str] = []
 
     monkeypatch.setattr(
-        streamlit_app.st,
+        sidebar.st,
         "markdown",
         lambda html, **kwargs: rendered_html.append(html),
     )
 
-    streamlit_app._apply_workspace_shell_styles()
+    sidebar._apply_workspace_shell_styles()
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
     assert "gm-sidebar-logout-button-hook" in stylesheet
-    assert "--gm-sidebar-section-margin-bottom: 24px;" in stylesheet
+    assert "--gm-sidebar-section-margin-bottom: 16px;" in stylesheet
     assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
     assert "gm-sidebar-logout-separator-hook" in stylesheet
-    assert "margin-bottom: 1.05rem;" in stylesheet
+    assert "margin-bottom: 0.78rem;" in stylesheet
     assert "background: #fff7f7 !important;" in stylesheet
     assert "color: #b91c1c !important;" in stylesheet
-    assert "gm-sidebar-workspace-buttons-hook" in stylesheet
+    assert "stSegmentedControl" in stylesheet

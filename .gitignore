@@ -4,7 +4,7 @@
 */logs/
 
 
-# project
+# GlipMath local runtime and generated data
 data/db/
 data/raw/
 data/new/
@@ -20,29 +20,40 @@ secrets/
 .tmp*/
 pytest-cache-files-*/
 
+# Secret and credential material
+.env
+.env.*
+.streamlit/secrets.toml
+.streamlit/secrets.toml.*
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+*service_account*.json
+*credentials*.json
+application_default_credentials.json
+client_secret*.json
+
 # Terraform
-.terraform/
+**/.terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan
 crash.log
 crash.*.log
 infrastructure/env.ps1
-**.hcl
 
 # TF Vars (real values)
 *.tfvars
 !*.tfvars.example
 
 # Backend config
-backend.hcl
+backend*.hcl
 
 # CLI / local env
-.env
-.env.*
 *.log
 logs/
-.streamlit/secrets.toml
-
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -84,6 +95,7 @@ pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
+.ruff_cache/
 .tox/
 .nox/
 .coverage
@@ -168,7 +180,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/
