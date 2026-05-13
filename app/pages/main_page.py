@@ -123,7 +123,7 @@ def render_main_page(
         )
         return
 
-    st.html(_build_question_card_html(current_question.statement))
+    _render_question_card(current_question.statement)
 
     if question_answered:
         _render_answered_state(
@@ -140,6 +140,12 @@ def render_main_page(
         answer_service=answer_service,
         selected_option_id=selected_option_id,
     )
+
+
+def _render_question_card(statement: str) -> None:
+    _, content_col, _ = st.columns([0.03, 0.94, 0.03], vertical_alignment="top")
+    with content_col:
+        st.markdown(_build_question_card_html(statement), unsafe_allow_html=True)
 
 
 def _render_sidebar_subject_topic_filters(
@@ -1441,6 +1447,14 @@ def _apply_live_page_styles() -> None:
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
             margin-bottom: 0 !important;
             padding: 1rem var(--gm-live-card-inline-padding) 0.95rem;
+        }
+
+        .gm-live-question-card {
+            box-sizing: border-box;
+            margin-left: auto;
+            margin-right: auto;
+            max-width: calc(100% - 1.1rem);
+            width: calc(100% - 1.1rem);
         }
 
         .gm-live-card-title {

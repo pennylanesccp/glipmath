@@ -631,8 +631,50 @@ def test_build_answer_review_card_html_uses_wrong_style_for_all_incorrect_option
 def test_build_question_card_html_renders_markdown_snippets() -> None:
     html = main_page._build_question_card_html("```sql\nSELECT 1\n```")
 
+    assert "gm-live-question-card" in html
     assert "<pre>" in html
     assert "SELECT 1" in html
+
+
+def test_render_question_card_uses_center_column_and_markdown(monkeypatch) -> None:
+    rendered_markdown: list[dict[str, object]] = []
+    column_calls: list[dict[str, object]] = []
+    entered_columns: list[str] = []
+
+    class FakeColumn:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def __enter__(self):
+            entered_columns.append(self.name)
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_columns(spec, **kwargs):
+        column_calls.append({"spec": spec, **kwargs})
+        return [FakeColumn("left"), FakeColumn("content"), FakeColumn("right")]
+
+    monkeypatch.setattr(main_page.st, "columns", fake_columns)
+    monkeypatch.setattr(
+        main_page.st,
+        "markdown",
+        lambda html, **kwargs: rendered_markdown.append({"html": html, **kwargs}),
+    )
+
+    main_page._render_question_card("Quanto é **2 + 2**?")
+
+    assert column_calls == [
+        {
+            "spec": [0.03, 0.94, 0.03],
+            "vertical_alignment": "top",
+        }
+    ]
+    assert entered_columns == ["content"]
+    assert rendered_markdown[0]["unsafe_allow_html"] is True
+    assert "gm-live-question-card" in str(rendered_markdown[0]["html"])
+    assert "Quanto é" in str(rendered_markdown[0]["html"])
 
 
 def test_build_pending_alternative_card_html_renders_markdown_and_selected_state() -> None:
@@ -731,6 +773,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "column-gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));" in stylesheet
     assert "padding-top: var(--gm-topbar-alignment-offset);" in stylesheet
+    assert ".gm-live-question-card" in stylesheet
+    assert "max-width: calc(100% - 1.1rem);" in stylesheet
     assert "padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;" in stylesheet
     assert "padding-inline: var(--gm-live-card-inline-padding) !important;" in stylesheet
 
