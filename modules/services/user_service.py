@@ -257,6 +257,27 @@ def build_student_access_row(
     }
 
 
+def build_student_access_removal_target(
+    email: str | None,
+    *,
+    cohort_key: str,
+) -> dict[str, str]:
+    """Build the normalized access target used to deactivate one student."""
+
+    normalized_email = normalize_email(email)
+    if not normalized_email:
+        raise ValueError("Selecione um aluno válido para remover.")
+
+    normalized_cohort_key = _normalize_cohort_key(cohort_key)
+    if normalized_cohort_key == "all":
+        raise ValueError("Selecione um projeto específico antes de remover alunos.")
+
+    return {
+        "user_email": normalized_email,
+        "cohort_key": normalized_cohort_key,
+    }
+
+
 def has_active_project_access(
     access_entries: list[UserAccessEntry] | tuple[UserAccessEntry, ...],
     *,

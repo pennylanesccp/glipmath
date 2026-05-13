@@ -11,6 +11,7 @@ from app.state.session_state import (
     set_professor_authoring_ai_assisted,
     set_professor_notice,
 )
+from modules.domain.models import UserAccessEntry
 from modules.services.question_authoring_service import (
     AI_POLISHED_QUESTION_SOURCE,
     DIFFICULTY_LABEL_BY_VALUE,
@@ -26,6 +27,7 @@ from modules.services.question_authoring_service import (
 )
 from modules.services.user_service import (
     build_student_access_row,
+    build_student_access_removal_target,
     has_active_project_access,
     parse_user_access_dataframe,
 )
@@ -36,6 +38,7 @@ from modules.utils.normalization import clean_optional_text
 
 PROFESSOR_TOOL_GENERATE_QUESTIONS = "generate_questions"
 PROFESSOR_TOOL_ADD_STUDENT = "add_student"
+PROFESSOR_TOOL_REMOVE_STUDENT = "remove_student"
 AUTHORING_SUBJECT_KEY = "gm_prof_authoring_subject"
 AUTHORING_TOPIC_KEY = "gm_prof_authoring_topic"
 AUTHORING_DIFFICULTY_KEY = "gm_prof_authoring_difficulty"
@@ -56,6 +59,7 @@ AUTHORING_PROJECT_SCOPE_KEY = "gm_prof_authoring_project_scope"
 AUTHORING_PENDING_DRAFT_UPDATE_KEY = "gm_prof_authoring_pending_draft_update"
 ADD_STUDENT_EMAIL_KEY = "gm_prof_add_student_email"
 ADD_STUDENT_EMAIL_RESET_REQUEST_KEY = "gm_prof_add_student_email_reset_requested"
+REMOVE_STUDENT_PENDING_TARGET_KEY = "gm_prof_remove_student_pending_target"
 USER_ACCESS_WRITE_PERMISSION_ERROR_HINT = (
     "O login Google já devolveu um e-mail para o app; esse erro não é do OAuth. "
     "A service account configurada no Streamlit Cloud não tem permissão de escrita em "
@@ -85,7 +89,11 @@ def render_professor_page(
     _render_menu_cards()
 
     current_tool = get_current_professor_tool() or PROFESSOR_TOOL_GENERATE_QUESTIONS
-    if current_tool not in {PROFESSOR_TOOL_GENERATE_QUESTIONS, PROFESSOR_TOOL_ADD_STUDENT}:
+    if current_tool not in {
+        PROFESSOR_TOOL_GENERATE_QUESTIONS,
+        PROFESSOR_TOOL_ADD_STUDENT,
+        PROFESSOR_TOOL_REMOVE_STUDENT,
+    }:
         set_current_professor_tool(PROFESSOR_TOOL_GENERATE_QUESTIONS)
         current_tool = PROFESSOR_TOOL_GENERATE_QUESTIONS
 
@@ -98,6 +106,11 @@ def render_professor_page(
         )
     elif current_tool == PROFESSOR_TOOL_ADD_STUDENT:
         _render_add_student_panel(
+            selected_project=selected_project,
+            user_access_repository=user_access_repository,
+        )
+    elif current_tool == PROFESSOR_TOOL_REMOVE_STUDENT:
+        _render_remove_student_panel(
             selected_project=selected_project,
             user_access_repository=user_access_repository,
         )
@@ -125,7 +138,7 @@ def _render_menu_cards() -> None:
     current_tool = get_current_professor_tool() or PROFESSOR_TOOL_GENERATE_QUESTIONS
     with st.container():
         st.html('<div class="gm-professor-menu-hook"></div>')
-        first_col, second_col = st.columns(2, gap="small")
+        first_col, second_col, third_col = st.columns(3, gap="small")
 
         with first_col:
             st.html('<div class="gm-professor-menu-card-hook gm-professor-menu-card-hook--generate"></div>')
@@ -151,6 +164,19 @@ def _render_menu_cards() -> None:
             ):
                 if current_tool != PROFESSOR_TOOL_ADD_STUDENT:
                     set_current_professor_tool(PROFESSOR_TOOL_ADD_STUDENT)
+                    st.rerun()
+
+        with third_col:
+            st.html('<div class="gm-professor-menu-card-hook gm-professor-menu-card-hook--remove-student"></div>')
+            if st.button(
+                "Remover aluno",
+                key="gm_professor_tool_remove_student",
+                icon=":material/person_remove:",
+                type="primary" if current_tool == PROFESSOR_TOOL_REMOVE_STUDENT else "secondary",
+                use_container_width=True,
+            ):
+                if current_tool != PROFESSOR_TOOL_REMOVE_STUDENT:
+                    set_current_professor_tool(PROFESSOR_TOOL_REMOVE_STUDENT)
                     st.rerun()
 
 
@@ -448,6 +474,201 @@ def _handle_add_student(
         f"Acesso liberado para {email} neste projeto.",
     )
     st.rerun()
+
+
+def _render_remove_student_panel(
+    *,
+    selected_project: str | None,
+    user_access_repository: UserAccessRepository,
+) -> None:
+    normalized_project = clean_optional_text(selected_project)
+    if normalized_project is None:
+        st.warning("Selecione um projeto acima para liberar a remoção de alunos.")
+        return
+
+    with st.container():
+        st.html(
+            """
+            <section class="gm-professor-card">
+              <div class="gm-professor-eyebrow">Espaço Professor</div>
+              <h2 class="gm-professor-title">Remover alunos</h2>
+              <p class="gm-professor-copy">
+                Remova o acesso de alunos ativos deste projeto.
+              </p>
+            </section>
+            """
+        )
+
+    try:
+        active_student_entries = _load_active_student_entries(
+            project_key=normalized_project,
+            user_access_repository=user_access_repository,
+        )
+    except (BigQueryError, ValueError) as exc:
+        st.error(str(exc))
+        return
+
+    if not active_student_entries:
+        _clear_remove_student_confirmation()
+        st.info("Nenhum aluno ativo neste projeto.")
+        return
+
+    pending_email = _get_pending_student_removal(project_key=normalized_project)
+    if pending_email and pending_email not in {entry.user_email for entry in active_student_entries}:
+        _clear_remove_student_confirmation()
+        pending_email = None
+
+    st.markdown("**Alunos ativos**")
+    for index, entry in enumerate(active_student_entries):
+        _render_student_access_row(
+            entry,
+            index=index,
+            project_key=normalized_project,
+            pending_email=pending_email,
+            user_access_repository=user_access_repository,
+        )
+
+
+def _load_active_student_entries(
+    *,
+    project_key: str,
+    user_access_repository: UserAccessRepository,
+) -> list[UserAccessEntry]:
+    access_frame = user_access_repository.load_active_students_frame(project_key.lower().strip())
+    access_entries, issues = parse_user_access_dataframe(access_frame)
+    if issues:
+        raise ValueError("Não foi possível validar a lista de alunos ativos.")
+    return sorted(
+        (
+            entry
+            for entry in access_entries
+            if entry.is_active and entry.role == "student"
+        ),
+        key=lambda entry: entry.user_email.casefold(),
+    )
+
+
+def _render_student_access_row(
+    entry: UserAccessEntry,
+    *,
+    index: int,
+    project_key: str,
+    pending_email: str | None,
+    user_access_repository: UserAccessRepository,
+) -> None:
+    widget_key = _student_access_widget_key(entry.user_email, index=index)
+    display_name = entry.display_name or entry.user_email
+
+    with st.container():
+        detail_col, action_col = st.columns([0.72, 0.28], gap="small")
+        with detail_col:
+            st.markdown(f"**{display_name}**")
+            if display_name != entry.user_email:
+                st.caption(entry.user_email)
+        with action_col:
+            if st.button(
+                "Remover",
+                key=f"gm_prof_remove_student_request_{widget_key}",
+                icon=":material/person_remove:",
+                disabled=pending_email == entry.user_email,
+                use_container_width=True,
+            ):
+                _request_remove_student_confirmation(
+                    email=entry.user_email,
+                    project_key=project_key,
+                )
+
+    if pending_email != entry.user_email:
+        return
+
+    st.warning("Remover aluno?")
+    confirm_col, cancel_col = st.columns(2, gap="small")
+    with confirm_col:
+        if st.button(
+            "Sim, remover",
+            key=f"gm_prof_remove_student_confirm_{widget_key}",
+            type="primary",
+            icon=":material/delete:",
+            use_container_width=True,
+        ):
+            _handle_remove_student(
+                email=entry.user_email,
+                project_key=project_key,
+                user_access_repository=user_access_repository,
+            )
+    with cancel_col:
+        if st.button(
+            "Cancelar",
+            key=f"gm_prof_remove_student_cancel_{widget_key}",
+            icon=":material/close:",
+            use_container_width=True,
+        ):
+            _clear_remove_student_confirmation()
+            st.rerun()
+
+
+def _handle_remove_student(
+    *,
+    email: str | None,
+    project_key: str,
+    user_access_repository: UserAccessRepository,
+) -> None:
+    try:
+        removal_target = build_student_access_removal_target(
+            email,
+            cohort_key=project_key,
+        )
+        affected_rows = user_access_repository.deactivate_student_access(
+            user_email=removal_target["user_email"],
+            cohort_key=removal_target["cohort_key"],
+        )
+    except (BigQueryError, ValueError) as exc:
+        st.error(_format_add_student_error(exc))
+        return
+
+    _clear_remove_student_confirmation()
+    if affected_rows == 0:
+        set_professor_notice(
+            "warning",
+            "Esse aluno não possui acesso ativo neste projeto.",
+        )
+    else:
+        set_professor_notice(
+            "success",
+            f"Acesso removido para {removal_target['user_email']} neste projeto.",
+        )
+    st.rerun()
+
+
+def _request_remove_student_confirmation(*, email: str, project_key: str) -> None:
+    st.session_state[REMOVE_STUDENT_PENDING_TARGET_KEY] = {
+        "email": email,
+        "project_key": project_key,
+    }
+    st.rerun()
+
+
+def _get_pending_student_removal(*, project_key: str) -> str | None:
+    pending_target = st.session_state.get(REMOVE_STUDENT_PENDING_TARGET_KEY)
+    if not isinstance(pending_target, dict):
+        return None
+
+    pending_project = clean_optional_text(pending_target.get("project_key"))
+    if pending_project != clean_optional_text(project_key):
+        return None
+    return clean_optional_text(pending_target.get("email"))
+
+
+def _clear_remove_student_confirmation() -> None:
+    st.session_state.pop(REMOVE_STUDENT_PENDING_TARGET_KEY, None)
+
+
+def _student_access_widget_key(email: str, *, index: int) -> str:
+    normalized_email = "".join(
+        character if character.isalnum() else "_"
+        for character in email.casefold()
+    ).strip("_")
+    return f"{index}_{normalized_email or 'student'}"
 
 
 def _format_add_student_error(exc: BigQueryError | ValueError) -> str:

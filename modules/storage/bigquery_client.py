@@ -153,7 +153,7 @@ class BigQueryClient:
         sql: str,
         *,
         parameters: Sequence[bigquery.ScalarQueryParameter] | None = None,
-    ) -> None:
+    ) -> int | None:
         """Execute a statement that does not need a dataframe result."""
 
         job_config = bigquery.QueryJobConfig(query_parameters=list(parameters or []))
@@ -183,6 +183,10 @@ class BigQueryClient:
             "BigQuery statement succeeded | job_id=%s",
             getattr(query_job, "job_id", None),
         )
+        affected_rows = getattr(query_job, "num_dml_affected_rows", None)
+        if affected_rows is None:
+            return None
+        return int(affected_rows)
 
     def insert_rows_json(self, table_id: str, rows: Sequence[Mapping[str, Any]]) -> None:
         """Append JSON rows to a BigQuery table."""

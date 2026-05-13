@@ -13,14 +13,19 @@ from app.pages.professor_page import (
     AUTHORING_TOPIC_KEY,
     AUTHORING_WRONG_EXPLANATION_KEYS,
     AUTHORING_WRONG_TEXT_KEYS,
+    REMOVE_STUDENT_PENDING_TARGET_KEY,
     AuthoringAlternativeDraft,
     QuestionAuthoringDraft,
     USER_ACCESS_WRITE_PERMISSION_ERROR_HINT,
+    _clear_remove_student_confirmation,
     _consume_add_student_email_reset_request,
     _consume_pending_authoring_draft_update,
     _format_add_student_error,
+    _get_pending_student_removal,
+    _handle_remove_student,
     _handle_polish_with_ai,
     _is_user_access_write_permission_error,
+    _request_remove_student_confirmation,
     _request_authoring_draft_update,
 )
 from modules.storage.bigquery_client import BigQueryError
@@ -60,6 +65,91 @@ def test_consume_add_student_email_reset_request_clears_widget_value() -> None:
 
     assert st.session_state[ADD_STUDENT_EMAIL_KEY] == ""
     assert ADD_STUDENT_EMAIL_RESET_REQUEST_KEY not in st.session_state
+
+
+def test_remove_student_confirmation_round_trips_through_session_state(monkeypatch) -> None:
+    reruns: list[str] = []
+    fake_st = SimpleNamespace(
+        session_state={},
+        rerun=lambda: reruns.append("rerun"),
+    )
+    monkeypatch.setattr(professor_page, "st", fake_st)
+
+    _request_remove_student_confirmation(
+        email="aluno@example.com",
+        project_key="rumo_etec",
+    )
+
+    assert fake_st.session_state[REMOVE_STUDENT_PENDING_TARGET_KEY] == {
+        "email": "aluno@example.com",
+        "project_key": "rumo_etec",
+    }
+    assert _get_pending_student_removal(project_key="rumo_etec") == "aluno@example.com"
+    assert _get_pending_student_removal(project_key="outro_projeto") is None
+    assert reruns == ["rerun"]
+
+    _clear_remove_student_confirmation()
+
+    assert REMOVE_STUDENT_PENDING_TARGET_KEY not in fake_st.session_state
+
+
+def test_handle_remove_student_deactivates_access_and_sets_notice(monkeypatch) -> None:
+    notices: list[tuple[str, str]] = []
+    errors: list[str] = []
+    reruns: list[str] = []
+    fake_st = SimpleNamespace(
+        session_state={
+            REMOVE_STUDENT_PENDING_TARGET_KEY: {
+                "email": "aluno@example.com",
+                "project_key": "rumo_etec",
+            }
+        },
+        error=lambda message: errors.append(str(message)),
+        rerun=lambda: reruns.append("rerun"),
+    )
+    monkeypatch.setattr(professor_page, "st", fake_st)
+    monkeypatch.setattr(
+        professor_page,
+        "set_professor_notice",
+        lambda kind, message: notices.append((kind, message)),
+    )
+
+    class FakeUserAccessRepository:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, str]] = []
+
+        def deactivate_student_access(self, *, user_email: str, cohort_key: str) -> int:
+            self.calls.append(
+                {
+                    "user_email": user_email,
+                    "cohort_key": cohort_key,
+                }
+            )
+            return 1
+
+    repository = FakeUserAccessRepository()
+
+    _handle_remove_student(
+        email=" ALUNO@Example.com ",
+        project_key="Rumo_Etec",
+        user_access_repository=repository,
+    )
+
+    assert repository.calls == [
+        {
+            "user_email": "aluno@example.com",
+            "cohort_key": "rumo_etec",
+        }
+    ]
+    assert REMOVE_STUDENT_PENDING_TARGET_KEY not in fake_st.session_state
+    assert notices == [
+        (
+            "success",
+            "Acesso removido para aluno@example.com neste projeto.",
+        )
+    ]
+    assert errors == []
+    assert reruns == ["rerun"]
 
 
 def test_consume_pending_authoring_draft_update_applies_matching_project(monkeypatch) -> None:
