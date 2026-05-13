@@ -1285,6 +1285,26 @@ def _apply_live_page_styles() -> None:
             color: #94a3b8 !important;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button[kind="secondary"] {
+            background: #edf4ff !important;
+            border: 1px solid #93c5fd !important;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.1) !important;
+            color: #1d4ed8 !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button *,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button:disabled *,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button[disabled] * {
+            color: #1d4ed8 !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button:hover {
+            background: #e2eeff !important;
+            border-color: #60a5fa !important;
+            color: #1d4ed8 !important;
+        }
+
         div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) {
             gap: var(--gm-pending-choice-label-gap) !important;
         }
