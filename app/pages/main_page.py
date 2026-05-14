@@ -502,18 +502,21 @@ def _render_answer_result_actions(
     answer_is_correct: bool,
     button_key: str,
 ) -> bool:
-    status_col, next_col = st.columns([1, 2], vertical_alignment="center")
-    with status_col:
-        st.html(_build_answer_status_chip_html(answer_is_correct))
-    with next_col:
-        return bool(
-            st.button(
-                "Próxima questão",
-                key=button_key,
-                type="primary",
-                use_container_width=True,
+    hook_modifier = "top" if button_key.endswith("_top") else "bottom"
+    with st.container():
+        st.html(f'<div class="gm-answer-actions-hook gm-answer-actions-hook--{hook_modifier}"></div>')
+        status_col, next_col = st.columns([1, 2], vertical_alignment="center")
+        with status_col:
+            st.html(_build_answer_status_chip_html(answer_is_correct))
+        with next_col:
+            return bool(
+                st.button(
+                    "Próxima questão",
+                    key=button_key,
+                    type="primary",
+                    use_container_width=True,
+                )
             )
-        )
 
 
 def _submit_selected_answer(
@@ -1161,8 +1164,15 @@ def _apply_live_page_styles() -> None:
             --gm-wide-surface-width: 100%;
             --gm-narrow-surface-width: calc(100% - 1.1rem);
             --gm-live-card-inline-padding: 1rem;
+            --gm-live-question-top-gap: 0.46rem;
+            --gm-live-question-to-options-gap: 0.72rem;
+            --gm-live-question-to-actions-gap: 0.7rem;
+            --gm-live-actions-to-review-gap: 0.72rem;
+            --gm-live-review-card-gap: 0.62rem;
+            --gm-live-review-to-actions-gap: 0.78rem;
+            --gm-live-options-to-actions-gap: 0.86rem;
             --gm-pending-choice-gap: 0.48rem;
-            --gm-pending-choice-label-gap: 0.16rem;
+            --gm-pending-choice-label-gap: 0.38rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
             --gm-sidebar-section-gap: 0.24rem;
@@ -1380,10 +1390,33 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) {
             gap: var(--gm-pending-choice-label-gap) !important;
+            margin-top: var(--gm-live-question-to-options-gap) !important;
             margin-left: auto !important;
             margin-right: auto !important;
             max-width: var(--gm-narrow-surface-width) !important;
             width: var(--gm-narrow-surface-width) !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) {
+            gap: 0.28rem !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            width: var(--gm-wide-surface-width) !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook--top) {
+            margin-top: var(--gm-live-question-to-actions-gap) !important;
+            margin-bottom: var(--gm-live-actions-to-review-gap) !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook--bottom) {
+            margin-top: var(--gm-live-review-to-actions-gap) !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] {
+            box-sizing: border-box !important;
+            flex-wrap: nowrap !important;
+            width: 100% !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] {
@@ -1392,19 +1425,27 @@ def _apply_live_page_styles() -> None:
             width: 100% !important;
         }
 
+        div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) {
+            margin-top: var(--gm-live-options-to-actions-gap) !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div,
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div {
             min-width: 0 !important;
         }
 
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child,
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child {
             flex: 1 1 0 !important;
             width: auto !important;
         }
 
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child,
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child {
             flex: 2 1 0 !important;
         }
 
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) [data-testid="stButton"] > button,
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) [data-testid="stButton"] > button {
             white-space: nowrap !important;
         }
@@ -1508,6 +1549,14 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stElementContainer"]:has(.gm-live-metrics-bar) > div {
             width: 100%;
+        }
+
+        div[data-testid="stElementContainer"]:has(.gm-live-question-card) {
+            margin-top: var(--gm-live-question-top-gap) !important;
+        }
+
+        div[data-testid="stElementContainer"]:has(.gm-live-answer-card) {
+            margin-top: var(--gm-live-review-card-gap) !important;
         }
 
         .gm-live-card {
@@ -1625,7 +1674,7 @@ def _apply_live_page_styles() -> None:
             color: #7b8498;
             font-size: 0.88rem;
             font-weight: 600;
-            margin: 0.42rem 0 0;
+            margin: 0;
         }
 
         .gm-live-pending-choice-card {
@@ -2140,6 +2189,8 @@ def _apply_live_page_styles() -> None:
         }
 
         @media (max-width: 380px) {
+            div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child,
+            div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child,
             div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child,
             div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child {
                 flex: 1 1 0 !important;

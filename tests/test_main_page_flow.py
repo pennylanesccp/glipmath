@@ -651,6 +651,7 @@ def test_render_answered_state_repeats_result_actions_above_and_below_review_car
     monkeypatch.setattr(main_page.st, "columns", fake_columns)
     monkeypatch.setattr(main_page.st, "html", lambda html: calls.append(("html", html)))
     monkeypatch.setattr(main_page.st, "button", fake_button)
+    monkeypatch.setattr(main_page.st, "container", lambda: nullcontext())
 
     main_page._render_answered_state(
         alternatives=[
@@ -679,12 +680,14 @@ def test_render_answered_state_repeats_result_actions_above_and_below_review_car
         "gm_next_question_top",
         "gm_next_question_bottom",
     ]
-    assert "gm-live-status-chip--correct" in str(calls[1][1])
-    assert calls[2] == ("button", "gm_next_question_top")
-    assert "gm-live-answer-card--correct" in str(calls[3][1])
-    assert "gm-live-answer-card--wrong" in str(calls[4][1])
-    assert "gm-live-status-chip--correct" in str(calls[6][1])
-    assert calls[7] == ("button", "gm_next_question_bottom")
+    assert "gm-answer-actions-hook--top" in str(calls[0][1])
+    assert "gm-live-status-chip--correct" in str(calls[2][1])
+    assert calls[3] == ("button", "gm_next_question_top")
+    assert "gm-live-answer-card--correct" in str(calls[4][1])
+    assert "gm-live-answer-card--wrong" in str(calls[5][1])
+    assert "gm-answer-actions-hook--bottom" in str(calls[6][1])
+    assert "gm-live-status-chip--correct" in str(calls[8][1])
+    assert calls[9] == ("button", "gm_next_question_bottom")
 
 
 def test_build_question_card_html_renders_markdown_snippets() -> None:
@@ -806,11 +809,25 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "--gm-wide-surface-width: 100%;" in stylesheet
     assert "--gm-narrow-surface-width: calc(100% - 1.1rem);" in stylesheet
     assert "--gm-live-card-inline-padding: 1rem;" in stylesheet
+    assert "--gm-live-question-top-gap: 0.46rem;" in stylesheet
+    assert "--gm-live-question-to-options-gap: 0.72rem;" in stylesheet
+    assert "--gm-live-question-to-actions-gap: 0.7rem;" in stylesheet
+    assert "--gm-live-actions-to-review-gap: 0.72rem;" in stylesheet
+    assert "--gm-live-review-card-gap: 0.62rem;" in stylesheet
+    assert "--gm-live-review-to-actions-gap: 0.78rem;" in stylesheet
+    assert "--gm-live-options-to-actions-gap: 0.86rem;" in stylesheet
     assert "--gm-pending-choice-gap: 0.48rem;" in stylesheet
-    assert "--gm-pending-choice-label-gap: 0.16rem;" in stylesheet
+    assert "--gm-pending-choice-label-gap: 0.38rem;" in stylesheet
     assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet
-    assert "margin: 0.42rem 0 0;" in stylesheet
+    assert "margin: 0;" in stylesheet
+    assert "gm-answer-actions-hook" in stylesheet
+    assert "margin-top: var(--gm-live-question-to-options-gap) !important;" in stylesheet
+    assert "margin-top: var(--gm-live-question-to-actions-gap) !important;" in stylesheet
+    assert "margin-bottom: var(--gm-live-actions-to-review-gap) !important;" in stylesheet
+    assert "margin-top: var(--gm-live-review-card-gap) !important;" in stylesheet
+    assert "margin-top: var(--gm-live-review-to-actions-gap) !important;" in stylesheet
+    assert "margin-top: var(--gm-live-options-to-actions-gap) !important;" in stylesheet
     assert "gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "column-gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));" in stylesheet
