@@ -1625,7 +1625,7 @@ def _apply_live_page_styles() -> None:
             color: #7b8498;
             font-size: 0.88rem;
             font-weight: 600;
-            margin: 0.1rem 0 0;
+            margin: 0.42rem 0 0;
         }
 
         .gm-live-pending-choice-card {

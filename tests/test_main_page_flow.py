@@ -810,7 +810,7 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "--gm-pending-choice-label-gap: 0.16rem;" in stylesheet
     assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet
-    assert "margin: 0.1rem 0 0;" in stylesheet
+    assert "margin: 0.42rem 0 0;" in stylesheet
     assert "gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "column-gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));" in stylesheet
