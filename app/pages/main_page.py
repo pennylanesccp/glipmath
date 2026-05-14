@@ -2240,8 +2240,8 @@ def _apply_live_page_styles() -> None:
 
         @media (max-width: 640px) {
             :root {
-                --gm-live-metrics-top-pull: -0.85rem;
-                --gm-live-metrics-bottom-pull: 0.05rem;
+                --gm-live-metrics-top-pull: -1.1rem;
+                --gm-live-metrics-bottom-pull: 0.3rem;
             }
         }
 

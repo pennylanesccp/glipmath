@@ -901,8 +901,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "margin-bottom: var(--gm-live-metrics-bottom-pull) !important;" in stylesheet
     assert "padding-top: var(--gm-topbar-alignment-offset);" in stylesheet
     assert "@media (max-width: 640px)" in stylesheet
-    assert "--gm-live-metrics-top-pull: -0.85rem;" in stylesheet
-    assert "--gm-live-metrics-bottom-pull: 0.05rem;" in stylesheet
+    assert "--gm-live-metrics-top-pull: -1.1rem;" in stylesheet
+    assert "--gm-live-metrics-bottom-pull: 0.3rem;" in stylesheet
     assert ".gm-live-question-card" in stylesheet
     assert "max-width: var(--gm-wide-surface-width);" in stylesheet
     assert "width: var(--gm-narrow-surface-width) !important;" in stylesheet
