@@ -876,14 +876,14 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "--gm-narrow-surface-width: calc(100% - 1.1rem);" in stylesheet
     assert "--gm-live-card-inline-padding: 1rem;" in stylesheet
     assert "--gm-live-question-top-gap: 0.46rem;" in stylesheet
-    assert "--gm-live-question-to-options-gap: 0.18rem;" in stylesheet
+    assert "--gm-live-question-to-options-gap: 0.62rem;" in stylesheet
     assert "--gm-live-question-to-actions-gap: 0.7rem;" in stylesheet
     assert "--gm-live-actions-to-review-gap: 0.72rem;" in stylesheet
     assert "--gm-live-review-card-gap: 0.62rem;" in stylesheet
     assert "--gm-live-review-to-actions-gap: 0.78rem;" in stylesheet
     assert "--gm-live-options-to-actions-gap: 0.86rem;" in stylesheet
     assert "--gm-pending-choice-gap: 0.48rem;" in stylesheet
-    assert "--gm-pending-choice-label-gap: 0.24rem;" in stylesheet
+    assert "--gm-pending-choice-label-gap: 0.32rem;" in stylesheet
     assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet
     assert "margin: 0;" in stylesheet
@@ -900,6 +900,9 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "margin-top: var(--gm-live-metrics-top-pull) !important;" in stylesheet
     assert "margin-bottom: var(--gm-live-metrics-bottom-pull) !important;" in stylesheet
     assert "padding-top: var(--gm-topbar-alignment-offset);" in stylesheet
+    assert "@media (max-width: 640px)" in stylesheet
+    assert "--gm-live-metrics-top-pull: -0.85rem;" in stylesheet
+    assert "--gm-live-metrics-bottom-pull: 0.05rem;" in stylesheet
     assert ".gm-live-question-card" in stylesheet
     assert "max-width: var(--gm-wide-surface-width);" in stylesheet
     assert "width: var(--gm-narrow-surface-width) !important;" in stylesheet

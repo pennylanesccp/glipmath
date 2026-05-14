@@ -1168,14 +1168,14 @@ def _apply_live_page_styles() -> None:
             --gm-narrow-surface-width: calc(100% - 1.1rem);
             --gm-live-card-inline-padding: 1rem;
             --gm-live-question-top-gap: 0.46rem;
-            --gm-live-question-to-options-gap: 0.18rem;
+            --gm-live-question-to-options-gap: 0.62rem;
             --gm-live-question-to-actions-gap: 0.7rem;
             --gm-live-actions-to-review-gap: 0.72rem;
             --gm-live-review-card-gap: 0.62rem;
             --gm-live-review-to-actions-gap: 0.78rem;
             --gm-live-options-to-actions-gap: 0.86rem;
             --gm-pending-choice-gap: 0.48rem;
-            --gm-pending-choice-label-gap: 0.24rem;
+            --gm-pending-choice-label-gap: 0.32rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
             --gm-sidebar-section-gap: 0.24rem;
@@ -2235,6 +2235,13 @@ def _apply_live_page_styles() -> None:
             div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child {
                 flex: 1 1 0 !important;
                 width: auto !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+            :root {
+                --gm-live-metrics-top-pull: -0.85rem;
+                --gm-live-metrics-bottom-pull: 0.05rem;
             }
         }
 
