@@ -628,6 +628,65 @@ def test_build_answer_review_card_html_uses_wrong_style_for_all_incorrect_option
     assert "Gabarito" not in correct_html
 
 
+def test_render_answered_state_repeats_result_actions_above_and_below_review_cards(monkeypatch) -> None:
+    calls: list[tuple[str, object]] = []
+    button_calls: list[dict[str, object]] = []
+
+    class FakeColumn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_columns(spec, **kwargs):
+        calls.append(("columns", {"spec": spec, **kwargs}))
+        return [FakeColumn(), FakeColumn()]
+
+    def fake_button(label, **kwargs):
+        button_calls.append({"label": label, **kwargs})
+        calls.append(("button", kwargs.get("key")))
+        return False
+
+    monkeypatch.setattr(main_page.st, "columns", fake_columns)
+    monkeypatch.setattr(main_page.st, "html", lambda html: calls.append(("html", html)))
+    monkeypatch.setattr(main_page.st, "button", fake_button)
+
+    main_page._render_answered_state(
+        alternatives=[
+            DisplayAlternative(
+                option_id="option_a",
+                alternative_text="4",
+                explanation="16 dividido por 4 Ã© igual a 4.",
+                is_correct=True,
+            ),
+            DisplayAlternative(
+                option_id="option_b",
+                alternative_text="6",
+                explanation="Se fossem 6 por prateleira, seriam 24 carrinhos.",
+                is_correct=False,
+            ),
+        ],
+        selected_option_id="option_a",
+        answer_is_correct=True,
+    )
+
+    assert [call for call in calls if call[0] == "columns"] == [
+        ("columns", {"spec": [1, 2], "vertical_alignment": "center"}),
+        ("columns", {"spec": [1, 2], "vertical_alignment": "center"}),
+    ]
+    assert [button_call["key"] for button_call in button_calls] == [
+        "gm_next_question_top",
+        "gm_next_question_bottom",
+    ]
+    assert "gm-live-status-chip--correct" in str(calls[1][1])
+    assert calls[2] == ("button", "gm_next_question_top")
+    assert "gm-live-answer-card--correct" in str(calls[3][1])
+    assert "gm-live-answer-card--wrong" in str(calls[4][1])
+    assert "gm-live-status-chip--correct" in str(calls[6][1])
+    assert calls[7] == ("button", "gm_next_question_bottom")
+
+
 def test_build_question_card_html_renders_markdown_snippets() -> None:
     html = main_page._build_question_card_html("```sql\nSELECT 1\n```")
 
@@ -776,7 +835,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert ".gm-live-question-card" in stylesheet
     assert "max-width: calc(100% - 1.1rem);" in stylesheet
     assert "padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;" in stylesheet
-    assert "padding-inline: var(--gm-live-card-inline-padding) !important;" in stylesheet
+    assert "flex: 1 1 0 !important;" in stylesheet
+    assert "flex: 2 1 0 !important;" in stylesheet
 
 
 def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch) -> None:
@@ -825,6 +885,10 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_apply_button_te
     assert "padding-top: 0.38rem !important;" in stylesheet
     assert "gm-sidebar-apply-filters-hook" in stylesheet
     assert 'button[kind="secondary"]' in stylesheet
+    assert "background: #fff4f4 !important;" in stylesheet
+    assert "border: 1px solid #f5a3a3 !important;" in stylesheet
+    assert "color: #b91c1c !important;" in stylesheet
+    assert '[data-testid="baseButton-secondary"]' in stylesheet
     assert "background: #edf4ff !important;" in stylesheet
     assert "color: #1d4ed8 !important;" in stylesheet
     assert "button:disabled" in stylesheet

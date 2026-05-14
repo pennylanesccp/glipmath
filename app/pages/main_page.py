@@ -272,15 +272,13 @@ def _render_pending_state_compact(
     answer_service: AnswerService,
     selected_option_id: str | None,
 ) -> None:
-    _, content_col, _ = st.columns([0.03, 0.94, 0.03], vertical_alignment="top")
-    with content_col:
-        _render_pending_interaction_fragment(
-            user=user,
-            current_question=current_question,
-            alternatives=alternatives,
-            answer_service=answer_service,
-            selected_option_id=selected_option_id,
-        )
+    _render_pending_interaction_fragment(
+        user=user,
+        current_question=current_question,
+        alternatives=alternatives,
+        answer_service=answer_service,
+        selected_option_id=selected_option_id,
+    )
 
 
 @st.fragment
@@ -296,15 +294,17 @@ def _render_pending_interaction_fragment(
         st.html(_build_info_card_html("Esta questão não possui alternativas disponíveis."))
         return
 
-    selected_option_id = _render_pending_alternative_radio(
-        current_question_id=current_question.id_question,
-        alternatives=alternatives,
-        selected_option_id=selected_option_id,
-    )
+    _, content_col, _ = st.columns([0.03, 0.94, 0.03], vertical_alignment="top")
+    with content_col:
+        selected_option_id = _render_pending_alternative_radio(
+            current_question_id=current_question.id_question,
+            alternatives=alternatives,
+            selected_option_id=selected_option_id,
+        )
 
     with st.container():
         st.html('<div class="gm-pending-actions-hook"></div>')
-        skip_col, verify_col = st.columns([0.88, 2.12], gap="small", vertical_alignment="bottom")
+        skip_col, verify_col = st.columns([1, 2], gap="small", vertical_alignment="bottom")
         with skip_col:
             skip_clicked = st.button(
                 "Pular",
@@ -396,7 +396,7 @@ def _render_pending_state(
 
     with st.container():
         st.html('<div class="gm-pending-actions-hook"></div>')
-        skip_col, verify_col = st.columns([0.88, 2.12], gap="small", vertical_alignment="bottom")
+        skip_col, verify_col = st.columns([1, 2], gap="small", vertical_alignment="bottom")
         with skip_col:
             skip_clicked = st.button(
                 "Pular",
@@ -476,6 +476,11 @@ def _render_answered_state(
     selected_option_id: str | None,
     answer_is_correct: bool,
 ) -> None:
+    next_clicked = _render_answer_result_actions(
+        answer_is_correct=answer_is_correct,
+        button_key="gm_next_question_top",
+    )
+
     for alternative in alternatives:
         st.html(
             _build_answer_review_card_html(
@@ -484,13 +489,35 @@ def _render_answered_state(
             )
         )
 
+    next_clicked = (
+        _render_answer_result_actions(
+            answer_is_correct=answer_is_correct,
+            button_key="gm_next_question_bottom",
+        )
+        or next_clicked
+    )
+    if next_clicked:
+        clear_current_question()
+        st.rerun()
+
+
+def _render_answer_result_actions(
+    *,
+    answer_is_correct: bool,
+    button_key: str,
+) -> bool:
     status_col, next_col = st.columns([1, 2], vertical_alignment="center")
     with status_col:
         st.html(_build_answer_status_chip_html(answer_is_correct))
     with next_col:
-        if st.button("Próxima questão", type="primary", use_container_width=True):
-            clear_current_question()
-            st.rerun()
+        return bool(
+            st.button(
+                "Próxima questão",
+                key=button_key,
+                type="primary",
+                use_container_width=True,
+            )
+        )
 
 
 def _submit_selected_answer(
@@ -1270,6 +1297,48 @@ def _apply_live_page_styles() -> None:
             padding-top: var(--gm-sidebar-actions-padding-top) !important;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button[kind="secondary"],
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"] {
+            background: #fff4f4 !important;
+            border: 1px solid #f5a3a3 !important;
+            box-shadow: none !important;
+            color: #b91c1c !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button *,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"] * {
+            color: #b91c1c !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:hover,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:active,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:hover,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:active {
+            background: #fee2e2 !important;
+            border-color: #f5a3a3 !important;
+            box-shadow: none !important;
+            color: #991b1b !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:focus,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:focus-visible,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:focus,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:focus-visible {
+            background: #fff4f4 !important;
+            border-color: #f5a3a3 !important;
+            box-shadow: 0 0 0 0.16rem rgba(245, 163, 163, 0.32) !important;
+            color: #b91c1c !important;
+            outline: none !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:hover *,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:active *,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:hover *,
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:active * {
+            color: #991b1b !important;
+        }
+
         section[data-testid="stSidebar"] [data-testid="stButton"] > button[kind="primary"] {
             color: #ffffff !important;
         }
@@ -1318,7 +1387,6 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] {
             box-sizing: border-box !important;
             flex-wrap: nowrap !important;
-            padding-inline: var(--gm-live-card-inline-padding) !important;
             width: 100% !important;
         }
 
@@ -1327,12 +1395,12 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child {
-            flex: 0 0 5.9rem !important;
-            width: 5.9rem !important;
+            flex: 1 1 0 !important;
+            width: auto !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child {
-            flex: 1 1 0 !important;
+            flex: 2 1 0 !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) [data-testid="stButton"] > button {
