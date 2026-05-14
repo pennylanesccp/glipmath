@@ -695,27 +695,14 @@ def test_build_question_card_html_renders_markdown_snippets() -> None:
     assert "SELECT 1" in html
 
 
-def test_render_question_card_uses_center_column_and_markdown(monkeypatch) -> None:
+def test_render_question_card_uses_wide_surface_and_markdown(monkeypatch) -> None:
     rendered_markdown: list[dict[str, object]] = []
-    column_calls: list[dict[str, object]] = []
-    entered_columns: list[str] = []
 
-    class FakeColumn:
-        def __init__(self, name: str) -> None:
-            self.name = name
-
-        def __enter__(self):
-            entered_columns.append(self.name)
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-    def fake_columns(spec, **kwargs):
-        column_calls.append({"spec": spec, **kwargs})
-        return [FakeColumn("left"), FakeColumn("content"), FakeColumn("right")]
-
-    monkeypatch.setattr(main_page.st, "columns", fake_columns)
+    monkeypatch.setattr(
+        main_page.st,
+        "columns",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("question card should render on the wide surface")),
+    )
     monkeypatch.setattr(
         main_page.st,
         "markdown",
@@ -724,13 +711,6 @@ def test_render_question_card_uses_center_column_and_markdown(monkeypatch) -> No
 
     main_page._render_question_card("Quanto é **2 + 2**?")
 
-    assert column_calls == [
-        {
-            "spec": [0.03, 0.94, 0.03],
-            "vertical_alignment": "top",
-        }
-    ]
-    assert entered_columns == ["content"]
     assert rendered_markdown[0]["unsafe_allow_html"] is True
     assert "gm-live-question-card" in str(rendered_markdown[0]["html"])
     assert "Quanto é" in str(rendered_markdown[0]["html"])
@@ -822,6 +802,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
     assert "--gm-topbar-alignment-offset: 0.2rem;" in stylesheet
+    assert "--gm-wide-surface-width: 100%;" in stylesheet
+    assert "--gm-narrow-surface-width: calc(100% - 1.1rem);" in stylesheet
     assert "--gm-live-card-inline-padding: 1rem;" in stylesheet
     assert "--gm-pending-choice-gap: 0.48rem;" in stylesheet
     assert "--gm-pending-choice-label-gap: 0.16rem;" in stylesheet
@@ -833,7 +815,9 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));" in stylesheet
     assert "padding-top: var(--gm-topbar-alignment-offset);" in stylesheet
     assert ".gm-live-question-card" in stylesheet
-    assert "max-width: calc(100% - 1.1rem);" in stylesheet
+    assert "max-width: var(--gm-wide-surface-width);" in stylesheet
+    assert "width: var(--gm-narrow-surface-width) !important;" in stylesheet
+    assert "max-width: var(--gm-narrow-surface-width);" in stylesheet
     assert "padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;" in stylesheet
     assert "flex: 1 1 0 !important;" in stylesheet
     assert "flex: 2 1 0 !important;" in stylesheet

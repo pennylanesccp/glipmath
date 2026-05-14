@@ -143,9 +143,7 @@ def render_main_page(
 
 
 def _render_question_card(statement: str) -> None:
-    _, content_col, _ = st.columns([0.03, 0.94, 0.03], vertical_alignment="top")
-    with content_col:
-        st.markdown(_build_question_card_html(statement), unsafe_allow_html=True)
+    st.markdown(_build_question_card_html(statement), unsafe_allow_html=True)
 
 
 def _render_sidebar_subject_topic_filters(
@@ -294,13 +292,11 @@ def _render_pending_interaction_fragment(
         st.html(_build_info_card_html("Esta questão não possui alternativas disponíveis."))
         return
 
-    _, content_col, _ = st.columns([0.03, 0.94, 0.03], vertical_alignment="top")
-    with content_col:
-        selected_option_id = _render_pending_alternative_radio(
-            current_question_id=current_question.id_question,
-            alternatives=alternatives,
-            selected_option_id=selected_option_id,
-        )
+    selected_option_id = _render_pending_alternative_radio(
+        current_question_id=current_question.id_question,
+        alternatives=alternatives,
+        selected_option_id=selected_option_id,
+    )
 
     with st.container():
         st.html('<div class="gm-pending-actions-hook"></div>')
@@ -1162,6 +1158,8 @@ def _apply_live_page_styles() -> None:
         <style>
         :root {
             --gm-topbar-alignment-offset: 0.2rem;
+            --gm-wide-surface-width: 100%;
+            --gm-narrow-surface-width: calc(100% - 1.1rem);
             --gm-live-card-inline-padding: 1rem;
             --gm-pending-choice-gap: 0.48rem;
             --gm-pending-choice-label-gap: 0.16rem;
@@ -1382,6 +1380,10 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) {
             gap: var(--gm-pending-choice-label-gap) !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            max-width: var(--gm-narrow-surface-width) !important;
+            width: var(--gm-narrow-surface-width) !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] {
@@ -1521,8 +1523,8 @@ def _apply_live_page_styles() -> None:
             box-sizing: border-box;
             margin-left: auto;
             margin-right: auto;
-            max-width: calc(100% - 1.1rem);
-            width: calc(100% - 1.1rem);
+            max-width: var(--gm-wide-surface-width);
+            width: var(--gm-wide-surface-width);
         }
 
         .gm-live-card-title {
@@ -1615,8 +1617,8 @@ def _apply_live_page_styles() -> None:
             margin-bottom: 0 !important;
             margin-left: auto;
             margin-right: auto;
-            max-width: calc(100% - 1.1rem);
-            width: calc(100% - 1.1rem);
+            max-width: var(--gm-narrow-surface-width);
+            width: var(--gm-narrow-surface-width);
         }
 
         .gm-live-pending-label {
@@ -1951,8 +1953,8 @@ def _apply_live_page_styles() -> None:
             display: block !important;
             margin-left: auto !important;
             margin-right: auto !important;
-            max-width: calc(100% - 1.1rem) !important;
-            width: calc(100% - 1.1rem) !important;
+            max-width: 100% !important;
+            width: 100% !important;
         }
 
         div[data-testid="stRadio"] > label {
@@ -1963,7 +1965,6 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stElementContainer"]:has(div[data-testid="stRadio"]),
         div[data-testid="stElementContainer"]:has(div[data-testid="stRadio"]) > div,
-        div[data-testid="stRadio"],
         div[data-testid="stRadio"] > div:first-of-type,
         div[data-testid="stRadio"] > div,
         div[data-testid="stRadio"] [role="radiogroup"] {
