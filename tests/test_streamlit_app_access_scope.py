@@ -306,5 +306,6 @@ def test_apply_workspace_shell_styles_formats_logout_divider_spacing(monkeypatch
     assert "border: 1px solid #f5a3a3 !important;" in stylesheet
     assert "color: #b91c1c !important;" in stylesheet
     assert '[data-testid="baseButton-secondary"]' in stylesheet
+    assert ".st-key-gm_sidebar_logout_button" in stylesheet
     assert "box-shadow: 0 0 0 0.16rem rgba(245, 163, 163, 0.32) !important;" in stylesheet
     assert "stSegmentedControl" in stylesheet

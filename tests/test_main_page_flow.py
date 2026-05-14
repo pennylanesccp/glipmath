@@ -891,6 +891,8 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_apply_button_te
     assert "border: 1px solid #f5a3a3 !important;" in stylesheet
     assert "color: #b91c1c !important;" in stylesheet
     assert '[data-testid="baseButton-secondary"]' in stylesheet
+    assert ".st-key-gm_sidebar_logout_button" in stylesheet
+    assert stylesheet.rfind(".st-key-gm_sidebar_logout_button") > stylesheet.rfind("background: #edf4ff !important;")
     assert "background: #edf4ff !important;" in stylesheet
     assert "color: #1d4ed8 !important;" in stylesheet
     assert "button:disabled" in stylesheet
