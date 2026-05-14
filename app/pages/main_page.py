@@ -59,6 +59,35 @@ DAY_STREAK_DESCRIPTION = "Dias seguidos com atividade."
 QUESTION_STREAK_DESCRIPTION = "Sequência atual de respostas corretas."
 RANK_DESCRIPTION = "Sua posição atual no ranking."
 TIMER_DESCRIPTION = "Tempo gasto na questão atual."
+QUIZ_LAYOUT_SPACING = {
+    "mobile": {
+        "page_top_to_status": "12px",
+        "status_to_question": "30px",
+        "question_to_alternatives": "12px",
+        "alternative_label_to_options": "10px",
+        "option_gap": "12px",
+        "alternatives_to_actions": "34px",
+        "page_bottom": "32px",
+    },
+    "desktop": {
+        "page_top_to_status": "20px",
+        "status_to_question": "32px",
+        "question_to_alternatives": "14px",
+        "alternative_label_to_options": "12px",
+        "option_gap": "12px",
+        "alternatives_to_actions": "36px",
+        "page_bottom": "40px",
+    },
+}
+QUIZ_LAYOUT_SPACING_VARIABLES = {
+    "page_top_to_status": "--gm-quiz-page-top-to-status",
+    "status_to_question": "--gm-quiz-status-to-question",
+    "question_to_alternatives": "--gm-quiz-question-to-alternatives",
+    "alternative_label_to_options": "--gm-quiz-alternative-label-to-options",
+    "option_gap": "--gm-quiz-option-gap",
+    "alternatives_to_actions": "--gm-quiz-alternatives-to-actions",
+    "page_bottom": "--gm-quiz-page-bottom",
+}
 
 
 def render_main_page(
@@ -300,7 +329,7 @@ def _render_pending_interaction_fragment(
     )
 
     with st.container():
-        st.html('<div class="gm-pending-actions-hook"></div>')
+        st.html('<div class="gm-quiz-layout-hook gm-quiz-actions-block gm-pending-actions-hook"></div>')
         skip_col, verify_col = st.columns([1, 2], gap="small", vertical_alignment="bottom")
         with skip_col:
             skip_clicked = st.button(
@@ -350,7 +379,7 @@ def _render_pending_alternative_radio(
     selected_option_id: str | None,
 ) -> str | None:
     with st.container():
-        st.html('<div class="gm-live-pending-options-hook"></div>')
+        st.html('<div class="gm-quiz-layout-hook gm-quiz-alternatives-block gm-live-pending-options-hook"></div>')
         st.html('<div class="gm-live-pending-label">Escolha uma alternativa</div>')
 
         option_ids = [alternative.option_id for alternative in alternatives]
@@ -392,7 +421,7 @@ def _render_pending_state(
     )
 
     with st.container():
-        st.html('<div class="gm-pending-actions-hook"></div>')
+        st.html('<div class="gm-quiz-layout-hook gm-quiz-actions-block gm-pending-actions-hook"></div>')
         skip_col, verify_col = st.columns([1, 2], gap="small", vertical_alignment="bottom")
         with skip_col:
             skip_clicked = st.button(
@@ -607,12 +636,14 @@ def _build_metrics_bar_html(
     timer_icon_data_uri: str,
 ) -> str:
     return (
+        '<section class="gm-quiz-status-block">'
         '<div class="gm-live-metrics-bar">'
         f"{_build_metric_chip_html(day_streak_text, calendar_icon_data_uri, description=DAY_STREAK_DESCRIPTION)}"
         f"{_build_metric_chip_html(question_streak_text, fire_icon_data_uri, description=QUESTION_STREAK_DESCRIPTION)}"
         f"{_build_metric_chip_html(rank_text, podium_icon_data_uri, description=RANK_DESCRIPTION)}"
         f"{_build_metric_chip_html(timer_text, timer_icon_data_uri, description=TIMER_DESCRIPTION, is_timer=True, timer_warning=timer_warning)}"
         "</div>"
+        "</section>"
     )
 
 
@@ -692,7 +723,7 @@ def _render_live_metrics_bar_fragment(
 
 def _build_question_card_html(statement: str) -> str:
     return (
-        '<section class="gm-live-card gm-live-question-card">'
+        '<section class="gm-quiz-question-block gm-live-card gm-live-question-card">'
         '<div class="gm-live-card-title">Questão</div>'
         f'<div class="gm-live-question-text">{_text_to_html(statement)}</div>'
         "</section>"
@@ -1156,26 +1187,45 @@ def _load_icon_data_uri(relative_path: str) -> str:
         return ""
 
 
+def _build_quiz_layout_spacing_css() -> str:
+    mobile_spacing = _build_quiz_layout_spacing_declarations("mobile", indent="            ")
+    desktop_spacing = _build_quiz_layout_spacing_declarations("desktop", indent="                ")
+    return (
+        "        :root {\n"
+        f"{mobile_spacing}\n"
+        "        }\n\n"
+        "        @media (min-width: 641px) {\n"
+        "            :root {\n"
+        f"{desktop_spacing}\n"
+        "            }\n"
+        "        }\n"
+    )
+
+
+def _build_quiz_layout_spacing_declarations(breakpoint: str, *, indent: str) -> str:
+    spacing = QUIZ_LAYOUT_SPACING[breakpoint]
+    return "\n".join(
+        f"{indent}{css_variable}: {spacing[token]};"
+        for token, css_variable in QUIZ_LAYOUT_SPACING_VARIABLES.items()
+    )
+
+
 def _apply_live_page_styles() -> None:
     st.markdown(
-        """
+        (
+            """
         <style>
+"""
+            + _build_quiz_layout_spacing_css()
+            + """
         :root {
-            --gm-topbar-alignment-offset: 0rem;
-            --gm-live-metrics-top-pull: -0.62rem;
-            --gm-live-metrics-bottom-pull: -0.18rem;
             --gm-wide-surface-width: 100%;
             --gm-narrow-surface-width: calc(100% - 1.1rem);
             --gm-live-card-inline-padding: 1rem;
-            --gm-live-question-top-gap: 0.46rem;
-            --gm-live-question-to-options-gap: 0.62rem;
-            --gm-live-question-to-actions-gap: 0.7rem;
             --gm-live-actions-to-review-gap: 0.72rem;
             --gm-live-review-card-gap: 0.62rem;
             --gm-live-review-to-actions-gap: 0.78rem;
-            --gm-live-options-to-actions-gap: 0.86rem;
-            --gm-pending-choice-gap: 0.48rem;
-            --gm-pending-choice-label-gap: 0.32rem;
+            --gm-pending-choice-content-gap: 0.48rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
             --gm-sidebar-section-gap: 0.24rem;
@@ -1198,7 +1248,7 @@ def _apply_live_page_styles() -> None:
         .block-container {
             max-width: 480px;
             padding-top: 0;
-            padding-bottom: 0.75rem;
+            padding-bottom: var(--gm-quiz-page-bottom);
         }
 
         .block-container > div[data-testid="stVerticalBlock"] {
@@ -1207,6 +1257,14 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stVerticalBlock"] {
             gap: 0.55rem !important;
+        }
+
+        .block-container > div[data-testid="stVerticalBlock"]:has(.gm-quiz-status-block):has(.gm-quiz-question-block) {
+            gap: 0 !important;
+        }
+
+        div[data-testid="stElementContainer"]:has(.gm-quiz-layout-hook) {
+            display: none !important;
         }
 
         div[data-testid="stHorizontalBlock"] {
@@ -1391,28 +1449,28 @@ def _apply_live_page_styles() -> None:
             color: #1d4ed8 !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-live-pending-options-hook) {
-            gap: var(--gm-pending-choice-label-gap) !important;
-            margin-top: var(--gm-live-question-to-options-gap) !important;
+        div[data-testid="stVerticalBlock"]:has(.gm-quiz-alternatives-block):not(:has(.gm-quiz-status-block)) {
+            gap: var(--gm-quiz-alternative-label-to-options) !important;
+            margin-top: var(--gm-quiz-question-to-alternatives) !important;
             margin-left: auto !important;
             margin-right: auto !important;
             max-width: var(--gm-narrow-surface-width) !important;
             width: var(--gm-narrow-surface-width) !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) {
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook):not(:has(.gm-quiz-status-block)) {
             gap: 0.28rem !important;
             margin-left: auto !important;
             margin-right: auto !important;
             width: var(--gm-wide-surface-width) !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook--top) {
-            margin-top: var(--gm-live-question-to-actions-gap) !important;
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook--top):not(:has(.gm-quiz-status-block)) {
+            margin-top: var(--gm-quiz-question-to-alternatives) !important;
             margin-bottom: var(--gm-live-actions-to-review-gap) !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook--bottom) {
+        div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook--bottom):not(:has(.gm-quiz-status-block)) {
             margin-top: var(--gm-live-review-to-actions-gap) !important;
         }
 
@@ -1428,8 +1486,8 @@ def _apply_live_page_styles() -> None:
             width: 100% !important;
         }
 
-        div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) {
-            margin-top: var(--gm-live-options-to-actions-gap) !important;
+        div[data-testid="stVerticalBlock"]:has(.gm-quiz-actions-block):not(:has(.gm-quiz-status-block)) {
+            margin-top: var(--gm-quiz-alternatives-to-actions) !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div,
@@ -1541,23 +1599,22 @@ def _apply_live_page_styles() -> None:
             filter: brightness(0) saturate(100%) invert(24%) sepia(97%) saturate(2652%) hue-rotate(351deg) brightness(89%) contrast(95%);
         }
 
-        div[data-testid="stElementContainer"]:has(.gm-live-metrics-bar) {
+        div[data-testid="stElementContainer"]:has(.gm-quiz-status-block) {
             align-items: center;
             box-sizing: border-box;
             display: flex;
-            margin-top: var(--gm-live-metrics-top-pull) !important;
-            margin-bottom: var(--gm-live-metrics-bottom-pull) !important;
-            min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));
-            padding-top: var(--gm-topbar-alignment-offset);
+            margin-top: var(--gm-quiz-page-top-to-status) !important;
+            margin-bottom: 0 !important;
+            min-height: 2.55rem;
             width: 100%;
         }
 
-        div[data-testid="stElementContainer"]:has(.gm-live-metrics-bar) > div {
+        div[data-testid="stElementContainer"]:has(.gm-quiz-status-block) > div {
             width: 100%;
         }
 
-        div[data-testid="stElementContainer"]:has(.gm-live-question-card) {
-            margin-top: var(--gm-live-question-top-gap) !important;
+        div[data-testid="stElementContainer"]:has(.gm-quiz-question-block) {
+            margin-top: var(--gm-quiz-status-to-question) !important;
         }
 
         div[data-testid="stElementContainer"]:has(.gm-live-answer-card) {
@@ -1715,7 +1772,7 @@ def _apply_live_page_styles() -> None:
         .gm-live-pending-choice-row {
             align-items: flex-start;
             display: flex;
-            gap: var(--gm-pending-choice-gap);
+            gap: var(--gm-pending-choice-content-gap);
         }
 
         .gm-live-pending-choice-dot {
@@ -2031,7 +2088,7 @@ def _apply_live_page_styles() -> None:
             align-items: stretch !important;
             display: flex !important;
             flex-direction: column !important;
-            gap: var(--gm-pending-choice-gap) !important;
+            gap: var(--gm-quiz-option-gap) !important;
             max-width: none !important;
             width: 100% !important;
         }
@@ -2056,7 +2113,7 @@ def _apply_live_page_styles() -> None:
             box-sizing: border-box;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
             cursor: pointer !important;
-            column-gap: var(--gm-pending-choice-gap) !important;
+            column-gap: var(--gm-pending-choice-content-gap) !important;
             display: grid !important;
             grid-template-columns: 1rem minmax(0, 1fr);
             inline-size: 100% !important;
@@ -2238,13 +2295,6 @@ def _apply_live_page_styles() -> None:
             }
         }
 
-        @media (max-width: 640px) {
-            :root {
-                --gm-live-metrics-top-pull: -1.1rem;
-                --gm-live-metrics-bottom-pull: 0.3rem;
-            }
-        }
-
         div[data-testid="stAlert"] {
             background: #ffffff !important;
             border: 1px solid #dbeafe !important;
@@ -2255,6 +2305,7 @@ def _apply_live_page_styles() -> None:
             color: #0f172a !important;
         }
         </style>
-        """,
+        """
+        ),
         unsafe_allow_html=True,
     )

@@ -693,6 +693,7 @@ def test_render_answered_state_repeats_result_actions_above_and_below_review_car
 def test_build_question_card_html_renders_markdown_snippets() -> None:
     html = main_page._build_question_card_html("```sql\nSELECT 1\n```")
 
+    assert "gm-quiz-question-block" in html
     assert "gm-live-question-card" in html
     assert "<pre>" in html
     assert "SELECT 1" in html
@@ -838,7 +839,7 @@ def test_render_pending_alternative_radio_groups_label_and_options(monkeypatch) 
 
     assert selected_option == "option_b"
     assert rendered_html == [
-        '<div class="gm-live-pending-options-hook"></div>',
+        '<div class="gm-quiz-layout-hook gm-quiz-alternatives-block gm-live-pending-options-hook"></div>',
         '<div class="gm-live-pending-label">Escolha uma alternativa</div>',
     ]
     assert radio_calls == [
@@ -868,41 +869,59 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-topbar-alignment-offset: 0rem;" in stylesheet
-    assert "--gm-live-metrics-top-pull: -0.62rem;" in stylesheet
-    assert "--gm-live-metrics-bottom-pull: -0.18rem;" in stylesheet
+    assert "--gm-quiz-page-top-to-status: 12px;" in stylesheet
+    assert "--gm-quiz-status-to-question: 30px;" in stylesheet
+    assert "--gm-quiz-question-to-alternatives: 12px;" in stylesheet
+    assert "--gm-quiz-alternative-label-to-options: 10px;" in stylesheet
+    assert "--gm-quiz-option-gap: 12px;" in stylesheet
+    assert "--gm-quiz-alternatives-to-actions: 34px;" in stylesheet
+    assert "--gm-quiz-page-bottom: 32px;" in stylesheet
+    assert "@media (min-width: 641px)" in stylesheet
+    assert "--gm-quiz-page-top-to-status: 20px;" in stylesheet
+    assert "--gm-quiz-status-to-question: 32px;" in stylesheet
+    assert "--gm-quiz-question-to-alternatives: 14px;" in stylesheet
+    assert "--gm-quiz-alternative-label-to-options: 12px;" in stylesheet
+    assert "--gm-quiz-alternatives-to-actions: 36px;" in stylesheet
+    assert "--gm-quiz-page-bottom: 40px;" in stylesheet
     assert "padding-top: 0;" in stylesheet
+    assert "padding-bottom: var(--gm-quiz-page-bottom);" in stylesheet
     assert "--gm-wide-surface-width: 100%;" in stylesheet
     assert "--gm-narrow-surface-width: calc(100% - 1.1rem);" in stylesheet
     assert "--gm-live-card-inline-padding: 1rem;" in stylesheet
-    assert "--gm-live-question-top-gap: 0.46rem;" in stylesheet
-    assert "--gm-live-question-to-options-gap: 0.62rem;" in stylesheet
-    assert "--gm-live-question-to-actions-gap: 0.7rem;" in stylesheet
     assert "--gm-live-actions-to-review-gap: 0.72rem;" in stylesheet
     assert "--gm-live-review-card-gap: 0.62rem;" in stylesheet
     assert "--gm-live-review-to-actions-gap: 0.78rem;" in stylesheet
-    assert "--gm-live-options-to-actions-gap: 0.86rem;" in stylesheet
-    assert "--gm-pending-choice-gap: 0.48rem;" in stylesheet
-    assert "--gm-pending-choice-label-gap: 0.32rem;" in stylesheet
+    assert "--gm-pending-choice-content-gap: 0.48rem;" in stylesheet
     assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet
+    for deprecated_variable in (
+        "--gm-topbar-alignment-offset",
+        "--gm-live-metrics-top-pull",
+        "--gm-live-metrics-bottom-pull",
+        "--gm-live-question-top-gap",
+        "--gm-live-question-to-options-gap",
+        "--gm-live-question-to-actions-gap",
+        "--gm-live-options-to-actions-gap",
+        "--gm-pending-choice-label-gap",
+        "--gm-pending-choice-gap",
+    ):
+        assert deprecated_variable not in stylesheet
     assert "margin: 0;" in stylesheet
     assert "gm-answer-actions-hook" in stylesheet
-    assert "margin-top: var(--gm-live-question-to-options-gap) !important;" in stylesheet
-    assert "margin-top: var(--gm-live-question-to-actions-gap) !important;" in stylesheet
+    assert "gm-quiz-alternatives-block" in stylesheet
+    assert "gm-quiz-actions-block" in stylesheet
+    assert "gap: 0 !important;" in stylesheet
+    assert "margin-top: var(--gm-quiz-question-to-alternatives) !important;" in stylesheet
     assert "margin-bottom: var(--gm-live-actions-to-review-gap) !important;" in stylesheet
     assert "margin-top: var(--gm-live-review-card-gap) !important;" in stylesheet
     assert "margin-top: var(--gm-live-review-to-actions-gap) !important;" in stylesheet
-    assert "margin-top: var(--gm-live-options-to-actions-gap) !important;" in stylesheet
-    assert "gap: var(--gm-pending-choice-gap) !important;" in stylesheet
-    assert "column-gap: var(--gm-pending-choice-gap) !important;" in stylesheet
-    assert "min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));" in stylesheet
-    assert "margin-top: var(--gm-live-metrics-top-pull) !important;" in stylesheet
-    assert "margin-bottom: var(--gm-live-metrics-bottom-pull) !important;" in stylesheet
-    assert "padding-top: var(--gm-topbar-alignment-offset);" in stylesheet
-    assert "@media (max-width: 640px)" in stylesheet
-    assert "--gm-live-metrics-top-pull: -1.1rem;" in stylesheet
-    assert "--gm-live-metrics-bottom-pull: 0.3rem;" in stylesheet
+    assert "margin-top: var(--gm-quiz-alternatives-to-actions) !important;" in stylesheet
+    assert "gap: var(--gm-quiz-alternative-label-to-options) !important;" in stylesheet
+    assert "gap: var(--gm-quiz-option-gap) !important;" in stylesheet
+    assert "column-gap: var(--gm-pending-choice-content-gap) !important;" in stylesheet
+    assert "min-height: 2.55rem;" in stylesheet
+    assert "margin-top: var(--gm-quiz-page-top-to-status) !important;" in stylesheet
+    assert "margin-top: var(--gm-quiz-status-to-question) !important;" in stylesheet
     assert ".gm-live-question-card" in stylesheet
     assert "max-width: var(--gm-wide-surface-width);" in stylesheet
     assert "width: var(--gm-narrow-surface-width) !important;" in stylesheet
@@ -1015,6 +1034,7 @@ def test_build_metrics_bar_html_orders_day_and_question_streak_icons() -> None:
         timer_icon_data_uri="timer-uri",
     )
 
+    assert "gm-quiz-status-block" in html
     assert html.index("calendar-uri") < html.index("fire-uri")
     assert html.index("fire-uri") < html.index("podium-uri")
     assert ">5<" in html
