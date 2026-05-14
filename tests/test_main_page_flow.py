@@ -801,7 +801,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-topbar-alignment-offset: 0.2rem;" in stylesheet
+    assert "--gm-topbar-alignment-offset: 0rem;" in stylesheet
+    assert "padding-top: 0;" in stylesheet
     assert "--gm-wide-surface-width: 100%;" in stylesheet
     assert "--gm-narrow-surface-width: calc(100% - 1.1rem);" in stylesheet
     assert "--gm-live-card-inline-padding: 1rem;" in stylesheet

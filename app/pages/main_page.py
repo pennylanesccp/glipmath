@@ -1157,7 +1157,7 @@ def _apply_live_page_styles() -> None:
         """
         <style>
         :root {
-            --gm-topbar-alignment-offset: 0.2rem;
+            --gm-topbar-alignment-offset: 0rem;
             --gm-wide-surface-width: 100%;
             --gm-narrow-surface-width: calc(100% - 1.1rem);
             --gm-live-card-inline-padding: 1rem;
@@ -1184,7 +1184,7 @@ def _apply_live_page_styles() -> None:
 
         .block-container {
             max-width: 480px;
-            padding-top: 0.1rem;
+            padding-top: 0;
             padding-bottom: 0.75rem;
         }
 
