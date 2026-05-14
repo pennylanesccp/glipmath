@@ -123,9 +123,8 @@ def render_main_page(
         )
         return
 
-    _render_question_card(current_question.statement)
-
     if question_answered:
+        _render_question_card(current_question.statement)
         _render_answered_state(
             alternatives=alternatives,
             selected_option_id=selected_option_id,
@@ -288,6 +287,8 @@ def _render_pending_interaction_fragment(
     answer_service: AnswerService,
     selected_option_id: str | None,
 ) -> None:
+    _render_question_card(current_question.statement)
+
     if not alternatives:
         st.html(_build_info_card_html("Esta questão não possui alternativas disponíveis."))
         return
@@ -1161,18 +1162,20 @@ def _apply_live_page_styles() -> None:
         <style>
         :root {
             --gm-topbar-alignment-offset: 0rem;
+            --gm-live-metrics-top-pull: -0.62rem;
+            --gm-live-metrics-bottom-pull: -0.18rem;
             --gm-wide-surface-width: 100%;
             --gm-narrow-surface-width: calc(100% - 1.1rem);
             --gm-live-card-inline-padding: 1rem;
             --gm-live-question-top-gap: 0.46rem;
-            --gm-live-question-to-options-gap: 0.72rem;
+            --gm-live-question-to-options-gap: 0.18rem;
             --gm-live-question-to-actions-gap: 0.7rem;
             --gm-live-actions-to-review-gap: 0.72rem;
             --gm-live-review-card-gap: 0.62rem;
             --gm-live-review-to-actions-gap: 0.78rem;
             --gm-live-options-to-actions-gap: 0.86rem;
             --gm-pending-choice-gap: 0.48rem;
-            --gm-pending-choice-label-gap: 0.38rem;
+            --gm-pending-choice-label-gap: 0.24rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
             --gm-sidebar-section-gap: 0.24rem;
@@ -1542,6 +1545,8 @@ def _apply_live_page_styles() -> None:
             align-items: center;
             box-sizing: border-box;
             display: flex;
+            margin-top: var(--gm-live-metrics-top-pull) !important;
+            margin-bottom: var(--gm-live-metrics-bottom-pull) !important;
             min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));
             padding-top: var(--gm-topbar-alignment-offset);
             width: 100%;

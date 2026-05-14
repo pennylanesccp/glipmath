@@ -719,6 +719,70 @@ def test_render_question_card_uses_wide_surface_and_markdown(monkeypatch) -> Non
     assert "Quanto é" in str(rendered_markdown[0]["html"])
 
 
+def test_pending_interaction_fragment_renders_question_with_alternatives(monkeypatch) -> None:
+    calls: list[tuple[str, object]] = []
+
+    class FakeColumn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(main_page.st, "container", lambda: nullcontext())
+    monkeypatch.setattr(
+        main_page.st,
+        "columns",
+        lambda *args, **kwargs: [FakeColumn(), FakeColumn()],
+    )
+    monkeypatch.setattr(
+        main_page.st,
+        "button",
+        lambda label, **kwargs: calls.append(("button", kwargs.get("key"))) or False,
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_render_question_card",
+        lambda statement: calls.append(("question", statement)),
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_render_pending_alternative_radio",
+        lambda **kwargs: calls.append(("alternatives", kwargs["current_question_id"])) or None,
+    )
+
+    pending_fragment = main_page._render_pending_interaction_fragment.__wrapped__
+    pending_fragment(
+        user=User(email="ana@example.com", name="Ana"),
+        current_question=Question(
+            id_question=17,
+            statement="Quanto Ã© 2 + 2?",
+            correct_answer=QuestionAlternative("4"),
+            wrong_answers=(QuestionAlternative("3"),),
+            subject="MatemÃ¡tica",
+        ),
+        alternatives=[
+            DisplayAlternative(
+                option_id="option_a",
+                alternative_text="4",
+                explanation=None,
+                is_correct=True,
+            )
+        ],
+        answer_service=SimpleNamespace(),
+        selected_option_id=None,
+    )
+
+    assert calls[:2] == [
+        ("question", "Quanto Ã© 2 + 2?"),
+        ("alternatives", 17),
+    ]
+    assert calls[2:] == [
+        ("button", "gm_skip_question_17"),
+        ("button", "gm_verify_question_17"),
+    ]
+
+
 def test_build_pending_alternative_card_html_renders_markdown_and_selected_state() -> None:
     html = main_page._build_pending_alternative_card_html(
         alternative=DisplayAlternative(
@@ -805,19 +869,21 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
     assert "--gm-topbar-alignment-offset: 0rem;" in stylesheet
+    assert "--gm-live-metrics-top-pull: -0.62rem;" in stylesheet
+    assert "--gm-live-metrics-bottom-pull: -0.18rem;" in stylesheet
     assert "padding-top: 0;" in stylesheet
     assert "--gm-wide-surface-width: 100%;" in stylesheet
     assert "--gm-narrow-surface-width: calc(100% - 1.1rem);" in stylesheet
     assert "--gm-live-card-inline-padding: 1rem;" in stylesheet
     assert "--gm-live-question-top-gap: 0.46rem;" in stylesheet
-    assert "--gm-live-question-to-options-gap: 0.72rem;" in stylesheet
+    assert "--gm-live-question-to-options-gap: 0.18rem;" in stylesheet
     assert "--gm-live-question-to-actions-gap: 0.7rem;" in stylesheet
     assert "--gm-live-actions-to-review-gap: 0.72rem;" in stylesheet
     assert "--gm-live-review-card-gap: 0.62rem;" in stylesheet
     assert "--gm-live-review-to-actions-gap: 0.78rem;" in stylesheet
     assert "--gm-live-options-to-actions-gap: 0.86rem;" in stylesheet
     assert "--gm-pending-choice-gap: 0.48rem;" in stylesheet
-    assert "--gm-pending-choice-label-gap: 0.38rem;" in stylesheet
+    assert "--gm-pending-choice-label-gap: 0.24rem;" in stylesheet
     assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet
     assert "margin: 0;" in stylesheet
@@ -831,6 +897,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "column-gap: var(--gm-pending-choice-gap) !important;" in stylesheet
     assert "min-height: calc(2.55rem + var(--gm-topbar-alignment-offset));" in stylesheet
+    assert "margin-top: var(--gm-live-metrics-top-pull) !important;" in stylesheet
+    assert "margin-bottom: var(--gm-live-metrics-bottom-pull) !important;" in stylesheet
     assert "padding-top: var(--gm-topbar-alignment-offset);" in stylesheet
     assert ".gm-live-question-card" in stylesheet
     assert "max-width: var(--gm-wide-surface-width);" in stylesheet
