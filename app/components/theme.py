@@ -19,8 +19,11 @@ def apply_app_theme() -> None:
             box-shadow: none !important;
         }
 
-        [data-testid="stHeader"] [data-testid="stToolbarActions"],
-        [data-testid="stHeader"] [data-testid="stToolbarActionButton"] {
+        .stToolbarActions,
+        .stToolbarActionButton,
+        [data-testid="stToolbarActions"],
+        [data-testid="stToolbarActionButton"],
+        [data-testid="stAppDeployButton"] {
             display: none !important;
         }
 

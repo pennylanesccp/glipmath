@@ -800,6 +800,60 @@ def test_build_pending_alternative_card_html_renders_markdown_and_selected_state
     assert "print('ok')" in html
 
 
+def test_build_question_card_html_moves_show_and_hint_below_board() -> None:
+    html = main_page._build_question_card_html(
+        "Generated 5 puzzles from 8 games.\n"
+        "Move the rook on c8.\n"
+        '<button type="button">Show</button>\n'
+        '<button type="button">Hint</button>\n'
+        '<table class="gm-board"><tr><td class="square-c8">1</td></tr></table>'
+    )
+
+    assert "Generated 5 puzzles from 8 games." not in html
+    assert "Move the rook on c8." not in html
+    assert 'class="gm-question-board-source-square-style"' in html
+    assert 'square-c8' in html
+    assert '[data-square="c8"]' in html
+    assert '[data-square="C8"]' in html
+    assert 'class="gm-question-board-controls"' in html
+    assert html.index('<table class="gm-board">') < html.index('class="gm-question-board-controls"')
+    assert html.index("Show") > html.index('<table class="gm-board">')
+    assert html.index("Hint") > html.index('<table class="gm-board">')
+
+
+def test_build_question_card_html_leaves_non_board_buttons_in_place() -> None:
+    html = main_page._build_question_card_html(
+        '<button type="button">Enviar</button>\n'
+        '<table class="gm-board"><tr><td>1</td></tr></table>'
+    )
+
+    assert 'class="gm-question-board-controls"' not in html
+    assert html.index("Enviar") < html.index('<table class="gm-board">')
+
+
+def test_build_question_card_html_removes_generated_board_status_without_controls() -> None:
+    html = main_page._build_question_card_html(
+        "Generated 12 puzzles from 21 games.\n"
+        '<table class="gm-board"><tr><td>1</td></tr></table>'
+    )
+
+    assert "Generated 12 puzzles from 21 games." not in html
+    assert '<table class="gm-board">' in html
+
+
+def test_build_question_card_html_removes_move_instruction_without_controls() -> None:
+    html = main_page._build_question_card_html(
+        "Move the knight on b1.\n"
+        '<table class="gm-board"><tr><td data-square="b1">N</td></tr></table>'
+    )
+
+    assert "Move the knight on b1." not in html
+    assert '<table class="gm-board">' in html
+    assert 'class="gm-question-board-source-square-style"' in html
+    assert '[data-square="b1"]' in html
+    assert '[data-square="B1"]' in html
+
+
 def test_render_pending_alternative_radio_groups_label_and_options(monkeypatch) -> None:
     rendered_html: list[str] = []
     selection_updates: list[str | None] = []
@@ -923,6 +977,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "margin-top: var(--gm-quiz-page-top-to-status) !important;" in stylesheet
     assert "margin-top: var(--gm-quiz-status-to-question) !important;" in stylesheet
     assert ".gm-live-question-card" in stylesheet
+    assert ".gm-question-board-controls" in stylesheet
+    assert ".gm-question-board-controls button" in stylesheet
     assert "max-width: var(--gm-wide-surface-width);" in stylesheet
     assert "width: var(--gm-narrow-surface-width) !important;" in stylesheet
     assert "max-width: var(--gm-narrow-surface-width);" in stylesheet

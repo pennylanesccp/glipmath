@@ -13,3 +13,6 @@ fileWatcherType = "none"
 showErrorDetails = true
 showSidebarNavigation = false
 toolbarMode = "minimal"
+
+[ui]
+hideTopBar = true
