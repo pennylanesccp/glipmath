@@ -53,6 +53,7 @@ def test_parse_question_bank_skips_inactive_and_malformed_rows() -> None:
                     {"alternative_text": "5", "explanation": "Sobrou uma unidade."},
                 ],
                 "is_active": True,
+                "difficulty": "hard",
             },
             {
                 "id_question": 2,
@@ -74,6 +75,7 @@ def test_parse_question_bank_skips_inactive_and_malformed_rows() -> None:
     questions, issues = parse_question_bank_dataframe(frame)
 
     assert [question.id_question for question in questions] == [1]
+    assert questions[0].difficulty == 4
     assert len(issues) == 1
 
 

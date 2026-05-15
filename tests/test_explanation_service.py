@@ -33,7 +33,7 @@ def _build_question() -> Question:
         ),
         subject="matematica",
         topic="aritmetica",
-        difficulty="facil",
+        difficulty=2,
         source="seed",
     )
 

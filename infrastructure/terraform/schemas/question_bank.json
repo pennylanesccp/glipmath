@@ -59,7 +59,7 @@
   },
   {
     "name": "difficulty",
-    "type": "STRING",
+    "type": "INT64",
     "mode": "NULLABLE"
   },
   {

@@ -18,7 +18,7 @@
   - `explanation STRING NULLABLE`
 - `subject STRING NULLABLE`
 - `topic STRING NULLABLE`
-- `difficulty STRING NULLABLE`
+- `difficulty INT64 NULLABLE`
 - `source STRING NULLABLE`
 - `cohort_key STRING NULLABLE`
 - `is_active BOOL REQUIRED`
@@ -33,6 +33,7 @@ Validation rules:
 - `wrong_answers` must contain at least one item for app validation
 - alternative texts must be unique within a question
 - inactive questions are ignored by the app
+- `difficulty`, when present, must be an integer from 1 to 5
 
 Why nested?
 
@@ -41,6 +42,14 @@ Why nested?
 - explanations can live beside each alternative
 - `subject` lets the same bank hold math and non-math content cleanly
 - `cohort_key` lets the repository enforce project/class/year access before subject filtering
+
+Difficulty scale:
+
+- `1` básico
+- `2` fácil
+- `3` médio
+- `4` difícil
+- `5` avançado
 
 `cohort_key` examples:
 
@@ -95,6 +104,7 @@ Usage notes:
 - `answered_at_local` is stored as BigQuery `DATETIME`
 - user identity is the normalized email for the MVP
 - `cohort_key` stores the effective question cohort at submission time for future analytics and ranking
+- `difficulty` is a textual answer-time snapshot; current submissions store the question's 1-5 difficulty as a string while historical rows remain append-only
 
 The Terraform table definition partitions `answers` by `answered_at_utc` and clusters by `user_email` and `id_question`.
 
@@ -148,6 +158,7 @@ Supported raw import input:
   - `answer`
 
 The import pipeline converts the raw CSV rows into the nested BigQuery schema before validation and load.
+Legacy difficulty labels such as `easy`, `facil`, `3_medio`, `hard`, and `advanced` are normalized to the canonical integer scale during import.
 
 For this raw CSV path, `id_question` is generated deterministically from `source`, `question_number`, and `cohort_key` when cohort scope is present. The loader CLI also accepts `--cohort-key` to stamp a whole batch without editing every row.
 

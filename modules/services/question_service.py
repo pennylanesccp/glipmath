@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 
 from modules.domain.models import DisplayAlternative, Question, QuestionAlternative, QuestionIndexEntry
+from modules.services.difficulty_service import normalize_difficulty_value
 from modules.storage.schema_validation import (
     ensure_unique_integer_values,
     iter_dataframe_rows,
@@ -251,6 +252,17 @@ def find_valid_question_bank_row_indexes(
         valid_indexes.append(index)
 
     return valid_indexes, issues
+
+
+def normalize_question_bank_row_for_storage(row: dict[str, object]) -> dict[str, object]:
+    """Return one canonical row shape for BigQuery persistence."""
+
+    normalized_row = dict(row)
+    normalized_row["subject"] = normalize_taxonomy_value(normalized_row.get("subject"))
+    normalized_row["topic"] = normalize_taxonomy_value(normalized_row.get("topic"))
+    normalized_row["difficulty"] = _parse_optional_difficulty(normalized_row.get("difficulty"))
+    normalized_row["cohort_key"] = _parse_optional_cohort_key(normalized_row.get("cohort_key"))
+    return normalized_row
 
 
 def select_next_question(
@@ -682,7 +694,7 @@ def _parse_question_row(row: dict[str, object]) -> Question | None:
         wrong_answers=wrong_answers,
         subject=normalize_taxonomy_value(row.get("subject")),
         topic=normalize_taxonomy_value(row.get("topic")),
-        difficulty=clean_optional_text(row.get("difficulty")),
+        difficulty=_parse_optional_difficulty(row.get("difficulty")),
         source=clean_optional_text(row.get("source")),
         cohort_key=_parse_optional_cohort_key(row.get("cohort_key")),
         created_at_utc=parse_timestamp(row.get("created_at_utc")),
@@ -757,6 +769,16 @@ def _parse_required_text(value: object, field_name: str) -> str:
     if not text:
         raise ValueError(f"{field_name} cannot be blank.")
     return text
+
+
+def _parse_optional_difficulty(value: object) -> int | None:
+    text = clean_optional_text(value)
+    if text is None:
+        return None
+    difficulty = normalize_difficulty_value(value)
+    if difficulty is None:
+        raise ValueError("difficulty must be a valid integer from 1 to 5.")
+    return difficulty
 
 
 def _parse_optional_cohort_key(value: object) -> str | None:

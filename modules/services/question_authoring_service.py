@@ -7,6 +7,12 @@ from uuid import uuid4
 
 import pandas as pd
 
+from modules.services.difficulty_service import (
+    DIFFICULTY_LABEL_BY_VALUE,
+    format_difficulty_label,
+    normalize_difficulty_value,
+    require_difficulty_value,
+)
 from modules.services.question_service import parse_question_bank_dataframe
 from modules.utils.datetime_utils import to_iso_timestamp, utc_now
 from modules.utils.normalization import clean_optional_text, normalize_taxonomy_value
@@ -38,17 +44,6 @@ QUESTION_AUTHORING_RESPONSE_SCHEMA: dict[str, Any] = {
         },
     },
     "required": ["statement", "correct_answer", "wrong_answers"],
-}
-DIFFICULTY_OPTIONS: tuple[tuple[str, str], ...] = (
-    ("1_basico", "1. Básico"),
-    ("2_facil", "2. Fácil"),
-    ("3_medio", "3. Médio"),
-    ("4_dificil", "4. Difícil"),
-    ("5_avancado", "5. Avançado"),
-)
-DIFFICULTY_LABEL_BY_VALUE = {
-    value: label
-    for value, label in DIFFICULTY_OPTIONS
 }
 MANUAL_QUESTION_SOURCE = "espaco_professor_manual_v1"
 AI_POLISHED_QUESTION_SOURCE = "espaco_professor_ai_v1"
@@ -82,7 +77,7 @@ class QuestionAuthoringDraft:
     project_key: str | None = None
     subject: str | None = None
     topic: str | None = None
-    difficulty: str | None = None
+    difficulty: int | None = None
     statement: str | None = None
     correct_answer: AuthoringAlternativeDraft = AuthoringAlternativeDraft()
     wrong_answers: tuple[AuthoringAlternativeDraft, ...] = (
@@ -234,25 +229,6 @@ class QuestionAuthoringService:
         )
 
 
-def format_difficulty_label(value: str | None) -> str:
-    """Return the friendly label for one normalized difficulty value."""
-
-    normalized_value = normalize_difficulty_value(value)
-    if normalized_value is None:
-        return ""
-    return DIFFICULTY_LABEL_BY_VALUE.get(normalized_value, normalized_value)
-
-
-def normalize_difficulty_value(value: str | None) -> str | None:
-    """Normalize one difficulty option from widget state."""
-
-    normalized_value = clean_optional_text(value)
-    if not normalized_value:
-        return None
-    normalized_value = normalized_value.lower()
-    return normalized_value if normalized_value in DIFFICULTY_LABEL_BY_VALUE else None
-
-
 def validate_draft_for_ai(draft: QuestionAuthoringDraft) -> list[str]:
     """Return validation issues for the AI polishing workflow."""
 
@@ -323,10 +299,7 @@ def build_question_row_from_draft(
         ],
         "subject": _require_taxonomy_text(draft.subject, "subject"),
         "topic": _require_taxonomy_text(draft.topic, "topic"),
-        "difficulty": _require_text(
-            normalize_difficulty_value(draft.difficulty),
-            "difficulty",
-        ),
+        "difficulty": require_difficulty_value(draft.difficulty, "difficulty"),
         "source": _require_text(source, "source"),
         "cohort_key": _require_text(draft.project_key, "project_key"),
         "is_active": True,

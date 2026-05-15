@@ -137,7 +137,7 @@ def test_append_question_row_filters_unknown_fields_before_insert() -> None:
                     "wrong_answers": [{"alternative_text": "3", "explanation": "Faltou 1."}],
                     "subject": "matematica",
                     "topic": "aritmetica",
-                    "difficulty": "1_basico",
+                    "difficulty": 1,
                     "source": "manual",
                     "cohort_key": "crescer_e_conectar",
                     "is_active": True,

@@ -61,7 +61,7 @@ def test_validate_draft_for_submission_requires_full_question_content() -> None:
         project_key="crescer_e_conectar",
         subject="Matemática",
         topic="divisão",
-        difficulty="1_basico",
+        difficulty=1,
     )
 
     issues = validate_draft_for_submission(draft)
@@ -78,7 +78,7 @@ def test_build_question_row_from_draft_returns_canonical_question_bank_row() -> 
         project_key="crescer_e_conectar",
         subject="Matemática",
         topic="divisão",
-        difficulty="2_facil",
+        difficulty=2,
         statement="João dividiu 12 figurinhas em 3 grupos iguais. Quantas ficaram em cada grupo?",
         correct_answer=AuthoringAlternativeDraft(
             alternative_text="4",
@@ -98,7 +98,7 @@ def test_build_question_row_from_draft_returns_canonical_question_bank_row() -> 
 
     assert row["subject"] == "matematica"
     assert row["topic"] == "divisao"
-    assert row["difficulty"] == "2_facil"
+    assert row["difficulty"] == 2
     assert row["source"] == AI_POLISHED_QUESTION_SOURCE
     assert row["cohort_key"] == "crescer_e_conectar"
     assert row["is_active"] is True
@@ -141,7 +141,7 @@ def test_question_authoring_service_polishes_payload_and_preserves_metadata() ->
         project_key="rumo_etec",
         subject="Matemática",
         topic="radiciação",
-        difficulty="3_medio",
+        difficulty=3,
     )
 
     polished = service.polish_draft(draft)
@@ -149,7 +149,7 @@ def test_question_authoring_service_polishes_payload_and_preserves_metadata() ->
     assert polished.project_key == "rumo_etec"
     assert polished.subject == "Matemática"
     assert polished.topic == "radiciação"
-    assert polished.difficulty == "3_medio"
+    assert polished.difficulty == 3
     assert polished.statement == "Qual é a raiz quadrada de 81?"
     assert polished.correct_answer.alternative_text == "9"
     assert [answer.alternative_text for answer in polished.wrong_answers] == ["8", "7", "6"]
@@ -209,7 +209,7 @@ def test_question_authoring_service_retries_when_first_payload_has_duplicate_alt
             project_key="rumo_etec",
             subject="Matematica",
             topic="radiciacao",
-            difficulty="3_medio",
+            difficulty=3,
         )
     )
 
@@ -276,12 +276,14 @@ def test_question_authoring_service_raises_friendly_error_after_two_invalid_payl
                 project_key="rumo_etec",
                 subject="Matematica",
                 topic="radiciacao",
-                difficulty="3_medio",
+                difficulty=3,
             )
         )
 
 
 def test_difficulty_helpers_normalize_and_format_labels() -> None:
-    assert normalize_difficulty_value("2_facil") == "2_facil"
+    assert normalize_difficulty_value("2_facil") == 2
+    assert normalize_difficulty_value("hard") == 4
+    assert normalize_difficulty_value("advanced") == 5
     assert normalize_difficulty_value("invalida") is None
     assert format_difficulty_label("5_avancado") == "5. Avançado"

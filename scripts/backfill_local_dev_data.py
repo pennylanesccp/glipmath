@@ -86,7 +86,7 @@ def main() -> None:
                 subject=question.subject,
                 source=question.source,
                 topic=question.topic,
-                difficulty=question.difficulty,
+                difficulty=str(question.difficulty) if question.difficulty is not None else None,
                 app_version=settings.app_version,
             )
             rows.append(attempt.to_bigquery_row())

@@ -10,6 +10,7 @@ from typing import Any
 
 import pandas as pd
 
+from modules.services.difficulty_service import normalize_difficulty_value
 from modules.storage.schema_validation import iter_dataframe_rows, prepare_dataframe, require_columns, worksheet_row_number
 from modules.utils.normalization import clean_optional_text, coerce_bool
 
@@ -265,7 +266,7 @@ def build_question_row_from_vestibulinho_row(
         "wrong_answers": wrong_alternatives,
         "subject": clean_optional_text(row.get("subject")),
         "topic": clean_optional_text(row.get("topic")),
-        "difficulty": clean_optional_text(row.get("difficulty")),
+        "difficulty": _normalize_optional_difficulty(row.get("difficulty")),
         "source": source,
         "cohort_key": cohort_key,
         "is_active": coerce_bool(row.get("is_active"), default=True),
@@ -461,6 +462,16 @@ def _normalize_optional_cohort_key(value: object) -> str | None:
     if not cohort_key:
         return None
     return cohort_key.lower()
+
+
+def _normalize_optional_difficulty(value: object) -> int | None:
+    text = clean_optional_text(value)
+    if text is None:
+        return None
+    difficulty = normalize_difficulty_value(value)
+    if difficulty is None:
+        raise ValueError("difficulty must be a valid integer from 1 to 5.")
+    return difficulty
 
 
 def _optional_positive_int(value: object) -> int | None:

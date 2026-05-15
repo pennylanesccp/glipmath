@@ -6,6 +6,7 @@ import pandas as pd
 from google.cloud import bigquery
 
 from modules.domain.models import QuestionAlternative
+from modules.services.difficulty_service import normalize_difficulty_value
 from modules.storage.bigquery_client import BigQueryClient
 from modules.utils.normalization import normalize_taxonomy_value
 
@@ -304,6 +305,7 @@ class QuestionRepository:
         normalized_row = dict(row)
         normalized_row["subject"] = normalize_taxonomy_value(normalized_row.get("subject"))
         normalized_row["topic"] = normalize_taxonomy_value(normalized_row.get("topic"))
+        normalized_row["difficulty"] = normalize_difficulty_value(normalized_row.get("difficulty"))
         return {
             key: value
             for key, value in normalized_row.items()

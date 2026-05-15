@@ -34,7 +34,7 @@ class Question:
     wrong_answers: tuple[QuestionAlternative, ...]
     subject: str | None = None
     topic: str | None = None
-    difficulty: str | None = None
+    difficulty: int | None = None
     source: str | None = None
     cohort_key: str | None = None
     created_at_utc: datetime | None = None

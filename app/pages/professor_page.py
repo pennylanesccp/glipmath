@@ -791,7 +791,7 @@ def _reset_authoring_form(
     project_key: str | None,
     subject: str | None,
     topic: str | None,
-    difficulty: str | None,
+    difficulty: int | None,
 ) -> None:
     _apply_draft_to_widget_state(
         QuestionAuthoringDraft(

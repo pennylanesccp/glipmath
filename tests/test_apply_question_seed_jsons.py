@@ -69,7 +69,7 @@ def test_materialize_seed_payload_merges_defaults_and_sets_timestamps() -> None:
             ],
             "subject": "databricks",
             "topic": "streaming",
-            "difficulty": "easy",
+            "difficulty": 2,
             "source": "seed_v1",
             "cohort_key": "certificacao",
             "is_active": True,

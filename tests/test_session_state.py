@@ -18,7 +18,7 @@ def test_current_question_snapshot_round_trips_through_session_state(monkeypatch
         ),
         subject="Matematica",
         topic="Aritmetica",
-        difficulty="facil",
+        difficulty=2,
         source="seed",
     )
     alternatives = [

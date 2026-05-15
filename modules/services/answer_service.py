@@ -214,7 +214,7 @@ def build_answer_evaluation(
         session_id=session_id,
         subject=question.subject,
         topic=question.topic,
-        difficulty=question.difficulty,
+        difficulty=str(question.difficulty) if question.difficulty is not None else None,
         source=question.source,
         cohort_key=question.cohort_key,
         app_version=app_version,

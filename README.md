@@ -84,6 +84,7 @@ Analytics views:
 - `correct_answer` is a struct with `alternative_text` and `explanation`
 - `wrong_answers` is a repeated struct array with the same shape
 - `subject` stores the broad discipline so the same bank can hold math and non-math questions
+- `difficulty` stores the canonical 1-5 difficulty scale
 - `cohort_key` stores which cohort or project owns the question, for example `etec`, `enem`, `ano_1`, `ano_2`, or `ano_3`
 
 `user_access` resolves app access from authenticated email:
@@ -205,6 +206,7 @@ Supported question inputs:
 - local seed JSON payloads under `local/bq_seeds/source` for `scripts/apply_question_seed_jsons.py`
 
 The pipeline converts supported raw files into the canonical nested question-bank rows in memory, then validates and loads them. Both raw CSV and canonical JSONL may carry optional `cohort_key`, and the CLI can stamp a whole import batch with `--cohort-key`.
+Difficulty values are normalized to integers from 1 to 5 during import; legacy labels such as `easy`, `facil`, `3_medio`, `hard`, and `advanced` are accepted.
 
 For the vestibulinho CSV pipeline, `id_question` is derived deterministically from `source`, `question_number`, and `cohort_key` when cohort scope is present.
 

@@ -21,7 +21,7 @@ def test_build_answer_evaluation_marks_correct_answer() -> None:
         wrong_answers=(QuestionAlternative("3", "Explicacao incorreta."),),
         subject="matematica",
         topic="aritmetica",
-        difficulty="facil",
+        difficulty=2,
         source="seed",
         cohort_key="ano_1",
     )
@@ -45,6 +45,7 @@ def test_build_answer_evaluation_marks_correct_answer() -> None:
     assert evaluation.record.is_correct is True
     assert evaluation.record.correct_alternative_text == "4"
     assert evaluation.record.subject == "matematica"
+    assert evaluation.record.difficulty == "2"
     assert evaluation.record.cohort_key == "ano_1"
     assert evaluation.correct_explanation == "Explicacao correta."
     assert evaluation.selected_explanation is None

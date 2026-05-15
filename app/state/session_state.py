@@ -14,6 +14,7 @@ from modules.domain.models import (
     User,
     UserProgressSnapshot,
 )
+from modules.services.difficulty_service import normalize_difficulty_value
 from modules.utils.datetime_utils import utc_now
 
 SESSION_ID_KEY = "glipmath_session_id"
@@ -938,7 +939,7 @@ def _deserialize_question(raw_question: object) -> Question | None:
             ),
             subject=_string_or_none(raw_question.get("subject")),
             topic=_string_or_none(raw_question.get("topic")),
-            difficulty=_string_or_none(raw_question.get("difficulty")),
+            difficulty=normalize_difficulty_value(raw_question.get("difficulty")),
             source=_string_or_none(raw_question.get("source")),
             cohort_key=_string_or_none(raw_question.get("cohort_key")),
             created_at_utc=raw_question.get("created_at_utc") if isinstance(raw_question.get("created_at_utc"), datetime) else None,

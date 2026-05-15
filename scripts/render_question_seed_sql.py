@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from modules.services.difficulty_service import require_difficulty_value
 from modules.utils.normalization import normalize_taxonomy_value
 from scripts.question_seed_ids import resolve_seed_question_id
 
@@ -200,7 +201,7 @@ def _render_question_select(question: Mapping[str, Any], *, row_label: str) -> s
             "    ] AS wrong_answers,",
             f"    {_sql_literal(_require_taxonomy_string(question.get('subject'), f'{row_label}.subject'))} AS subject,",
             f"    {_sql_literal(_require_taxonomy_string(question.get('topic'), f'{row_label}.topic'))} AS topic,",
-            f"    {_sql_literal(_require_string(question.get('difficulty'), f'{row_label}.difficulty'))} AS difficulty,",
+            f"    {require_difficulty_value(question.get('difficulty'), f'{row_label}.difficulty')} AS difficulty,",
             f"    {_sql_literal(_require_string(question.get('source'), f'{row_label}.source'))} AS source,",
             f"    {_sql_literal(_require_string(question.get('cohort_key'), f'{row_label}.cohort_key'))} AS cohort_key,",
             f"    {_sql_bool(_require_bool(question.get('is_active'), f'{row_label}.is_active'))} AS is_active",

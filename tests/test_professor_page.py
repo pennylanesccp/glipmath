@@ -167,7 +167,7 @@ def test_consume_pending_authoring_draft_update_applies_matching_project(monkeyp
             project_key="rumo_etec",
             subject="Matematica",
             topic="divisao",
-            difficulty="2_facil",
+            difficulty=2,
             statement="Quanto e 12 dividido por 3?",
             correct_answer=AuthoringAlternativeDraft(
                 alternative_text="4",
@@ -186,7 +186,7 @@ def test_consume_pending_authoring_draft_update_applies_matching_project(monkeyp
 
     assert fake_st.session_state[AUTHORING_SUBJECT_KEY] == "Matematica"
     assert fake_st.session_state[AUTHORING_TOPIC_KEY] == "divisao"
-    assert fake_st.session_state[AUTHORING_DIFFICULTY_KEY] == "2_facil"
+    assert fake_st.session_state[AUTHORING_DIFFICULTY_KEY] == 2
     assert fake_st.session_state[AUTHORING_STATEMENT_KEY] == "Quanto e 12 dividido por 3?"
     assert fake_st.session_state[AUTHORING_CORRECT_TEXT_KEY] == "4"
     assert fake_st.session_state[AUTHORING_CORRECT_EXPLANATION_KEY] == "12 dividido por 3 e 4."
@@ -233,7 +233,7 @@ def test_handle_polish_with_ai_shows_error_for_invalid_ai_payload(monkeypatch) -
             project_key="rumo_etec",
             subject="Matematica",
             topic="divisao",
-            difficulty="2_facil",
+            difficulty=2,
         ),
         gemini_api_keys=("secret",),
         gemini_model="gemini-test",

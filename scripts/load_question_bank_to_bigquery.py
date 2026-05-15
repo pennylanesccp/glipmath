@@ -19,7 +19,10 @@ from modules.services.question_bank_import_service import (
     reconcile_staged_question_files,
     write_question_import_failures_csv,
 )
-from modules.services.question_service import find_valid_question_bank_row_indexes
+from modules.services.question_service import (
+    find_valid_question_bank_row_indexes,
+    normalize_question_bank_row_for_storage,
+)
 from scripts.bigquery_seed_utils import (
     build_bigquery_client,
     load_rows_to_bigquery,
@@ -93,7 +96,7 @@ def main() -> None:
         for failure in failures:
             print(f"[WARN] {format_question_import_failure(failure)}")
 
-    rows = [item.row for item in valid_imported_rows]
+    rows = [normalize_question_bank_row_for_storage(item.row) for item in valid_imported_rows]
     if not rows:
         print("[ERROR] No valid question rows remained after filtering invalid input.")
         raise SystemExit(1)

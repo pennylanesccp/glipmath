@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from modules.services.difficulty_service import normalize_difficulty_value
 from modules.utils.normalization import normalize_taxonomy_value
 from scripts.bigquery_seed_utils import build_bigquery_client, load_rows_to_bigquery
 from scripts.question_seed_ids import resolve_seed_question_id
@@ -72,7 +73,7 @@ def materialize_seed_payload(
             ),
             "subject": _optional_taxonomy_string(merged_question.get("subject")),
             "topic": _optional_taxonomy_string(merged_question.get("topic")),
-            "difficulty": _optional_string(merged_question.get("difficulty")),
+            "difficulty": _optional_difficulty(merged_question.get("difficulty")),
             "source": _optional_string(merged_question.get("source")),
             "cohort_key": _optional_string(merged_question.get("cohort_key")),
             "is_active": _require_bool(merged_question.get("is_active"), f"questions[{index}].is_active"),
@@ -224,6 +225,16 @@ def _optional_string(value: Any) -> str | None:
 
 def _optional_taxonomy_string(value: Any) -> str | None:
     return normalize_taxonomy_value(value)
+
+
+def _optional_difficulty(value: Any) -> int | None:
+    text = _optional_string(value)
+    if text is None:
+        return None
+    difficulty = normalize_difficulty_value(value)
+    if difficulty is None:
+        raise ValueError("difficulty must be a valid integer from 1 to 5.")
+    return difficulty
 
 
 def _require_bool(value: Any, field_name: str) -> bool:
