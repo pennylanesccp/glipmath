@@ -5,7 +5,6 @@ import re
 from typing import Literal
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from app.ui.question_session import render_question_session_template, text_to_html
 from app.ui.template_renderer import asset_to_data_uri, render_template
@@ -202,7 +201,7 @@ def main() -> None:
         )
         preview_height = 1080
 
-    components.html(html, height=preview_height, scrolling=True)
+    st.iframe(html, height=preview_height)
 
 
 def _apply_preview_shell() -> None:
