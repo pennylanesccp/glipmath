@@ -40,8 +40,8 @@ def test_render_login_page_uses_streamlit_html(monkeypatch) -> None:
     )
     monkeypatch.setattr(login_page.st, "html", lambda html: html_calls.append(html))
     monkeypatch.setattr(
-        login_page.components,
-        "html",
+        login_page.st,
+        "iframe",
         lambda html, **kwargs: cleanup_calls.append({"html": html, **kwargs}),
     )
     monkeypatch.setattr(login_page, "_streamlit_user_is_logged_in", lambda: False)
@@ -73,6 +73,9 @@ def test_render_login_page_uses_streamlit_html(monkeypatch) -> None:
     login_page.render_login_page(settings)
 
     assert cleanup_calls
+    assert cleanup_calls[0]["height"] == 1
+    assert cleanup_calls[0]["width"] == 1
+    assert cleanup_calls[0]["tab_index"] == -1
     assert html_calls == [
         "<section>pages/auth_login.html</section>",
         "<section>pages/auth_login_footnote.html</section>",
@@ -112,7 +115,7 @@ def test_render_login_page_click_starts_streamlit_login(monkeypatch) -> None:
         lambda template_path, context: "<section>login</section>",
     )
     monkeypatch.setattr(login_page.st, "html", lambda html: None)
-    monkeypatch.setattr(login_page.components, "html", lambda html, **kwargs: None)
+    monkeypatch.setattr(login_page.st, "iframe", lambda html, **kwargs: None)
     monkeypatch.setattr(login_page, "_streamlit_user_is_logged_in", lambda: False)
     monkeypatch.setattr(login_page, "_login_error_code", lambda: None)
     monkeypatch.setattr(login_page.st, "button", lambda label, **kwargs: True)
@@ -160,7 +163,7 @@ def test_render_login_page_shows_login_expired_message(monkeypatch) -> None:
         lambda template_path, context: "<section>login</section>",
     )
     monkeypatch.setattr(login_page.st, "html", lambda html: None)
-    monkeypatch.setattr(login_page.components, "html", lambda html, **kwargs: None)
+    monkeypatch.setattr(login_page.st, "iframe", lambda html, **kwargs: None)
     monkeypatch.setattr(login_page, "_streamlit_user_is_logged_in", lambda: False)
     monkeypatch.setattr(
         login_page,
@@ -202,8 +205,8 @@ def test_render_login_page_skips_clean_slate_when_authenticated(monkeypatch) -> 
     )
     monkeypatch.setattr(login_page.st, "html", lambda html: None)
     monkeypatch.setattr(
-        login_page.components,
-        "html",
+        login_page.st,
+        "iframe",
         lambda html, **kwargs: cleanup_calls.append(html),
     )
     monkeypatch.setattr(login_page, "_streamlit_user_is_logged_in", lambda: True)

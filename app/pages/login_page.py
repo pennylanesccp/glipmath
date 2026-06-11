@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from app.components.auth_status import (
     render_access_message,
@@ -109,10 +108,11 @@ def _render_login_clean_slate() -> None:
             "Clearing stale OAuth cookies before login | cookie_names=%s",
             stale_cookie_names,
         )
-    components.html(
+    st.iframe(
         build_client_oauth_cookie_cleanup_html(),
-        height=0,
-        width=0,
+        height=1,
+        width=1,
+        tab_index=-1,
     )
 
 

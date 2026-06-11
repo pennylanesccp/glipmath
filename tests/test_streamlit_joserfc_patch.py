@@ -15,6 +15,7 @@ from modules.auth.streamlit_joserfc_patch import (
     STREAMLIT_USER_COOKIE_NAME,
     STREAMLIT_XSRF_COOKIE_NAME,
     _OAUTH_STATE_BROWSER_BINDINGS,
+    _provider_for_state,
     build_client_oauth_cookie_cleanup_html,
     decode_provider_token,
     encode_provider_token,
@@ -62,6 +63,29 @@ def test_client_oauth_cookie_cleanup_html_targets_root_cross_site_cookies() -> N
     assert "path=/" in html
     assert "SameSite=None" in html
     assert "Secure" in html
+
+
+def test_provider_lookup_supports_streamlit_legacy_and_request_signatures() -> None:
+    request = SimpleNamespace(session={})
+    legacy_routes = SimpleNamespace(
+        _get_provider_by_state=lambda state: (
+            "default" if state == "returned-state" else None
+        )
+    )
+    request_routes = SimpleNamespace(
+        _get_provider_by_state=lambda callback_request, state: (
+            "default"
+            if callback_request is request and state == "returned-state"
+            else None
+        )
+    )
+
+    assert (
+        _provider_for_state(legacy_routes, request, "returned-state") == "default"
+    )
+    assert (
+        _provider_for_state(request_routes, request, "returned-state") == "default"
+    )
 
 
 def test_install_streamlit_joserfc_auth_patch_replaces_loaded_helpers(
@@ -375,10 +399,17 @@ def test_streamlit_auth_callback_redirects_on_mismatching_state(monkeypatch) -> 
     assert _deleted_cookie(STREAMLIT_SESSION_COOKIE_NAME) in response.deleted_cookies
 
 
-def test_streamlit_auth_callback_restores_missing_session_marker_from_xsrf_binding(
+def test_streamlit_auth_callback_restores_missing_session_state_from_xsrf_binding(
     monkeypatch,
 ) -> None:
     _OAUTH_STATE_BROWSER_BINDINGS.clear()
+    oauth_state = {
+        "data": {
+            "redirect_uri": "https://glipmath.streamlit.app/oauth2callback",
+            "nonce": "oauth-nonce",
+        },
+        "exp": 1_800_000_000,
+    }
 
     def old_encode_provider_token(provider: str) -> str:
         return provider
@@ -387,14 +418,21 @@ def test_streamlit_auth_callback_restores_missing_session_marker_from_xsrf_bindi
         return {"provider": provider_token}
 
     async def old_auth_login(request: object, base_url: str) -> object:
+        request.session["_state_default_returned-state"] = oauth_state
         return FakeRedirectResponse(
             "https://accounts.google.com/o/oauth2/v2/auth"
             "?client_id=client&state=returned-state"
         )
 
     async def old_auth_callback(request: object, base_url: str) -> object:
-        assert request.session["_state_default_returned-state"]["exp"] > 0
+        state = request.query_params["state"]
+        assert route_module._get_provider_by_state(request, state) == "default"
+        assert request.session["_state_default_returned-state"] == oauth_state
         return FakeRedirectResponse("/")
+
+    def get_provider_by_state(request: object, state: str) -> str | None:
+        state_key = f"_state_default_{state}"
+        return "default" if state_key in request.session else None
 
     streamlit_module = ModuleType("streamlit")
     streamlit_module.__path__ = []
@@ -411,12 +449,7 @@ def test_streamlit_auth_callback_restores_missing_session_marker_from_xsrf_bindi
     route_module.decode_signed_value = lambda *args, **kwargs: None
     route_module.get_cookie_secret = lambda: "cookie-secret"
     route_module._get_cookie_path = lambda: "/"
-    route_module._get_provider_by_state = (
-        lambda state: "default" if state == "returned-state" else None
-    )
-    route_module._STARLETTE_AUTH_CACHE = FakeAuthCache(
-        {"_state_default_returned-state": object()}
-    )
+    route_module._get_provider_by_state = get_provider_by_state
 
     monkeypatch.setitem(sys.modules, "streamlit", streamlit_module)
     monkeypatch.setitem(sys.modules, "streamlit.auth_util", auth_util_module)
@@ -430,7 +463,10 @@ def test_streamlit_auth_callback_restores_missing_session_marker_from_xsrf_bindi
 
     asyncio.run(
         route_module._auth_login(
-            SimpleNamespace(cookies={STREAMLIT_XSRF_COOKIE_NAME: "xsrf-cookie"}),
+            SimpleNamespace(
+                cookies={STREAMLIT_XSRF_COOKIE_NAME: "xsrf-cookie"},
+                session={},
+            ),
             "/",
         )
     )

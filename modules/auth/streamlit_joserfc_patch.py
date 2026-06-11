@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import inspect
 import json
 import logging
 import sys
 import time
+from copy import deepcopy
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, cast
@@ -29,7 +32,18 @@ OAUTH_COOKIE_SECURE = True
 LOGIN_ERROR_QUERY_PARAM = "auth_error"
 LOGIN_ERROR_SESSION_EXPIRED = "login_session_expired"
 _AUTH_COOKIE_CHUNK_DELETE_LIMIT = 8
-_OAUTH_STATE_BROWSER_BINDINGS: dict[str, tuple[str, str, float]] = {}
+
+
+@dataclass(frozen=True)
+class _OAuthStateBrowserBinding:
+    cookie_name: str
+    cookie_fingerprint: str
+    expires_at: float
+    session_key: str | None
+    session_value: Any
+
+
+_OAUTH_STATE_BROWSER_BINDINGS: dict[str, _OAuthStateBrowserBinding] = {}
 _SERVER_CLEARED_COOKIE_NAMES = (
     OAUTH_STATE_COOKIE_NAME,
     STREAMLIT_SESSION_COOKIE_NAME,
@@ -508,7 +522,10 @@ def _restore_oauth_state_session_marker(request: Any, route_module: Any) -> bool
     if session is None:
         return False
 
-    provider = _provider_for_state(route_module, state)
+    if _restore_oauth_state_session_from_browser_binding(request, state, session):
+        return True
+
+    provider = _provider_for_state(route_module, request, state)
     if not provider:
         return False
 
@@ -535,34 +552,67 @@ def _restore_oauth_state_session_marker(request: Any, route_module: Any) -> bool
     return True
 
 
+def _restore_oauth_state_session_from_browser_binding(
+    request: Any,
+    state: str,
+    session: Any,
+) -> bool:
+    binding = _matching_oauth_state_browser_binding(request, state)
+    if binding is None or binding.session_key is None:
+        return False
+    if binding.session_key in session:
+        return False
+
+    session[binding.session_key] = deepcopy(binding.session_value)
+    _forget_oauth_state_browser_binding(state)
+    return True
+
+
 def _remember_oauth_state_browser_binding(request: Any, state: str) -> str | None:
     binding = _request_browser_binding(request)
     if binding is None:
         return None
 
     cookie_name, cookie_fingerprint = binding
+    session_entry = _oauth_state_session_entry(request, state)
+    if session_entry is None:
+        session_key = None
+        session_value = None
+    else:
+        session_key, session_value = session_entry
+
     _evict_expired_oauth_state_browser_bindings()
-    _OAUTH_STATE_BROWSER_BINDINGS[state] = (
-        cookie_name,
-        cookie_fingerprint,
-        time.time() + OAUTH_STATE_BROWSER_BINDING_TTL_SECONDS,
+    _OAUTH_STATE_BROWSER_BINDINGS[state] = _OAuthStateBrowserBinding(
+        cookie_name=cookie_name,
+        cookie_fingerprint=cookie_fingerprint,
+        expires_at=time.time() + OAUTH_STATE_BROWSER_BINDING_TTL_SECONDS,
+        session_key=session_key,
+        session_value=deepcopy(session_value),
     )
     return cookie_name
 
 
 def _oauth_state_browser_binding_matches(request: Any, state: str) -> bool:
+    return _matching_oauth_state_browser_binding(request, state) is not None
+
+
+def _matching_oauth_state_browser_binding(
+    request: Any,
+    state: str,
+) -> _OAuthStateBrowserBinding | None:
     _evict_expired_oauth_state_browser_bindings()
     stored_binding = _OAUTH_STATE_BROWSER_BINDINGS.get(state)
     request_binding = _request_browser_binding(request)
     if stored_binding is None or request_binding is None:
-        return False
+        return None
 
-    stored_cookie_name, stored_fingerprint, _ = stored_binding
     request_cookie_name, request_fingerprint = request_binding
-    return (
-        request_cookie_name == stored_cookie_name
-        and request_fingerprint == stored_fingerprint
-    )
+    if (
+        request_cookie_name != stored_binding.cookie_name
+        or request_fingerprint != stored_binding.cookie_fingerprint
+    ):
+        return None
+    return stored_binding
 
 
 def _oauth_state_browser_binding_exists(state: str) -> bool:
@@ -578,9 +628,34 @@ def _forget_oauth_state_browser_binding(state: str | None) -> None:
 
 def _evict_expired_oauth_state_browser_bindings() -> None:
     now = time.time()
-    for state, (_, _, expires_at) in list(_OAUTH_STATE_BROWSER_BINDINGS.items()):
-        if expires_at <= now:
+    for state, binding in list(_OAUTH_STATE_BROWSER_BINDINGS.items()):
+        if binding.expires_at <= now:
             _OAUTH_STATE_BROWSER_BINDINGS.pop(state, None)
+
+
+def _oauth_state_session_entry(
+    request: Any,
+    state: str,
+) -> tuple[str, Any] | None:
+    session = getattr(request, "session", None)
+    if session is None:
+        return None
+
+    state_key_suffix = f"_{state}"
+    for raw_key in _keys(session):
+        state_key = str(raw_key)
+        if not state_key.startswith("_state_") or not state_key.endswith(
+            state_key_suffix
+        ):
+            continue
+        provider = state_key[len("_state_") : -len(state_key_suffix)]
+        if not provider:
+            continue
+        try:
+            return state_key, session[raw_key]
+        except (KeyError, TypeError):
+            continue
+    return None
 
 
 def _request_browser_binding(request: Any) -> tuple[str, str] | None:
@@ -646,12 +721,21 @@ def _decode_signed_state_cookie(route_module: Any, cookie_value: str | None) -> 
     return str(state)
 
 
-def _provider_for_state(route_module: Any, state: str) -> str | None:
+def _provider_for_state(
+    route_module: Any,
+    request: Any,
+    state: str,
+) -> str | None:
     provider_getter = getattr(route_module, "_get_provider_by_state", None)
     if not callable(provider_getter):
         return None
 
-    provider = provider_getter(state)
+    try:
+        inspect.signature(provider_getter).bind(request, state)
+    except (TypeError, ValueError):
+        provider = provider_getter(state)
+    else:
+        provider = provider_getter(request, state)
     if not provider:
         return None
     return str(provider)

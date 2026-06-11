@@ -54,9 +54,9 @@ Recommended metadata URL for Google:
 If Streamlit logs `MismatchingStateError` during `/oauth2callback`, inspect the callback diagnostics:
 
 - `has_code = true` and `has_state = true` mean Google returned to the app with an OAuth response.
-- `has_streamlit_session_cookie = false` means Authlib could not see Streamlit's temporary session marker for that login attempt.
+- `has_streamlit_session_cookie = false` means Authlib could not see Streamlit's temporary OAuth session state for that login attempt.
 - The app binds the OAuth `state` to the browser's Streamlit XSRF cookie during `/auth/login`, and also attempts a short-lived signed `_glipmath_oauth_state` fallback cookie. OAuth/session cookies are written at path `/` with `SameSite=None` and `Secure` so browsers can return them while Streamlit Cloud hosts the app in an iframe.
-- The callback restores only the missing Authlib state marker when one of those bindings matches the returned state. If Authlib still reports a mismatched state, the app clears stale OAuth/session cookies and redirects back to login with a retry message instead of showing the raw traceback.
+- The callback restores the missing Authlib state session entry when one of those bindings matches the returned state. This supports both older cache-backed Streamlit auth and Streamlit 1.58's session-backed OAuth state. If Authlib still reports a mismatched state, the app clears stale OAuth/session cookies and redirects back to login with a retry message instead of showing the raw traceback.
 
 If `has_streamlit_session_cookie`, `has_streamlit_xsrf_cookie`, and `has_oauth_state_cookie` are all false on the callback, check browser cookie blocking, stale tabs, and whether the deployed app is running the latest code.
 
