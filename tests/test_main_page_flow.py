@@ -1019,13 +1019,13 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "padding-bottom: var(--gm-quiz-page-bottom);" in stylesheet
     assert "--gm-wide-surface-width: 100%;" in stylesheet
     assert "--gm-narrow-surface-width: calc(100% - 12px);" in stylesheet
-    assert "--gm-live-card-inline-padding: 6px;" in stylesheet
+    assert "--gm-live-card-inline-padding: 12px;" in stylesheet
     assert "--gm-live-actions-to-review-gap: 12px;" in stylesheet
     assert "--gm-live-review-card-gap: 12px;" in stylesheet
     assert "--gm-live-review-to-actions-gap: 12px;" in stylesheet
     assert "--gm-pending-choice-content-gap: 6px;" in stylesheet
     assert "--gm-pending-choice-padding-block: 12px;" in stylesheet
-    assert "--gm-pending-choice-padding-inline: 6px;" in stylesheet
+    assert "--gm-pending-choice-padding-inline: 12px;" in stylesheet
     assert ".gm-live-pending-label" in stylesheet
     assert ".block-container div[data-testid=\"stVerticalBlock\"]" in stylesheet
     assert ".block-container div[data-testid=\"stHorizontalBlock\"]" in stylesheet
@@ -1052,6 +1052,10 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "gm-topic-filter-group-title" in stylesheet
     assert "width: calc(100% - 1rem) !important;" in stylesheet
     assert "gap: 0 !important;" in stylesheet
+    assert (
+        '.block-container div[data-testid="stVerticalBlock"]:has(.gm-quiz-question-block):has(.gm-quiz-alternatives-block)'
+        in stylesheet
+    )
     assert "margin-top: var(--gm-quiz-question-to-alternatives) !important;" in stylesheet
     assert "margin-bottom: var(--gm-live-actions-to-review-gap) !important;" in stylesheet
     assert "margin-top: var(--gm-live-review-card-gap) !important;" in stylesheet

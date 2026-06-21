@@ -1561,13 +1561,13 @@ def _apply_live_page_styles() -> None:
         :root {
             --gm-wide-surface-width: 100%;
             --gm-narrow-surface-width: calc(100% - 12px);
-            --gm-live-card-inline-padding: 6px;
+            --gm-live-card-inline-padding: 12px;
             --gm-live-actions-to-review-gap: 12px;
             --gm-live-review-card-gap: 12px;
             --gm-live-review-to-actions-gap: 12px;
             --gm-pending-choice-content-gap: 6px;
             --gm-pending-choice-padding-block: 12px;
-            --gm-pending-choice-padding-inline: 6px;
+            --gm-pending-choice-padding-inline: 12px;
             --gm-sidebar-section-gap: 0.24rem;
             --gm-sidebar-section-margin-bottom: 16px;
             --gm-sidebar-divider-margin-top: 0.05rem;
@@ -1600,6 +1600,10 @@ def _apply_live_page_styles() -> None:
         }
 
         .block-container > div[data-testid="stVerticalBlock"]:has(.gm-quiz-status-block):has(.gm-quiz-question-block) {
+            gap: 0 !important;
+        }
+
+        .block-container div[data-testid="stVerticalBlock"]:has(.gm-quiz-question-block):has(.gm-quiz-alternatives-block) {
             gap: 0 !important;
         }
 
