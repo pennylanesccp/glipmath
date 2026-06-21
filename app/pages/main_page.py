@@ -1563,7 +1563,7 @@ def _apply_live_page_styles() -> None:
             --gm-narrow-surface-width: calc(100% - 12px);
             --gm-live-card-inline-padding: 12px;
             --gm-live-actions-to-review-gap: 12px;
-            --gm-live-review-card-gap: 12px;
+            --gm-live-review-card-gap: 6px;
             --gm-live-review-to-actions-gap: 12px;
             --gm-pending-choice-content-gap: 6px;
             --gm-pending-choice-padding-block: 12px;
@@ -1604,6 +1604,10 @@ def _apply_live_page_styles() -> None:
         }
 
         .block-container div[data-testid="stVerticalBlock"]:has(.gm-quiz-question-block):has(.gm-quiz-alternatives-block) {
+            gap: 0 !important;
+        }
+
+        .block-container div[data-testid="stVerticalBlock"]:has(.gm-quiz-question-block):has(.gm-answer-actions-hook) {
             gap: 0 !important;
         }
 
@@ -1810,18 +1814,25 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook):not(:has(.gm-quiz-status-block)) {
-            gap: 0.28rem !important;
+            gap: 0 !important;
             margin-left: auto !important;
             margin-right: auto !important;
             width: var(--gm-wide-surface-width) !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook--top):not(:has(.gm-quiz-status-block)) {
-            margin-top: var(--gm-quiz-question-to-alternatives) !important;
-            margin-bottom: var(--gm-live-actions-to-review-gap) !important;
+            margin: 0 !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook--bottom):not(:has(.gm-quiz-status-block)) {
+            margin: 0 !important;
+        }
+
+        div[data-testid="stLayoutWrapper"]:has(.gm-answer-actions-hook--top) {
+            margin-top: var(--gm-quiz-question-to-alternatives) !important;
+        }
+
+        div[data-testid="stLayoutWrapper"]:has(.gm-answer-actions-hook--bottom) {
             margin-top: var(--gm-live-review-to-actions-gap) !important;
         }
 
@@ -1972,6 +1983,11 @@ def _apply_live_page_styles() -> None:
             margin-top: var(--gm-live-review-card-gap) !important;
         }
 
+        div[data-testid="stLayoutWrapper"]:has(.gm-answer-actions-hook--top)
+        + div[data-testid="stElementContainer"]:has(.gm-live-answer-card) {
+            margin-top: var(--gm-live-actions-to-review-gap) !important;
+        }
+
         .gm-live-card {
             background: #ffffff;
             border: 1px solid #dbeafe;
@@ -2087,7 +2103,7 @@ def _apply_live_page_styles() -> None:
             color: #475569;
             font-size: 0.74rem;
             font-weight: 700;
-            margin-bottom: 0.45rem;
+            margin-bottom: 12px;
             text-transform: uppercase;
         }
 
@@ -2193,8 +2209,8 @@ def _apply_live_page_styles() -> None:
 
         .gm-live-answer-explanation {
             border-top: 1px solid rgba(148, 163, 184, 0.22);
-            margin-top: 0.55rem;
-            padding-top: 0.55rem;
+            margin-top: 12px;
+            padding-top: 12px;
         }
 
         .gm-live-status-chip {

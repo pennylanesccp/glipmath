@@ -1021,7 +1021,7 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "--gm-narrow-surface-width: calc(100% - 12px);" in stylesheet
     assert "--gm-live-card-inline-padding: 12px;" in stylesheet
     assert "--gm-live-actions-to-review-gap: 12px;" in stylesheet
-    assert "--gm-live-review-card-gap: 12px;" in stylesheet
+    assert "--gm-live-review-card-gap: 6px;" in stylesheet
     assert "--gm-live-review-to-actions-gap: 12px;" in stylesheet
     assert "--gm-pending-choice-content-gap: 6px;" in stylesheet
     assert "--gm-pending-choice-padding-block: 12px;" in stylesheet
@@ -1056,10 +1056,16 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
         '.block-container div[data-testid="stVerticalBlock"]:has(.gm-quiz-question-block):has(.gm-quiz-alternatives-block)'
         in stylesheet
     )
+    assert (
+        '.block-container div[data-testid="stVerticalBlock"]:has(.gm-quiz-question-block):has(.gm-answer-actions-hook)'
+        in stylesheet
+    )
     assert "margin-top: var(--gm-quiz-question-to-alternatives) !important;" in stylesheet
-    assert "margin-bottom: var(--gm-live-actions-to-review-gap) !important;" in stylesheet
+    assert "margin-top: var(--gm-live-actions-to-review-gap) !important;" in stylesheet
     assert "margin-top: var(--gm-live-review-card-gap) !important;" in stylesheet
     assert "margin-top: var(--gm-live-review-to-actions-gap) !important;" in stylesheet
+    assert 'div[data-testid="stLayoutWrapper"]:has(.gm-answer-actions-hook--top)' in stylesheet
+    assert 'div[data-testid="stLayoutWrapper"]:has(.gm-answer-actions-hook--bottom)' in stylesheet
     assert "margin-top: var(--gm-quiz-alternatives-to-actions) !important;" in stylesheet
     assert "gap: var(--gm-quiz-alternative-label-to-options) !important;" in stylesheet
     assert "gap: var(--gm-quiz-option-gap) !important;" in stylesheet
