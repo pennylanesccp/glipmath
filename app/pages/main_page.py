@@ -1806,11 +1806,15 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stVerticalBlock"]:has(.gm-quiz-alternatives-block):not(:has(.gm-quiz-status-block)) {
             gap: var(--gm-quiz-alternative-label-to-options) !important;
-            margin-top: var(--gm-quiz-question-to-alternatives) !important;
+            margin-top: 0 !important;
             margin-left: auto !important;
             margin-right: auto !important;
             max-width: var(--gm-narrow-surface-width) !important;
             width: var(--gm-narrow-surface-width) !important;
+        }
+
+        div[data-testid="stLayoutWrapper"]:has(.gm-quiz-alternatives-block) {
+            margin-top: var(--gm-quiz-question-to-alternatives) !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook):not(:has(.gm-quiz-status-block)) {
