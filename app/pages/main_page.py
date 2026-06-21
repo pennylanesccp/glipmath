@@ -86,11 +86,12 @@ QUESTION_BOARD_STATUS_FRAGMENT_PATTERN = re.compile(
 )
 EMPTY_CONTROL_PARAGRAPH_PATTERN = re.compile(r"<p>(?:\s|<br\s*/?>)*</p>", re.IGNORECASE)
 QUIZ_BLOCK_GAP = "12px"
-QUIZ_OPTION_GAP = "8px"
-QUIZ_ALTERNATIVE_LABEL_GAP = "6px"
+QUIZ_COMPACT_GAP = "6px"
+QUIZ_OPTION_GAP = QUIZ_COMPACT_GAP
+QUIZ_ALTERNATIVE_LABEL_GAP = QUIZ_COMPACT_GAP
 QUIZ_LAYOUT_SPACING = {
     "mobile": {
-        "page_top_to_status": "8px",
+        "page_top_to_status": QUIZ_BLOCK_GAP,
         "status_to_question": QUIZ_BLOCK_GAP,
         "question_to_alternatives": QUIZ_BLOCK_GAP,
         "alternative_label_to_options": QUIZ_ALTERNATIVE_LABEL_GAP,
@@ -1559,14 +1560,14 @@ def _apply_live_page_styles() -> None:
             + """
         :root {
             --gm-wide-surface-width: 100%;
-            --gm-narrow-surface-width: calc(100% - 1.1rem);
-            --gm-live-card-inline-padding: 1rem;
+            --gm-narrow-surface-width: calc(100% - 12px);
+            --gm-live-card-inline-padding: 6px;
             --gm-live-actions-to-review-gap: 12px;
             --gm-live-review-card-gap: 12px;
             --gm-live-review-to-actions-gap: 12px;
-            --gm-pending-choice-content-gap: 0.48rem;
-            --gm-pending-choice-padding-block: 0.56rem;
-            --gm-pending-choice-padding-inline: 0.62rem;
+            --gm-pending-choice-content-gap: 6px;
+            --gm-pending-choice-padding-block: 12px;
+            --gm-pending-choice-padding-inline: 6px;
             --gm-sidebar-section-gap: 0.24rem;
             --gm-sidebar-section-margin-bottom: 16px;
             --gm-sidebar-divider-margin-top: 0.05rem;
@@ -1591,11 +1592,11 @@ def _apply_live_page_styles() -> None:
         }
 
         .block-container > div[data-testid="stVerticalBlock"] {
-            gap: 0.55rem !important;
+            gap: 12px !important;
         }
 
-        div[data-testid="stVerticalBlock"] {
-            gap: 0.55rem !important;
+        .block-container div[data-testid="stVerticalBlock"] {
+            gap: 12px !important;
         }
 
         .block-container > div[data-testid="stVerticalBlock"]:has(.gm-quiz-status-block):has(.gm-quiz-question-block) {
@@ -1606,8 +1607,8 @@ def _apply_live_page_styles() -> None:
             display: none !important;
         }
 
-        div[data-testid="stHorizontalBlock"] {
-            gap: 0.55rem !important;
+        .block-container div[data-testid="stHorizontalBlock"] {
+            gap: 6px !important;
         }
 
         section[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] p {
@@ -1863,9 +1864,8 @@ def _apply_live_page_styles() -> None:
         .gm-live-metrics-bar {
             align-items: center;
             display: flex;
-            gap: 0.62rem;
+            gap: 6px;
             justify-content: center;
-            min-height: 2.55rem;
             width: 100%;
         }
 
@@ -1879,10 +1879,9 @@ def _apply_live_page_styles() -> None:
             display: inline-flex;
             font-size: 1.12rem;
             font-weight: 800;
-            gap: 0.36rem;
+            gap: 6px;
             justify-content: flex-start;
             line-height: 1;
-            min-height: 2.55rem;
             padding: 0;
             position: relative;
             width: auto;
@@ -1954,7 +1953,6 @@ def _apply_live_page_styles() -> None:
             display: flex;
             margin-top: var(--gm-quiz-page-top-to-status) !important;
             margin-bottom: 0 !important;
-            min-height: 2.55rem;
             width: 100%;
         }
 
@@ -1976,7 +1974,7 @@ def _apply_live_page_styles() -> None:
             border-radius: 1.25rem;
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
             margin-bottom: 0 !important;
-            padding: 1rem var(--gm-live-card-inline-padding) 0.95rem;
+            padding: 12px var(--gm-live-card-inline-padding);
         }
 
         .gm-live-question-card {
@@ -1992,7 +1990,7 @@ def _apply_live_page_styles() -> None:
             font-size: 0.76rem;
             font-weight: 700;
             letter-spacing: 0.08em;
-            margin-bottom: 0.45rem;
+            margin-bottom: 12px;
             text-transform: uppercase;
         }
 
@@ -2026,7 +2024,7 @@ def _apply_live_page_styles() -> None:
         .gm-live-answer-explanation p,
         .gm-live-answer-explanation ul,
         .gm-live-answer-explanation ol {
-            margin: 0 0 0.55rem;
+            margin: 0 0 12px;
         }
 
         .gm-live-question-text pre,
@@ -2107,7 +2105,6 @@ def _apply_live_page_styles() -> None:
             font-size: 0.88rem;
             font-weight: 600;
             margin: 0;
-            padding-top: 2px;
         }
 
         .gm-live-pending-choice-card {

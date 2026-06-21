@@ -1006,29 +1006,33 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-quiz-page-top-to-status: 8px;" in stylesheet
+    assert stylesheet.count("--gm-quiz-page-top-to-status: 12px;") == 2
     assert "--gm-quiz-page-bottom: 20px;" in stylesheet
     assert "@media (min-width: 641px)" in stylesheet
-    assert "--gm-quiz-page-top-to-status: 12px;" in stylesheet
     assert "--gm-quiz-page-bottom: 28px;" in stylesheet
     assert stylesheet.count("--gm-quiz-status-to-question: 12px;") == 2
     assert stylesheet.count("--gm-quiz-question-to-alternatives: 12px;") == 2
     assert stylesheet.count("--gm-quiz-alternative-label-to-options: 6px;") == 2
-    assert stylesheet.count("--gm-quiz-option-gap: 8px;") == 2
+    assert stylesheet.count("--gm-quiz-option-gap: 6px;") == 2
     assert stylesheet.count("--gm-quiz-alternatives-to-actions: 12px;") == 2
     assert "padding-top: 0;" in stylesheet
     assert "padding-bottom: var(--gm-quiz-page-bottom);" in stylesheet
     assert "--gm-wide-surface-width: 100%;" in stylesheet
-    assert "--gm-narrow-surface-width: calc(100% - 1.1rem);" in stylesheet
-    assert "--gm-live-card-inline-padding: 1rem;" in stylesheet
+    assert "--gm-narrow-surface-width: calc(100% - 12px);" in stylesheet
+    assert "--gm-live-card-inline-padding: 6px;" in stylesheet
     assert "--gm-live-actions-to-review-gap: 12px;" in stylesheet
     assert "--gm-live-review-card-gap: 12px;" in stylesheet
     assert "--gm-live-review-to-actions-gap: 12px;" in stylesheet
-    assert "--gm-pending-choice-content-gap: 0.48rem;" in stylesheet
-    assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
-    assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet
+    assert "--gm-pending-choice-content-gap: 6px;" in stylesheet
+    assert "--gm-pending-choice-padding-block: 12px;" in stylesheet
+    assert "--gm-pending-choice-padding-inline: 6px;" in stylesheet
     assert ".gm-live-pending-label" in stylesheet
-    assert "padding-top: 2px;" in stylesheet
+    assert ".block-container div[data-testid=\"stVerticalBlock\"]" in stylesheet
+    assert ".block-container div[data-testid=\"stHorizontalBlock\"]" in stylesheet
+    assert "gap: 12px !important;" in stylesheet
+    assert "gap: 6px !important;" in stylesheet
+    assert "padding: 12px var(--gm-live-card-inline-padding);" in stylesheet
+    assert "margin-bottom: 12px;" in stylesheet
     for deprecated_variable in (
         "--gm-topbar-alignment-offset",
         "--gm-live-metrics-top-pull",
@@ -1056,9 +1060,17 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "gap: var(--gm-quiz-alternative-label-to-options) !important;" in stylesheet
     assert "gap: var(--gm-quiz-option-gap) !important;" in stylesheet
     assert "column-gap: var(--gm-pending-choice-content-gap) !important;" in stylesheet
-    assert "min-height: 2.55rem;" in stylesheet
     assert "margin-top: var(--gm-quiz-page-top-to-status) !important;" in stylesheet
     assert "margin-top: var(--gm-quiz-status-to-question) !important;" in stylesheet
+    metrics_bar_css = stylesheet.split(".gm-live-metrics-bar {", 1)[1].split("}", 1)[0]
+    metric_css = stylesheet.split(".gm-live-metric {", 1)[1].split("}", 1)[0]
+    status_container_css = stylesheet.split(
+        'div[data-testid="stElementContainer"]:has(.gm-quiz-status-block) {',
+        1,
+    )[1].split("}", 1)[0]
+    assert "min-height" not in metrics_bar_css
+    assert "min-height" not in metric_css
+    assert "min-height" not in status_container_css
     assert ".gm-live-question-card" in stylesheet
     assert ".gm-question-board-controls" in stylesheet
     assert ".gm-question-board-controls button" in stylesheet
