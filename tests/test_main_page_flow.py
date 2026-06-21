@@ -344,24 +344,35 @@ def test_render_sidebar_subject_topic_filters_renders_spacing_hooks(monkeypatch)
     assert any("gm-sidebar-apply-filters-hook" in html for html in rendered_html)
 
 
-def test_display_sidebar_dynamic_filter_controls_uses_portuguese_multiselect_copy(monkeypatch) -> None:
-    calls: list[dict[str, object]] = []
+def test_display_sidebar_topic_filter_uses_plain_topic_names_for_one_selected_subject(monkeypatch) -> None:
+    popover_calls: list[dict[str, object]] = []
+    checkbox_calls: list[dict[str, object]] = []
+    rendered_html: list[str] = []
     subject_topic_groups = [
+        SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance")),
         SubjectTopicGroup(subject="matematica", topics=("divisao", "fracoes")),
     ]
-    filter_frame = main_page._build_sidebar_dynamic_filter_frame(subject_topic_groups)
     filters_key = main_page._sidebar_dynamic_filters_key()
 
     class FakeDynamicFilters:
         filters_name = filters_key
 
-        def filter_df(self, *, except_filter_tab):
-            return filter_frame
-
     fake_st = SimpleNamespace(
-        session_state={filters_key: {main_page.SIDEBAR_FILTER_TOPIC_COLUMN: []}},
-        multiselect=lambda label, options, **kwargs: (
-            calls.append({"label": label, "options": options, **kwargs}) or []
+        session_state={
+            filters_key: {
+                main_page.SIDEBAR_FILTER_SUBJECT_COLUMN: [
+                    main_page.format_subject_label("matematica")
+                ],
+                main_page.SIDEBAR_FILTER_TOPIC_COLUMN: [],
+            }
+        },
+        popover=lambda label, **kwargs: (
+            popover_calls.append({"label": label, **kwargs}) or nullcontext()
+        ),
+        container=lambda: nullcontext(),
+        html=lambda html: rendered_html.append(html),
+        checkbox=lambda label, **kwargs: (
+            checkbox_calls.append({"label": label, **kwargs}) or False
         ),
         rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
     )
@@ -371,11 +382,83 @@ def test_display_sidebar_dynamic_filter_controls_uses_portuguese_multiselect_cop
     main_page._display_sidebar_dynamic_filter_controls(
         dynamic_filters=FakeDynamicFilters(),
         filter_columns=(main_page.SIDEBAR_FILTER_TOPIC_COLUMN,),
+        subject_topic_groups=subject_topic_groups,
     )
 
-    assert calls[0]["label"] == "Tópico"
-    assert calls[0]["placeholder"] == "Selecione os tópicos"
-    assert calls[0]["label_visibility"] == "collapsed"
+    assert popover_calls == [
+        {
+            "label": "Selecione os tópicos",
+            "key": "gm_sidebar_topic_filter_popover",
+            "use_container_width": True,
+        }
+    ]
+    assert [call["label"] for call in checkbox_calls] == ["Divisão", "Frações"]
+    assert all("gm-topic-filter-group-title" not in html for html in rendered_html)
+    assert any("gm-topic-filter-group-hook--single-subject" in html for html in rendered_html)
+
+
+def test_display_sidebar_topic_filter_groups_plain_topic_names_by_subject(monkeypatch) -> None:
+    popover_calls: list[dict[str, object]] = []
+    checkbox_calls: list[dict[str, object]] = []
+    rendered_html: list[str] = []
+    subject_topic_groups = [
+        SubjectTopicGroup(subject="databricks", topics=("ingestion", "governance")),
+        SubjectTopicGroup(subject="matematica", topics=("divisao",)),
+    ]
+    filters_key = main_page._sidebar_dynamic_filters_key()
+    selected_topic_label = main_page._sidebar_topic_filter_label(
+        subject="databricks",
+        topic="ingestion",
+        single_subject_mode=False,
+    )
+
+    class FakeDynamicFilters:
+        filters_name = filters_key
+
+    fake_st = SimpleNamespace(
+        session_state={
+            filters_key: {
+                main_page.SIDEBAR_FILTER_SUBJECT_COLUMN: [
+                    main_page.format_subject_label("databricks"),
+                    main_page.format_subject_label("matematica"),
+                ],
+                main_page.SIDEBAR_FILTER_TOPIC_COLUMN: [selected_topic_label],
+            }
+        },
+        popover=lambda label, **kwargs: (
+            popover_calls.append({"label": label, **kwargs}) or nullcontext()
+        ),
+        container=lambda: nullcontext(),
+        html=lambda html: rendered_html.append(html),
+        checkbox=lambda label, **kwargs: (
+            checkbox_calls.append({"label": label, **kwargs}) or bool(kwargs["value"])
+        ),
+        rerun=lambda: (_ for _ in ()).throw(AssertionError("should not rerun")),
+    )
+
+    monkeypatch.setattr(main_page, "st", fake_st)
+
+    main_page._display_sidebar_dynamic_filter_controls(
+        dynamic_filters=FakeDynamicFilters(),
+        filter_columns=(main_page.SIDEBAR_FILTER_TOPIC_COLUMN,),
+        subject_topic_groups=subject_topic_groups,
+    )
+
+    assert popover_calls == [
+        {
+            "label": "Ingestion",
+            "key": "gm_sidebar_topic_filter_popover",
+            "use_container_width": True,
+        }
+    ]
+    assert [call["label"] for call in checkbox_calls] == [
+        "Ingestion",
+        "Governance",
+        "Divisão",
+    ]
+    assert all(" / " not in str(call["label"]) for call in checkbox_calls)
+    assert any(">Databricks<" in html for html in rendered_html)
+    assert any(">Matemática<" in html for html in rendered_html)
 
 
 def test_submit_selected_answer_rejects_missing_option(monkeypatch) -> None:
@@ -944,6 +1027,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "--gm-pending-choice-content-gap: 0.48rem;" in stylesheet
     assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet
+    assert ".gm-live-pending-label" in stylesheet
+    assert "padding-top: 2px;" in stylesheet
     for deprecated_variable in (
         "--gm-topbar-alignment-offset",
         "--gm-live-metrics-top-pull",
@@ -960,6 +1045,8 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "gm-answer-actions-hook" in stylesheet
     assert "gm-quiz-alternatives-block" in stylesheet
     assert "gm-quiz-actions-block" in stylesheet
+    assert "gm-topic-filter-group-title" in stylesheet
+    assert "width: calc(100% - 1rem) !important;" in stylesheet
     assert "gap: 0 !important;" in stylesheet
     assert "margin-top: var(--gm-quiz-question-to-alternatives) !important;" in stylesheet
     assert "margin-bottom: var(--gm-live-actions-to-review-gap) !important;" in stylesheet
@@ -979,6 +1066,9 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "width: var(--gm-narrow-surface-width) !important;" in stylesheet
     assert "max-width: var(--gm-narrow-surface-width);" in stylesheet
     assert "padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;" in stylesheet
+    assert "align-items: stretch !important;" in stylesheet
+    assert "flex-direction: row !important;" in stylesheet
+    assert "width: 0 !important;" in stylesheet
     assert "flex: 1 1 0 !important;" in stylesheet
     assert "flex: 2 1 0 !important;" in stylesheet
 

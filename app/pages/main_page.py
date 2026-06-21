@@ -265,6 +265,7 @@ def _render_sidebar_dynamic_subject_topic_filters(
     _display_sidebar_dynamic_filter_controls(
         dynamic_filters=dynamic_filters,
         filter_columns=filter_columns,
+        subject_topic_groups=subject_topic_groups,
     )
 
 
@@ -272,12 +273,24 @@ def _display_sidebar_dynamic_filter_controls(
     *,
     dynamic_filters: DynamicFiltersHierarchical,
     filter_columns: tuple[str, ...],
+    subject_topic_groups: list[SubjectTopicGroup],
 ) -> None:
     filters_changed = False
     remaining_hierarchy = list(filter_columns)
     filters_state_key = dynamic_filters.filters_name
 
     for filter_column in filter_columns:
+        if filter_column == SIDEBAR_FILTER_TOPIC_COLUMN:
+            remaining_hierarchy.remove(filter_column)
+            filters_changed = (
+                _render_sidebar_grouped_topic_filter_control(
+                    subject_topic_groups=subject_topic_groups,
+                    filters_state_key=filters_state_key,
+                )
+                or filters_changed
+            )
+            continue
+
         filtered_frame = dynamic_filters.filter_df(except_filter_tab=remaining_hierarchy)
         remaining_hierarchy.remove(filter_column)
         options = sorted(
@@ -307,10 +320,108 @@ def _display_sidebar_dynamic_filter_controls(
         )
         if selected_values != st.session_state[filters_state_key][filter_column]:
             st.session_state[filters_state_key][filter_column] = selected_values
+            _clear_sidebar_topic_checkbox_widget_keys()
             filters_changed = True
 
     if filters_changed:
         st.rerun()
+
+
+def _render_sidebar_grouped_topic_filter_control(
+    *,
+    subject_topic_groups: list[SubjectTopicGroup],
+    filters_state_key: str,
+) -> bool:
+    filters_state = st.session_state[filters_state_key]
+    subject_by_label = _sidebar_subject_key_by_label(subject_topic_groups)
+    selected_subjects = {
+        subject_by_label[label]
+        for label in _coerce_dynamic_filter_values(
+            filters_state.get(SIDEBAR_FILTER_SUBJECT_COLUMN)
+        )
+        if label in subject_by_label
+    }
+    visible_groups = [
+        group
+        for group in subject_topic_groups
+        if group.topics and (not selected_subjects or group.subject in selected_subjects)
+    ]
+    topic_labels = _sidebar_topic_label_by_key(subject_topic_groups)
+    visible_topic_keys = [
+        (group.subject, topic)
+        for group in visible_groups
+        for topic in group.topics
+    ]
+    visible_topic_labels = [
+        topic_labels[topic_key]
+        for topic_key in visible_topic_keys
+        if topic_key in topic_labels
+    ]
+    current_topic_labels = _coerce_dynamic_filter_values(
+        filters_state.get(SIDEBAR_FILTER_TOPIC_COLUMN)
+    )
+    selected_topic_labels = [
+        label for label in visible_topic_labels if label in current_topic_labels
+    ]
+    state_changed = list(current_topic_labels) != selected_topic_labels
+    if state_changed:
+        filters_state[SIDEBAR_FILTER_TOPIC_COLUMN] = selected_topic_labels
+
+    selected_topic_set = set(selected_topic_labels)
+    popover_label = _sidebar_topic_popover_label(
+        selected_topic_labels=selected_topic_labels,
+        subject_topic_groups=subject_topic_groups,
+    )
+    with st.popover(
+        popover_label,
+        key="gm_sidebar_topic_filter_popover",
+        use_container_width=True,
+    ):
+        show_subject_groups = len(visible_groups) > 1
+        next_topic_labels: list[str] = []
+        for group in visible_groups:
+            modifier = "" if show_subject_groups else " gm-topic-filter-group-hook--single-subject"
+            with st.container():
+                st.html(f'<div class="gm-topic-filter-group-hook{modifier}"></div>')
+                if show_subject_groups:
+                    st.html(
+                        '<div class="gm-topic-filter-group-title">'
+                        f"{escape(format_subject_label(group.subject))}"
+                        "</div>"
+                    )
+                for topic in group.topics:
+                    topic_key = (group.subject, topic)
+                    internal_label = topic_labels[topic_key]
+                    if st.checkbox(
+                        format_topic_label(topic),
+                        value=internal_label in selected_topic_set,
+                        key=_sidebar_topic_checkbox_key(subject=group.subject, topic=topic),
+                    ):
+                        next_topic_labels.append(internal_label)
+
+    if next_topic_labels != selected_topic_labels:
+        filters_state[SIDEBAR_FILTER_TOPIC_COLUMN] = next_topic_labels
+        state_changed = True
+    return state_changed
+
+
+def _sidebar_topic_popover_label(
+    *,
+    selected_topic_labels: list[str],
+    subject_topic_groups: list[SubjectTopicGroup],
+) -> str:
+    if not selected_topic_labels:
+        return "Selecione os tópicos"
+    if len(selected_topic_labels) > 1:
+        return f"{len(selected_topic_labels)} tópicos selecionados"
+
+    topic_keys = _sidebar_topic_keys_by_label(subject_topic_groups).get(
+        selected_topic_labels[0],
+        (),
+    )
+    if not topic_keys:
+        return "1 tópico selecionado"
+    return format_topic_label(topic_keys[0][1])
 
 
 def _sidebar_filter_placeholder(filter_column: str) -> str:
@@ -1097,9 +1208,20 @@ def _sidebar_dynamic_multiselect_key(filter_column: str) -> str:
     return f"{_sidebar_dynamic_filters_key()}{filter_column}"
 
 
+def _sidebar_topic_checkbox_key(*, subject: str, topic: str) -> str:
+    return f"gm_sidebar_topic_checkbox::{subject}::{topic}"
+
+
+def _clear_sidebar_topic_checkbox_widget_keys() -> None:
+    for key in tuple(st.session_state):
+        if str(key).startswith("gm_sidebar_topic_checkbox::"):
+            st.session_state.pop(key, None)
+
+
 def _clear_sidebar_dynamic_multiselect_widget_keys() -> None:
     for filter_column in (SIDEBAR_FILTER_SUBJECT_COLUMN, SIDEBAR_FILTER_TOPIC_COLUMN):
         st.session_state.pop(_sidebar_dynamic_multiselect_key(filter_column), None)
+    _clear_sidebar_topic_checkbox_widget_keys()
 
 
 def _sidebar_dynamic_filter_columns(
@@ -1567,6 +1689,13 @@ def _apply_live_page_styles() -> None:
             min-height: 2.55rem !important;
         }
 
+        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-testid="stPopover"] > button {
+            border-color: #d7e0eb !important;
+            border-radius: 0.78rem !important;
+            box-shadow: none !important;
+            min-height: 2.55rem !important;
+        }
+
         section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-subject-topic-filters-hook) [data-baseweb="select"] input::placeholder {
             color: #64748b !important;
             opacity: 1 !important;
@@ -1692,7 +1821,10 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] {
+            align-items: stretch !important;
             box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: row !important;
             flex-wrap: nowrap !important;
             width: 100% !important;
         }
@@ -1710,12 +1842,12 @@ def _apply_live_page_styles() -> None:
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div,
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div {
             min-width: 0 !important;
+            width: 0 !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child,
         div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child {
             flex: 1 1 0 !important;
-            width: auto !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child,
@@ -1975,6 +2107,7 @@ def _apply_live_page_styles() -> None:
             font-size: 0.88rem;
             font-weight: 600;
             margin: 0;
+            padding-top: 2px;
         }
 
         .gm-live-pending-choice-card {
@@ -2153,13 +2286,22 @@ def _apply_live_page_styles() -> None:
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-topic-filter-group-hook) [data-testid="stCheckbox"] {
-            margin-left: 1.75rem !important;
-            width: calc(100% - 1.75rem) !important;
+            margin-left: 1rem !important;
+            width: calc(100% - 1rem) !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-topic-filter-group-hook--single-subject) [data-testid="stCheckbox"] {
             margin-left: 0 !important;
             width: 100% !important;
+        }
+
+        .gm-topic-filter-group-title {
+            color: #475569;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            margin: 0.3rem 0 0.12rem;
+            text-transform: uppercase;
         }
 
         div[data-testid="stPopover"] [data-testid="stCheckbox"] label {
@@ -2521,16 +2663,6 @@ def _apply_live_page_styles() -> None:
             box-shadow: 0 0 0 0.16rem rgba(245, 163, 163, 0.32) !important;
             color: #b91c1c !important;
             outline: none !important;
-        }
-
-        @media (max-width: 380px) {
-            div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child,
-            div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child,
-            div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:first-child,
-            div[data-testid="stVerticalBlock"]:has(.gm-pending-actions-hook) > div[data-testid="stHorizontalBlock"] > div:last-child {
-                flex: 1 1 0 !important;
-                width: auto !important;
-            }
         }
 
         div[data-testid="stAlert"] {
