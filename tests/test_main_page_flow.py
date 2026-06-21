@@ -924,28 +924,23 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
     assert "--gm-quiz-page-top-to-status: 8px;" in stylesheet
-    assert "--gm-quiz-status-to-question: 16px;" in stylesheet
-    assert "--gm-quiz-question-to-alternatives: 8px;" in stylesheet
-    assert "--gm-quiz-alternative-label-to-options: 6px;" in stylesheet
-    assert "--gm-quiz-option-gap: 8px;" in stylesheet
-    assert "--gm-quiz-alternatives-to-actions: 18px;" in stylesheet
     assert "--gm-quiz-page-bottom: 20px;" in stylesheet
     assert "@media (min-width: 641px)" in stylesheet
     assert "--gm-quiz-page-top-to-status: 12px;" in stylesheet
-    assert "--gm-quiz-status-to-question: 20px;" in stylesheet
-    assert "--gm-quiz-question-to-alternatives: 10px;" in stylesheet
-    assert "--gm-quiz-alternative-label-to-options: 8px;" in stylesheet
-    assert "--gm-quiz-option-gap: 10px;" in stylesheet
-    assert "--gm-quiz-alternatives-to-actions: 24px;" in stylesheet
     assert "--gm-quiz-page-bottom: 28px;" in stylesheet
+    assert stylesheet.count("--gm-quiz-status-to-question: 12px;") == 2
+    assert stylesheet.count("--gm-quiz-question-to-alternatives: 12px;") == 2
+    assert stylesheet.count("--gm-quiz-alternative-label-to-options: 6px;") == 2
+    assert stylesheet.count("--gm-quiz-option-gap: 8px;") == 2
+    assert stylesheet.count("--gm-quiz-alternatives-to-actions: 12px;") == 2
     assert "padding-top: 0;" in stylesheet
     assert "padding-bottom: var(--gm-quiz-page-bottom);" in stylesheet
     assert "--gm-wide-surface-width: 100%;" in stylesheet
     assert "--gm-narrow-surface-width: calc(100% - 1.1rem);" in stylesheet
     assert "--gm-live-card-inline-padding: 1rem;" in stylesheet
-    assert "--gm-live-actions-to-review-gap: 0.72rem;" in stylesheet
-    assert "--gm-live-review-card-gap: 0.62rem;" in stylesheet
-    assert "--gm-live-review-to-actions-gap: 0.78rem;" in stylesheet
+    assert "--gm-live-actions-to-review-gap: 12px;" in stylesheet
+    assert "--gm-live-review-card-gap: 12px;" in stylesheet
+    assert "--gm-live-review-to-actions-gap: 12px;" in stylesheet
     assert "--gm-pending-choice-content-gap: 0.48rem;" in stylesheet
     assert "--gm-pending-choice-padding-block: 0.56rem;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 0.62rem;" in stylesheet

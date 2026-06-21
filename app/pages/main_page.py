@@ -85,23 +85,26 @@ QUESTION_BOARD_STATUS_FRAGMENT_PATTERN = re.compile(
     r"(?is)Generated\s+\d+\s+puzzles?\s+from\s+\d+\s+games?\.?(?:\s|<br\s*/?>)*"
 )
 EMPTY_CONTROL_PARAGRAPH_PATTERN = re.compile(r"<p>(?:\s|<br\s*/?>)*</p>", re.IGNORECASE)
+QUIZ_BLOCK_GAP = "12px"
+QUIZ_OPTION_GAP = "8px"
+QUIZ_ALTERNATIVE_LABEL_GAP = "6px"
 QUIZ_LAYOUT_SPACING = {
     "mobile": {
         "page_top_to_status": "8px",
-        "status_to_question": "16px",
-        "question_to_alternatives": "8px",
-        "alternative_label_to_options": "6px",
-        "option_gap": "8px",
-        "alternatives_to_actions": "18px",
+        "status_to_question": QUIZ_BLOCK_GAP,
+        "question_to_alternatives": QUIZ_BLOCK_GAP,
+        "alternative_label_to_options": QUIZ_ALTERNATIVE_LABEL_GAP,
+        "option_gap": QUIZ_OPTION_GAP,
+        "alternatives_to_actions": QUIZ_BLOCK_GAP,
         "page_bottom": "20px",
     },
     "desktop": {
         "page_top_to_status": "12px",
-        "status_to_question": "20px",
-        "question_to_alternatives": "10px",
-        "alternative_label_to_options": "8px",
-        "option_gap": "10px",
-        "alternatives_to_actions": "24px",
+        "status_to_question": QUIZ_BLOCK_GAP,
+        "question_to_alternatives": QUIZ_BLOCK_GAP,
+        "alternative_label_to_options": QUIZ_ALTERNATIVE_LABEL_GAP,
+        "option_gap": QUIZ_OPTION_GAP,
+        "alternatives_to_actions": QUIZ_BLOCK_GAP,
         "page_bottom": "28px",
     },
 }
@@ -1436,9 +1439,9 @@ def _apply_live_page_styles() -> None:
             --gm-wide-surface-width: 100%;
             --gm-narrow-surface-width: calc(100% - 1.1rem);
             --gm-live-card-inline-padding: 1rem;
-            --gm-live-actions-to-review-gap: 0.72rem;
-            --gm-live-review-card-gap: 0.62rem;
-            --gm-live-review-to-actions-gap: 0.78rem;
+            --gm-live-actions-to-review-gap: 12px;
+            --gm-live-review-card-gap: 12px;
+            --gm-live-review-to-actions-gap: 12px;
             --gm-pending-choice-content-gap: 0.48rem;
             --gm-pending-choice-padding-block: 0.56rem;
             --gm-pending-choice-padding-inline: 0.62rem;
