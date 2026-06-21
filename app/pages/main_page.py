@@ -1813,10 +1813,6 @@ def _apply_live_page_styles() -> None:
             width: var(--gm-narrow-surface-width) !important;
         }
 
-        div[data-testid="stElementContainer"]:has(.gm-live-pending-label) {
-            padding-top: var(--gm-quiz-question-to-alternatives) !important;
-        }
-
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook):not(:has(.gm-quiz-status-block)) {
             gap: 0 !important;
             margin-left: auto !important;
@@ -1830,10 +1826,6 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook--bottom):not(:has(.gm-quiz-status-block)) {
             margin: 0 !important;
-        }
-
-        div[data-testid="stElementContainer"]:has(.gm-answer-actions-hook--top) + div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {
-            padding-top: var(--gm-quiz-question-to-alternatives) !important;
         }
 
         div[data-testid="stElementContainer"]:has(.gm-answer-actions-hook--bottom) + div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {
@@ -1981,6 +1973,7 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stElementContainer"]:has(.gm-quiz-question-block) {
             margin-top: var(--gm-quiz-status-to-question) !important;
+            padding-bottom: var(--gm-quiz-question-to-alternatives) !important;
         }
 
         div[data-testid="stElementContainer"]:has(.gm-live-answer-card) {

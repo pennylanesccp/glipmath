@@ -1064,29 +1064,13 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
         'div[data-testid="stVerticalBlock"]:has(.gm-quiz-alternatives-block):not(:has(.gm-quiz-status-block)) {',
         1,
     )[1].split("}", 1)[0]
-    alternatives_label_container_css = stylesheet.split(
-        'div[data-testid="stElementContainer"]:has(.gm-live-pending-label) {',
-        1,
-    )[1].split("}", 1)[0]
     assert "margin-top: 0 !important;" in alternatives_container_css
-    assert (
-        "padding-top: var(--gm-quiz-question-to-alternatives) !important;"
-        in alternatives_label_container_css
-    )
     assert "margin-top: var(--gm-live-actions-to-review-gap) !important;" in stylesheet
     assert "margin-top: var(--gm-live-review-card-gap) !important;" in stylesheet
-    top_answer_actions_css = stylesheet.split(
-        'div[data-testid="stElementContainer"]:has(.gm-answer-actions-hook--top) + div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {',
-        1,
-    )[1].split("}", 1)[0]
     bottom_answer_actions_css = stylesheet.split(
         'div[data-testid="stElementContainer"]:has(.gm-answer-actions-hook--bottom) + div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {',
         1,
     )[1].split("}", 1)[0]
-    assert (
-        "padding-top: var(--gm-quiz-question-to-alternatives) !important;"
-        in top_answer_actions_css
-    )
     assert (
         "padding-top: var(--gm-live-review-to-actions-gap) !important;"
         in bottom_answer_actions_css
@@ -1103,9 +1087,17 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
         'div[data-testid="stElementContainer"]:has(.gm-quiz-status-block) {',
         1,
     )[1].split("}", 1)[0]
+    question_container_css = stylesheet.split(
+        'div[data-testid="stElementContainer"]:has(.gm-quiz-question-block) {',
+        1,
+    )[1].split("}", 1)[0]
     assert "min-height" not in metrics_bar_css
     assert "min-height" not in metric_css
     assert "min-height" not in status_container_css
+    assert (
+        "padding-bottom: var(--gm-quiz-question-to-alternatives) !important;"
+        in question_container_css
+    )
     assert ".gm-live-question-card" in stylesheet
     assert ".gm-question-board-controls" in stylesheet
     assert ".gm-question-board-controls button" in stylesheet
