@@ -923,20 +923,21 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
-    assert "--gm-quiz-page-top-to-status: 12px;" in stylesheet
-    assert "--gm-quiz-status-to-question: 30px;" in stylesheet
-    assert "--gm-quiz-question-to-alternatives: 12px;" in stylesheet
-    assert "--gm-quiz-alternative-label-to-options: 10px;" in stylesheet
-    assert "--gm-quiz-option-gap: 12px;" in stylesheet
-    assert "--gm-quiz-alternatives-to-actions: 34px;" in stylesheet
-    assert "--gm-quiz-page-bottom: 32px;" in stylesheet
+    assert "--gm-quiz-page-top-to-status: 8px;" in stylesheet
+    assert "--gm-quiz-status-to-question: 16px;" in stylesheet
+    assert "--gm-quiz-question-to-alternatives: 8px;" in stylesheet
+    assert "--gm-quiz-alternative-label-to-options: 6px;" in stylesheet
+    assert "--gm-quiz-option-gap: 8px;" in stylesheet
+    assert "--gm-quiz-alternatives-to-actions: 18px;" in stylesheet
+    assert "--gm-quiz-page-bottom: 20px;" in stylesheet
     assert "@media (min-width: 641px)" in stylesheet
-    assert "--gm-quiz-page-top-to-status: 20px;" in stylesheet
-    assert "--gm-quiz-status-to-question: 32px;" in stylesheet
-    assert "--gm-quiz-question-to-alternatives: 14px;" in stylesheet
-    assert "--gm-quiz-alternative-label-to-options: 12px;" in stylesheet
-    assert "--gm-quiz-alternatives-to-actions: 36px;" in stylesheet
-    assert "--gm-quiz-page-bottom: 40px;" in stylesheet
+    assert "--gm-quiz-page-top-to-status: 12px;" in stylesheet
+    assert "--gm-quiz-status-to-question: 20px;" in stylesheet
+    assert "--gm-quiz-question-to-alternatives: 10px;" in stylesheet
+    assert "--gm-quiz-alternative-label-to-options: 8px;" in stylesheet
+    assert "--gm-quiz-option-gap: 10px;" in stylesheet
+    assert "--gm-quiz-alternatives-to-actions: 24px;" in stylesheet
+    assert "--gm-quiz-page-bottom: 28px;" in stylesheet
     assert "padding-top: 0;" in stylesheet
     assert "padding-bottom: var(--gm-quiz-page-bottom);" in stylesheet
     assert "--gm-wide-surface-width: 100%;" in stylesheet

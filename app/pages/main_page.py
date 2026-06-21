@@ -87,22 +87,22 @@ QUESTION_BOARD_STATUS_FRAGMENT_PATTERN = re.compile(
 EMPTY_CONTROL_PARAGRAPH_PATTERN = re.compile(r"<p>(?:\s|<br\s*/?>)*</p>", re.IGNORECASE)
 QUIZ_LAYOUT_SPACING = {
     "mobile": {
-        "page_top_to_status": "12px",
-        "status_to_question": "30px",
-        "question_to_alternatives": "12px",
-        "alternative_label_to_options": "10px",
-        "option_gap": "12px",
-        "alternatives_to_actions": "34px",
-        "page_bottom": "32px",
+        "page_top_to_status": "8px",
+        "status_to_question": "16px",
+        "question_to_alternatives": "8px",
+        "alternative_label_to_options": "6px",
+        "option_gap": "8px",
+        "alternatives_to_actions": "18px",
+        "page_bottom": "20px",
     },
     "desktop": {
-        "page_top_to_status": "20px",
-        "status_to_question": "32px",
-        "question_to_alternatives": "14px",
-        "alternative_label_to_options": "12px",
-        "option_gap": "12px",
-        "alternatives_to_actions": "36px",
-        "page_bottom": "40px",
+        "page_top_to_status": "12px",
+        "status_to_question": "20px",
+        "question_to_alternatives": "10px",
+        "alternative_label_to_options": "8px",
+        "option_gap": "10px",
+        "alternatives_to_actions": "24px",
+        "page_bottom": "28px",
     },
 }
 QUIZ_LAYOUT_SPACING_VARIABLES = {
