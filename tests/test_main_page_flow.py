@@ -1064,14 +1064,14 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
         'div[data-testid="stVerticalBlock"]:has(.gm-quiz-alternatives-block):not(:has(.gm-quiz-status-block)) {',
         1,
     )[1].split("}", 1)[0]
-    alternatives_wrapper_css = stylesheet.split(
-        'div[data-testid="stLayoutWrapper"]:has(.gm-quiz-alternatives-block) {',
+    alternatives_label_container_css = stylesheet.split(
+        'div[data-testid="stElementContainer"]:has(.gm-live-pending-label) {',
         1,
     )[1].split("}", 1)[0]
     assert "margin-top: 0 !important;" in alternatives_container_css
     assert (
-        "margin-top: var(--gm-quiz-question-to-alternatives) !important;"
-        in alternatives_wrapper_css
+        "padding-top: var(--gm-quiz-question-to-alternatives) !important;"
+        in alternatives_label_container_css
     )
     assert "margin-top: var(--gm-live-actions-to-review-gap) !important;" in stylesheet
     assert "margin-top: var(--gm-live-review-card-gap) !important;" in stylesheet

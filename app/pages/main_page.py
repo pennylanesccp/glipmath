@@ -1813,8 +1813,8 @@ def _apply_live_page_styles() -> None:
             width: var(--gm-narrow-surface-width) !important;
         }
 
-        div[data-testid="stLayoutWrapper"]:has(.gm-quiz-alternatives-block) {
-            margin-top: var(--gm-quiz-question-to-alternatives) !important;
+        div[data-testid="stElementContainer"]:has(.gm-live-pending-label) {
+            padding-top: var(--gm-quiz-question-to-alternatives) !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook):not(:has(.gm-quiz-status-block)) {
