@@ -1832,12 +1832,12 @@ def _apply_live_page_styles() -> None:
             margin: 0 !important;
         }
 
-        div[data-testid="stLayoutWrapper"]:has(.gm-answer-actions-hook--top) {
-            margin-top: var(--gm-quiz-question-to-alternatives) !important;
+        div[data-testid="stElementContainer"]:has(.gm-answer-actions-hook--top) + div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {
+            padding-top: var(--gm-quiz-question-to-alternatives) !important;
         }
 
-        div[data-testid="stLayoutWrapper"]:has(.gm-answer-actions-hook--bottom) {
-            margin-top: var(--gm-live-review-to-actions-gap) !important;
+        div[data-testid="stElementContainer"]:has(.gm-answer-actions-hook--bottom) + div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {
+            padding-top: var(--gm-live-review-to-actions-gap) !important;
         }
 
         div[data-testid="stVerticalBlock"]:has(.gm-answer-actions-hook) > div[data-testid="stHorizontalBlock"] {
