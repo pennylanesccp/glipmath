@@ -1087,16 +1087,13 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
         'div[data-testid="stElementContainer"]:has(.gm-quiz-status-block) {',
         1,
     )[1].split("}", 1)[0]
-    question_container_css = stylesheet.split(
-        'div[data-testid="stElementContainer"]:has(.gm-quiz-question-block) {',
-        1,
-    )[1].split("}", 1)[0]
     assert "min-height" not in metrics_bar_css
     assert "min-height" not in metric_css
     assert "min-height" not in status_container_css
+    question_card_css = stylesheet.split(".gm-live-question-card {", 1)[1].split("}", 1)[0]
     assert (
-        "padding-bottom: var(--gm-quiz-question-to-alternatives) !important;"
-        in question_container_css
+        "margin-bottom: var(--gm-quiz-question-to-alternatives) !important;"
+        in question_card_css
     )
     assert ".gm-live-question-card" in stylesheet
     assert ".gm-question-board-controls" in stylesheet

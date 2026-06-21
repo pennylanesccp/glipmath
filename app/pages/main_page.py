@@ -1973,7 +1973,6 @@ def _apply_live_page_styles() -> None:
 
         div[data-testid="stElementContainer"]:has(.gm-quiz-question-block) {
             margin-top: var(--gm-quiz-status-to-question) !important;
-            padding-bottom: var(--gm-quiz-question-to-alternatives) !important;
         }
 
         div[data-testid="stElementContainer"]:has(.gm-live-answer-card) {
@@ -1996,6 +1995,7 @@ def _apply_live_page_styles() -> None:
 
         .gm-live-question-card {
             box-sizing: border-box;
+            margin-bottom: var(--gm-quiz-question-to-alternatives) !important;
             margin-left: auto;
             margin-right: auto;
             max-width: var(--gm-wide-surface-width);
