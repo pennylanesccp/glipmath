@@ -4,6 +4,9 @@ from types import SimpleNamespace
 
 from app import streamlit_app
 from app.pages import main_page
+from app.ui.live_quiz import components as live_quiz_components
+from app.ui.live_quiz import sections as live_quiz_sections
+from app.ui.live_quiz import styles as live_quiz_styles
 from modules.domain.models import AnswerAttempt, AnswerEvaluation, DisplayAlternative, Question, QuestionAlternative, User
 from modules.services.question_service import SubjectTopicGroup
 
@@ -686,7 +689,7 @@ def test_ensure_leaderboard_position_loaded_reuses_session_snapshot(monkeypatch)
 
 
 def test_build_answer_review_card_html_uses_wrong_style_for_all_incorrect_options() -> None:
-    wrong_html = main_page._build_answer_review_card_html(
+    wrong_html = live_quiz_components._build_answer_review_card_html(
         alternative=DisplayAlternative(
             option_id="option_b",
             alternative_text="6",
@@ -695,7 +698,7 @@ def test_build_answer_review_card_html_uses_wrong_style_for_all_incorrect_option
         ),
         selected_option_id="option_a",
     )
-    correct_html = main_page._build_answer_review_card_html(
+    correct_html = live_quiz_components._build_answer_review_card_html(
         alternative=DisplayAlternative(
             option_id="option_a",
             alternative_text="4",
@@ -713,28 +716,21 @@ def test_build_answer_review_card_html_uses_wrong_style_for_all_incorrect_option
 
 def test_render_answered_state_repeats_result_actions_above_and_below_review_cards(monkeypatch) -> None:
     calls: list[tuple[str, object]] = []
-    button_calls: list[dict[str, object]] = []
-
-    class FakeColumn:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-    def fake_columns(spec, **kwargs):
-        calls.append(("columns", {"spec": spec, **kwargs}))
-        return [FakeColumn(), FakeColumn()]
-
-    def fake_button(label, **kwargs):
-        button_calls.append({"label": label, **kwargs})
-        calls.append(("button", kwargs.get("key")))
-        return False
-
-    monkeypatch.setattr(main_page.st, "columns", fake_columns)
-    monkeypatch.setattr(main_page.st, "html", lambda html: calls.append(("html", html)))
-    monkeypatch.setattr(main_page.st, "button", fake_button)
-    monkeypatch.setattr(main_page.st, "container", lambda: nullcontext())
+    monkeypatch.setattr(
+        main_page,
+        "_render_answer_result_actions",
+        lambda **kwargs: calls.append(("actions", kwargs["button_key"])) or False,
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_render_answer_review_cards",
+        lambda **kwargs: calls.append(("reviews", kwargs["selected_option_id"])),
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_render_quiz_section_gap",
+        lambda name: calls.append(("gap", name)),
+    )
 
     main_page._render_answered_state(
         alternatives=[
@@ -755,26 +751,63 @@ def test_render_answered_state_repeats_result_actions_above_and_below_review_car
         answer_is_correct=True,
     )
 
-    assert [call for call in calls if call[0] == "columns"] == [
-        ("columns", {"spec": [1, 2], "vertical_alignment": "center"}),
-        ("columns", {"spec": [1, 2], "vertical_alignment": "center"}),
+    assert calls == [
+        ("actions", "gm_next_question_top"),
+        ("gap", "after-answer-actions"),
+        ("reviews", "option_a"),
+        ("gap", "before-bottom-answer-actions"),
+        ("actions", "gm_next_question_bottom"),
     ]
-    assert [button_call["key"] for button_call in button_calls] == [
-        "gm_next_question_top",
-        "gm_next_question_bottom",
+
+
+def test_answered_quiz_renders_after_question_gap_before_top_actions(monkeypatch) -> None:
+    calls: list[tuple[str, object]] = []
+    question = Question(
+        id_question=17,
+        statement="Quanto é 2 + 2?",
+        correct_answer=QuestionAlternative("4"),
+        wrong_answers=(QuestionAlternative("3"),),
+        subject="Matemática",
+    )
+
+    monkeypatch.setattr(
+        main_page.st,
+        "container",
+        lambda **kwargs: calls.append(("container", kwargs)) or nullcontext(),
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_render_question_card",
+        lambda statement: calls.append(("question", statement)),
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_render_quiz_section_gap",
+        lambda name: calls.append(("gap", name)),
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_render_answered_state",
+        lambda **kwargs: calls.append(("answered", kwargs["answer_is_correct"])),
+    )
+
+    main_page._render_answered_quiz(
+        current_question=question,
+        alternatives=[],
+        selected_option_id="option_a",
+        answer_is_correct=True,
+    )
+
+    assert calls == [
+        ("container", {"key": "gm_quiz_flow", "gap": None}),
+        ("question", "Quanto é 2 + 2?"),
+        ("gap", "after-question"),
+        ("answered", True),
     ]
-    assert "gm-answer-actions-hook--top" in str(calls[0][1])
-    assert "gm-live-status-chip--correct" in str(calls[2][1])
-    assert calls[3] == ("button", "gm_next_question_top")
-    assert "gm-live-answer-card--correct" in str(calls[4][1])
-    assert "gm-live-answer-card--wrong" in str(calls[5][1])
-    assert "gm-answer-actions-hook--bottom" in str(calls[6][1])
-    assert "gm-live-status-chip--correct" in str(calls[8][1])
-    assert calls[9] == ("button", "gm_next_question_bottom")
 
 
 def test_build_question_card_html_renders_markdown_snippets() -> None:
-    html = main_page._build_question_card_html("```sql\nSELECT 1\n```")
+    html = live_quiz_components._build_question_card_html("```sql\nSELECT 1\n```")
 
     assert "gm-quiz-question-block" in html
     assert "gm-live-question-card" in html
@@ -782,8 +815,8 @@ def test_build_question_card_html_renders_markdown_snippets() -> None:
     assert "SELECT 1" in html
 
 
-def test_render_question_card_uses_wide_surface_and_markdown(monkeypatch) -> None:
-    rendered_markdown: list[dict[str, object]] = []
+def test_render_question_card_uses_wide_html_surface(monkeypatch) -> None:
+    rendered_html: list[str] = []
 
     monkeypatch.setattr(
         main_page.st,
@@ -792,37 +825,36 @@ def test_render_question_card_uses_wide_surface_and_markdown(monkeypatch) -> Non
     )
     monkeypatch.setattr(
         main_page.st,
-        "markdown",
-        lambda html, **kwargs: rendered_markdown.append({"html": html, **kwargs}),
+        "html",
+        rendered_html.append,
     )
 
-    main_page._render_question_card("Quanto é **2 + 2**?")
+    live_quiz_sections.render_question_card("Quanto é **2 + 2**?")
 
-    assert rendered_markdown[0]["unsafe_allow_html"] is True
-    assert "gm-live-question-card" in str(rendered_markdown[0]["html"])
-    assert "Quanto é" in str(rendered_markdown[0]["html"])
+    assert "gm-live-question-card" in rendered_html[0]
+    assert "Quanto é" in rendered_html[0]
+
+
+def test_render_quiz_section_gap_is_visible_and_not_a_layout_hook(monkeypatch) -> None:
+    rendered_html: list[str] = []
+    monkeypatch.setattr(live_quiz_sections.st, "html", rendered_html.append)
+
+    live_quiz_sections.render_quiz_section_gap("after-question")
+
+    assert rendered_html == [
+        '<div class="gm-quiz-section-gap gm-quiz-section-gap--after-question" '
+        'aria-hidden="true"></div>'
+    ]
+    assert "gm-quiz-layout-hook" not in rendered_html[0]
 
 
 def test_pending_interaction_fragment_renders_question_with_alternatives(monkeypatch) -> None:
     calls: list[tuple[str, object]] = []
 
-    class FakeColumn:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-    monkeypatch.setattr(main_page.st, "container", lambda: nullcontext())
     monkeypatch.setattr(
         main_page.st,
-        "columns",
-        lambda *args, **kwargs: [FakeColumn(), FakeColumn()],
-    )
-    monkeypatch.setattr(
-        main_page.st,
-        "button",
-        lambda label, **kwargs: calls.append(("button", kwargs.get("key"))) or False,
+        "container",
+        lambda **kwargs: calls.append(("container", kwargs)) or nullcontext(),
     )
     monkeypatch.setattr(
         main_page,
@@ -833,6 +865,16 @@ def test_pending_interaction_fragment_renders_question_with_alternatives(monkeyp
         main_page,
         "_render_pending_alternative_radio",
         lambda **kwargs: calls.append(("alternatives", kwargs["current_question_id"])) or None,
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_render_quiz_section_gap",
+        lambda name: calls.append(("gap", name)),
+    )
+    monkeypatch.setattr(
+        main_page,
+        "_render_pending_actions",
+        lambda question_id: calls.append(("actions", question_id)) or (False, False),
     )
 
     pending_fragment = main_page._render_pending_interaction_fragment.__wrapped__
@@ -857,18 +899,18 @@ def test_pending_interaction_fragment_renders_question_with_alternatives(monkeyp
         selected_option_id=None,
     )
 
-    assert calls[:2] == [
+    assert calls == [
+        ("container", {"key": "gm_quiz_flow", "gap": None}),
         ("question", "Quanto Ã© 2 + 2?"),
+        ("gap", "after-question"),
         ("alternatives", 17),
-    ]
-    assert calls[2:] == [
-        ("button", "gm_skip_question_17"),
-        ("button", "gm_verify_question_17"),
+        ("gap", "before-pending-actions"),
+        ("actions", 17),
     ]
 
 
 def test_build_pending_alternative_card_html_renders_markdown_and_selected_state() -> None:
-    html = main_page._build_pending_alternative_card_html(
+    html = live_quiz_components._build_pending_alternative_card_html(
         alternative=DisplayAlternative(
             option_id="option_sql",
             alternative_text="```python\nprint('ok')\n```",
@@ -884,7 +926,7 @@ def test_build_pending_alternative_card_html_renders_markdown_and_selected_state
 
 
 def test_build_question_card_html_moves_show_and_hint_below_board() -> None:
-    html = main_page._build_question_card_html(
+    html = live_quiz_components._build_question_card_html(
         "Generated 5 puzzles from 8 games.\n"
         "Move the rook on c8.\n"
         '<button type="button">Show</button>\n'
@@ -905,7 +947,7 @@ def test_build_question_card_html_moves_show_and_hint_below_board() -> None:
 
 
 def test_build_question_card_html_leaves_non_board_buttons_in_place() -> None:
-    html = main_page._build_question_card_html(
+    html = live_quiz_components._build_question_card_html(
         '<button type="button">Enviar</button>\n'
         '<table class="gm-board"><tr><td>1</td></tr></table>'
     )
@@ -915,7 +957,7 @@ def test_build_question_card_html_leaves_non_board_buttons_in_place() -> None:
 
 
 def test_build_question_card_html_removes_generated_board_status_without_controls() -> None:
-    html = main_page._build_question_card_html(
+    html = live_quiz_components._build_question_card_html(
         "Generated 12 puzzles from 21 games.\n"
         '<table class="gm-board"><tr><td>1</td></tr></table>'
     )
@@ -925,7 +967,7 @@ def test_build_question_card_html_removes_generated_board_status_without_control
 
 
 def test_build_question_card_html_removes_move_instruction_without_controls() -> None:
-    html = main_page._build_question_card_html(
+    html = live_quiz_components._build_question_card_html(
         "Move the knight on b1.\n"
         '<table class="gm-board"><tr><td data-square="b1">N</td></tr></table>'
     )
@@ -942,7 +984,7 @@ def test_render_pending_alternative_radio_groups_label_and_options(monkeypatch) 
     selection_updates: list[str | None] = []
     radio_calls: list[dict[str, object]] = []
 
-    monkeypatch.setattr(main_page.st, "container", lambda: nullcontext())
+    monkeypatch.setattr(main_page.st, "container", lambda **kwargs: nullcontext())
     monkeypatch.setattr(main_page.st, "html", lambda html: rendered_html.append(html))
     monkeypatch.setattr(
         main_page.st,
@@ -952,10 +994,14 @@ def test_render_pending_alternative_radio_groups_label_and_options(monkeypatch) 
         )
         or "option_b",
     )
-    monkeypatch.setattr(main_page, "get_question_selection", lambda: None)
-    monkeypatch.setattr(main_page, "set_question_selection", lambda selection: selection_updates.append(selection))
+    monkeypatch.setattr(live_quiz_sections, "get_question_selection", lambda: None)
+    monkeypatch.setattr(
+        live_quiz_sections,
+        "set_question_selection",
+        lambda selection: selection_updates.append(selection),
+    )
 
-    selected_option = main_page._render_pending_alternative_radio(
+    selected_option = live_quiz_sections.render_pending_alternative_radio(
         current_question_id=17,
         alternatives=[
             DisplayAlternative(
@@ -976,7 +1022,6 @@ def test_render_pending_alternative_radio_groups_label_and_options(monkeypatch) 
 
     assert selected_option == "option_b"
     assert rendered_html == [
-        '<div class="gm-quiz-layout-hook gm-quiz-alternatives-block gm-live-pending-options-hook"></div>',
         '<div class="gm-live-pending-label">Escolha uma alternativa</div>',
     ]
     assert radio_calls == [
@@ -1002,7 +1047,7 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
         lambda html, **kwargs: rendered_html.append(html),
     )
 
-    main_page._apply_live_page_styles()
+    live_quiz_styles._apply_live_page_styles()
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
@@ -1027,7 +1072,7 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "--gm-pending-choice-padding-block: 12px;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 12px;" in stylesheet
     assert ".gm-live-pending-label" in stylesheet
-    assert ".block-container div[data-testid=\"stVerticalBlock\"]" in stylesheet
+    assert '.block-container > div[data-testid="stVerticalBlock"]' in stylesheet
     assert ".block-container div[data-testid=\"stHorizontalBlock\"]" in stylesheet
     assert "gap: 12px !important;" in stylesheet
     assert "gap: 6px !important;" in stylesheet
@@ -1046,36 +1091,25 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     ):
         assert deprecated_variable not in stylesheet
     assert "margin: 0;" in stylesheet
-    assert "gm-answer-actions-hook" in stylesheet
-    assert "gm-quiz-alternatives-block" in stylesheet
-    assert "gm-quiz-actions-block" in stylesheet
+    assert ".st-key-gm_quiz_answer_actions_top" in stylesheet
+    assert ".st-key-gm_quiz_pending_alternatives" in stylesheet
     assert "gm-topic-filter-group-title" in stylesheet
     assert "width: calc(100% - 1rem) !important;" in stylesheet
     assert "gap: 0 !important;" in stylesheet
+    assert ".st-key-gm_quiz_flow" in stylesheet
     assert (
         '.block-container div[data-testid="stVerticalBlock"]:has(.gm-quiz-question-block):has(.gm-quiz-alternatives-block)'
-        in stylesheet
+        not in stylesheet
     )
     assert (
         '.block-container div[data-testid="stVerticalBlock"]:has(.gm-quiz-question-block):has(.gm-answer-actions-hook)'
-        in stylesheet
+        not in stylesheet
     )
     alternatives_container_css = stylesheet.split(
-        'div[data-testid="stVerticalBlock"]:has(.gm-quiz-alternatives-block):not(:has(.gm-quiz-status-block)) {',
+        ".st-key-gm_quiz_pending_alternatives {",
         1,
     )[1].split("}", 1)[0]
     assert "margin-top: 0 !important;" in alternatives_container_css
-    assert "margin-top: var(--gm-live-actions-to-review-gap) !important;" in stylesheet
-    assert "margin-top: var(--gm-live-review-card-gap) !important;" in stylesheet
-    bottom_answer_actions_css = stylesheet.split(
-        'div[data-testid="stElementContainer"]:has(.gm-answer-actions-hook--bottom) + div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {',
-        1,
-    )[1].split("}", 1)[0]
-    assert (
-        "padding-top: var(--gm-live-review-to-actions-gap) !important;"
-        in bottom_answer_actions_css
-    )
-    assert "margin-top: var(--gm-quiz-alternatives-to-actions) !important;" in stylesheet
     assert "gap: var(--gm-quiz-alternative-label-to-options) !important;" in stylesheet
     assert "gap: var(--gm-quiz-option-gap) !important;" in stylesheet
     assert "column-gap: var(--gm-pending-choice-content-gap) !important;" in stylesheet
@@ -1092,6 +1126,14 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "min-height" not in status_container_css
     question_card_css = stylesheet.split(".gm-live-question-card {", 1)[1].split("}", 1)[0]
     assert "margin-bottom" not in question_card_css
+    question_container_css = stylesheet.split(
+        'div[data-testid="stElementContainer"]:has(.gm-quiz-question-block) {',
+        1,
+    )[1].split("}", 1)[0]
+    assert "padding-bottom" not in question_container_css
+    pending_label_css = stylesheet.split(".gm-live-pending-label {", 1)[1].split("}", 1)[0]
+    assert "padding-top" not in pending_label_css
+    assert "padding-bottom" not in pending_label_css
     question_to_pending_selector = (
         'div[data-testid="stElementContainer"]:has(.gm-quiz-question-block)\n'
         '        + div[data-testid="stLayoutWrapper"]:has(.gm-quiz-alternatives-block)'
@@ -1100,12 +1142,19 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
         'div[data-testid="stElementContainer"]:has(.gm-quiz-question-block)\n'
         '        + div[data-testid="stLayoutWrapper"]:has(.gm-answer-actions-hook--top)'
     )
-    assert question_to_pending_selector in stylesheet
-    assert question_to_answered_selector in stylesheet
-    question_wrapper_gap_css = stylesheet.split(question_to_pending_selector, 1)[1].split("}", 1)[0]
+    assert question_to_pending_selector not in stylesheet
+    assert question_to_answered_selector not in stylesheet
+    assert ':has(.gm-answer-actions-hook--top) +' not in stylesheet
+    spacer_css = stylesheet.split(".gm-quiz-section-gap {", 1)[1].split("}", 1)[0]
+    assert "height: var(--gm-quiz-section-gap, 12px);" in spacer_css
+    assert "min-height: var(--gm-quiz-section-gap, 12px);" in spacer_css
+    after_question_gap_css = stylesheet.split(
+        ".gm-quiz-section-gap--after-question {",
+        1,
+    )[1].split("}", 1)[0]
     assert (
-        "margin-top: var(--gm-quiz-question-to-alternatives) !important;"
-        in question_wrapper_gap_css
+        "--gm-quiz-section-gap: var(--gm-quiz-question-to-alternatives);"
+        in after_question_gap_css
     )
     assert ".gm-live-question-card" in stylesheet
     assert ".gm-question-board-controls" in stylesheet
@@ -1130,7 +1179,7 @@ def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch
         lambda html, **kwargs: rendered_html.append(html),
     )
 
-    main_page._apply_live_page_styles()
+    live_quiz_styles._apply_live_page_styles()
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
@@ -1149,7 +1198,7 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_apply_button_te
         lambda html, **kwargs: rendered_html.append(html),
     )
 
-    main_page._apply_live_page_styles()
+    live_quiz_styles._apply_live_page_styles()
 
     assert len(rendered_html) == 1
     stylesheet = rendered_html[0]
@@ -1180,7 +1229,7 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_apply_button_te
 
 
 def test_format_pending_widget_label_unwraps_fenced_code_blocks() -> None:
-    label = main_page._format_pending_widget_label(
+    label = live_quiz_components._format_pending_widget_label(
         "```sql\nSELECT *\nFROM bronze.orders\n```"
     )
 
@@ -1188,7 +1237,7 @@ def test_format_pending_widget_label_unwraps_fenced_code_blocks() -> None:
 
 
 def test_format_pending_widget_label_preserves_inline_markdown_when_possible() -> None:
-    label = main_page._format_pending_widget_label(
+    label = live_quiz_components._format_pending_widget_label(
         "Use `Type 1` and compare with `Type 2`."
     )
 
@@ -1202,8 +1251,8 @@ def test_format_rank_text_preserves_rank_and_total_users() -> None:
 
 
 def test_build_answer_status_chip_html_matches_result_state() -> None:
-    correct_html = main_page._build_answer_status_chip_html(True)
-    wrong_html = main_page._build_answer_status_chip_html(False)
+    correct_html = live_quiz_components._build_answer_status_chip_html(True)
+    wrong_html = live_quiz_components._build_answer_status_chip_html(False)
 
     assert "Você acertou" in correct_html
     assert "gm-live-status-chip--correct" in correct_html
@@ -1212,7 +1261,7 @@ def test_build_answer_status_chip_html_matches_result_state() -> None:
 
 
 def test_build_metrics_bar_html_orders_day_and_question_streak_icons() -> None:
-    html = main_page._build_metrics_bar_html(
+    html = live_quiz_components._build_metrics_bar_html(
         day_streak_text="5",
         question_streak_text="3",
         rank_text="#1",
@@ -1281,7 +1330,7 @@ def test_resolve_live_timer_seconds_uses_current_time_when_running(monkeypatch) 
 
 
 def test_build_metric_chip_html_marks_timer_as_warning_after_threshold() -> None:
-    html = main_page._build_metric_chip_html(
+    html = live_quiz_components._build_metric_chip_html(
         "02:00",
         "",
         description="Tempo gasto na questão atual.",
