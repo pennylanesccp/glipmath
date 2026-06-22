@@ -65,6 +65,7 @@ from modules.domain.models import (
     QuestionIndexEntry,
     StudentDashboardSummary,
     StudentSubjectPerformance,
+    StudentTopicProgress,
     User,
     UserProgressSnapshot,
 )
@@ -89,6 +90,7 @@ from modules.services.streak_service import compute_day_streak_from_activity_dat
 from modules.services.student_dashboard_service import (
     parse_student_dashboard_summary_dataframe,
     parse_student_subject_performance_dataframe,
+    parse_student_topic_progress_dataframe,
 )
 from modules.services.user_service import (
     resolve_available_project_options,
@@ -225,16 +227,28 @@ def main() -> None:
                 user_email=authorized_user.email,
                 cohort_key=effective_project_scope,
             )
+            topic_progress, topic_progress_issues = load_student_topic_progress(
+                context.answer_repository,
+                answers_table_id,
+                question_table_id,
+                user_email=authorized_user.email,
+                cohort_key=effective_project_scope,
+            )
             _render_diagnostics(
                 settings=settings,
                 question_issues=list(project_option_issues),
-                answer_issues=list(dashboard_summary_issues) + list(subject_performance_issues),
+                answer_issues=(
+                    list(dashboard_summary_issues)
+                    + list(subject_performance_issues)
+                    + list(topic_progress_issues)
+                ),
             )
             render_student_dashboard_page(
                 user=authorized_user,
                 selected_project=effective_project_scope,
                 summary=dashboard_summary,
                 subject_performance=subject_performance,
+                topic_progress=topic_progress,
             )
             render_sidebar_logout_button()
             return
@@ -353,6 +367,7 @@ def build_runtime_context(settings: AppSettings) -> RuntimeContext:
         bigquery_client,
         answers_table_id=settings.bigquery.answers_table_id(settings.gcp.project_id),
         user_access_table_id=settings.bigquery.user_access_table_id(settings.gcp.project_id),
+        question_bank_table_id=settings.bigquery.question_bank_table_id(settings.gcp.project_id),
     )
     return RuntimeContext(
         question_repository=question_repository,
@@ -630,6 +645,37 @@ def load_student_subject_performance(
         (perf_counter() - started_at) * 1000,
     )
     return subject_performance, issues
+
+
+@st.cache_data(show_spinner=False, ttl=120)
+def load_student_topic_progress(
+    _answer_repository: AnswerRepository,
+    answers_table_id: str,
+    question_table_id: str,
+    *,
+    user_email: str,
+    cohort_key: str | None,
+) -> tuple[list[StudentTopicProgress], list[str]]:
+    """Load and cache active-question completion by subject/topic."""
+
+    logger = get_logger(__name__)
+    started_at = perf_counter()
+    progress_frame = _answer_repository.load_user_topic_progress_frame(
+        user_email=user_email,
+        cohort_key=cohort_key,
+    )
+    topic_progress, issues = parse_student_topic_progress_dataframe(progress_frame)
+    logger.debug(
+        "Loaded student topic progress | answers_table_id=%s | question_table_id=%s | user_email=%s | cohort_key=%s | topics=%s | issues=%s | elapsed_ms=%.2f",
+        answers_table_id,
+        question_table_id,
+        user_email,
+        cohort_key,
+        len(topic_progress),
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return topic_progress, issues
 
 
 def _ensure_user_progress_snapshot_loaded(

@@ -241,9 +241,39 @@ def test_load_user_subject_performance_frame_groups_by_topic() -> None:
 
     repository.load_user_subject_performance_frame(user_email="ana@example.com")
 
-    assert "COALESCE(NULLIF(LOWER(TRIM(topic)), ''), 'sem_topico') AS subject" in fake_client.queries[0]
-    assert "GROUP BY subject" in fake_client.queries[0]
-    assert "ORDER BY total_answers DESC, total_correct DESC, subject ASC" in fake_client.queries[0]
+    assert "COALESCE(NULLIF(LOWER(TRIM(topic)), ''), 'sem_topico') AS topic" in fake_client.queries[0]
+    assert "GROUP BY topic" in fake_client.queries[0]
+    assert "ORDER BY total_answers DESC, total_correct DESC, topic ASC" in fake_client.queries[0]
     parameters = fake_client.parameters[0]
     assert parameters is not None
     assert [parameter.name for parameter in parameters] == ["user_email"]
+
+
+def test_load_user_topic_progress_frame_starts_from_active_questions() -> None:
+    fake_client = FakeBigQueryClient(tuple())
+    repository = AnswerRepository(
+        fake_client,
+        answers_table_id="project.dataset.answers",
+        user_access_table_id="project.dataset.user_access",
+        question_bank_table_id="project.dataset.question_bank",
+    )
+
+    repository.load_user_topic_progress_frame(
+        user_email="Ana@example.com",
+        cohort_key="engenharia_ambiental",
+    )
+
+    query = fake_client.queries[0]
+    assert "WITH active_questions AS" in query
+    assert "FROM `project.dataset.question_bank` AS question_bank" in query
+    assert "WHERE question_bank.is_active = TRUE" in query
+    assert "FROM active_questions" in query
+    assert "LEFT JOIN user_answer_attempts" in query
+    assert "COUNT(DISTINCT active_questions.id_question) AS total_questions" in query
+    assert ")) AS answered_questions" in query
+    assert "COUNT(user_answer_attempts.id_question) AS total_answers" in query
+    assert "LOWER(TRIM(question_bank.cohort_key)) = @cohort_key" in query
+    assert "LOWER(TRIM(answers.cohort_key)) = @cohort_key" in query
+    parameters = fake_client.parameters[0]
+    assert parameters is not None
+    assert [parameter.name for parameter in parameters] == ["user_email", "cohort_key"]

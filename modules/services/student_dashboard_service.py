@@ -4,7 +4,11 @@ import math
 
 import pandas as pd
 
-from modules.domain.models import StudentDashboardSummary, StudentSubjectPerformance
+from modules.domain.models import (
+    StudentDashboardSummary,
+    StudentSubjectPerformance,
+    StudentTopicProgress,
+)
 from modules.storage.schema_validation import (
     iter_dataframe_rows,
     prepare_dataframe,
@@ -15,6 +19,7 @@ from modules.utils.normalization import clean_optional_text, normalize_taxonomy_
 
 STUDENT_DASHBOARD_SUMMARY_RESOURCE_NAME = "student_dashboard_summary"
 STUDENT_SUBJECT_PERFORMANCE_RESOURCE_NAME = "student_subject_performance"
+STUDENT_TOPIC_PROGRESS_RESOURCE_NAME = "student_topic_progress"
 
 
 def parse_student_dashboard_summary_dataframe(
@@ -84,10 +89,11 @@ def parse_student_subject_performance_dataframe(
     if prepared.empty and not list(prepared.columns):
         return [], []
 
+    topic_column = "topic" if "topic" in prepared.columns else "subject"
     require_columns(
         prepared,
         [
-            "subject",
+            topic_column,
             "total_answers",
             "total_correct",
             "total_wrong",
@@ -103,7 +109,7 @@ def parse_student_subject_performance_dataframe(
         try:
             subject_performance.append(
                 StudentSubjectPerformance(
-                    subject=normalize_taxonomy_value(row.get("subject")),
+                    subject=normalize_taxonomy_value(row.get(topic_column)),
                     total_answers=_parse_non_negative_int(row.get("total_answers"), "total_answers"),
                     total_correct=_parse_non_negative_int(row.get("total_correct"), "total_correct"),
                     total_wrong=_parse_non_negative_int(row.get("total_wrong"), "total_wrong"),
@@ -121,6 +127,88 @@ def parse_student_subject_performance_dataframe(
             )
 
     return subject_performance, issues
+
+
+def parse_student_topic_progress_dataframe(
+    dataframe: pd.DataFrame,
+) -> tuple[list[StudentTopicProgress], list[str]]:
+    """Parse active-question completion and answer-attempt metrics by topic."""
+
+    prepared = prepare_dataframe(dataframe)
+    if prepared.empty and not list(prepared.columns):
+        return [], []
+
+    require_columns(
+        prepared,
+        [
+            "subject",
+            "topic",
+            "total_questions",
+            "answered_questions",
+            "remaining_questions",
+            "completion_rate",
+            "total_answers",
+            "total_correct",
+            "total_wrong",
+            "accuracy_rate",
+            "average_time_spent_seconds",
+        ],
+        STUDENT_TOPIC_PROGRESS_RESOURCE_NAME,
+    )
+
+    topic_progress: list[StudentTopicProgress] = []
+    issues: list[str] = []
+    for index, row in iter_dataframe_rows(prepared):
+        try:
+            topic_progress.append(
+                StudentTopicProgress(
+                    subject=normalize_taxonomy_value(row.get("subject")),
+                    topic=normalize_taxonomy_value(row.get("topic")),
+                    total_questions=_parse_non_negative_int(
+                        row.get("total_questions"),
+                        "total_questions",
+                    ),
+                    answered_questions=_parse_non_negative_int(
+                        row.get("answered_questions"),
+                        "answered_questions",
+                    ),
+                    remaining_questions=_parse_non_negative_int(
+                        row.get("remaining_questions"),
+                        "remaining_questions",
+                    ),
+                    completion_rate=_parse_ratio(
+                        row.get("completion_rate"),
+                        "completion_rate",
+                    ),
+                    total_answers=_parse_non_negative_int(
+                        row.get("total_answers"),
+                        "total_answers",
+                    ),
+                    total_correct=_parse_non_negative_int(
+                        row.get("total_correct"),
+                        "total_correct",
+                    ),
+                    total_wrong=_parse_non_negative_int(
+                        row.get("total_wrong"),
+                        "total_wrong",
+                    ),
+                    accuracy_rate=_parse_ratio(
+                        row.get("accuracy_rate"),
+                        "accuracy_rate",
+                    ),
+                    average_time_spent_seconds=_parse_non_negative_float(
+                        row.get("average_time_spent_seconds"),
+                        "average_time_spent_seconds",
+                    ),
+                )
+            )
+        except ValueError as exc:
+            issues.append(
+                f"{STUDENT_TOPIC_PROGRESS_RESOURCE_NAME} row "
+                f"{worksheet_row_number(index)}: {exc}"
+            )
+
+    return topic_progress, issues
 
 
 def _parse_non_negative_int(value: object, field_name: str) -> int:
@@ -151,6 +239,4 @@ def _parse_non_negative_float(value: object, field_name: str) -> float:
 
 def _parse_ratio(value: object, field_name: str) -> float:
     parsed = _parse_non_negative_float(value, field_name)
-    if parsed > 1:
-        raise ValueError(f"{field_name} must be between 0 and 1.")
-    return parsed
+    return min(parsed, 1.0)

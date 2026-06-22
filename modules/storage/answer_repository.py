@@ -38,10 +38,12 @@ class AnswerRepository:
         *,
         answers_table_id: str,
         user_access_table_id: str,
+        question_bank_table_id: str | None = None,
     ) -> None:
         self._bigquery_client = bigquery_client
         self._answers_table_id = answers_table_id
         self._user_access_table_id = user_access_table_id
+        self._question_bank_table_id = question_bank_table_id
 
     def load_user_frame(self, user_email: str) -> pd.DataFrame:
         """Load answer history for a single user email."""
@@ -166,7 +168,7 @@ class AnswerRepository:
 
         query = f"""
             SELECT
-                COALESCE(NULLIF(LOWER(TRIM(topic)), ''), 'sem_topico') AS subject,
+                COALESCE(NULLIF(LOWER(TRIM(topic)), ''), 'sem_topico') AS topic,
                 COUNT(*) AS total_answers,
                 COUNTIF(is_correct) AS total_correct,
                 COUNTIF(NOT is_correct) AS total_wrong,
@@ -175,8 +177,107 @@ class AnswerRepository:
             FROM `{self._answers_table_id}`
             WHERE LOWER(TRIM(user_email)) = @user_email
               {cohort_filter}
-            GROUP BY subject
-            ORDER BY total_answers DESC, total_correct DESC, subject ASC
+            GROUP BY topic
+            ORDER BY total_answers DESC, total_correct DESC, topic ASC
+        """
+        return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
+
+    def load_user_topic_progress_frame(
+        self,
+        *,
+        user_email: str,
+        cohort_key: str | None = None,
+    ) -> pd.DataFrame:
+        """Load active-question completion and attempt accuracy by subject/topic."""
+
+        if not self._question_bank_table_id:
+            raise ValueError("question_bank_table_id is required for topic progress queries.")
+
+        parameters = [
+            bigquery.ScalarQueryParameter(
+                "user_email",
+                "STRING",
+                user_email.lower().strip(),
+            )
+        ]
+        question_cohort_filter = ""
+        answer_cohort_filter = ""
+        if cohort_key:
+            parameters.append(
+                bigquery.ScalarQueryParameter(
+                    "cohort_key",
+                    "STRING",
+                    cohort_key.lower().strip(),
+                )
+            )
+            question_cohort_filter = """
+                  AND LOWER(TRIM(question_bank.cohort_key)) = @cohort_key
+            """
+            answer_cohort_filter = """
+                  AND LOWER(TRIM(answers.cohort_key)) = @cohort_key
+            """
+
+        query = f"""
+            WITH active_questions AS (
+                SELECT DISTINCT
+                    question_bank.id_question,
+                    NULLIF(TRIM(question_bank.subject), '') AS subject,
+                    NULLIF(TRIM(question_bank.topic), '') AS topic
+                FROM `{self._question_bank_table_id}` AS question_bank
+                WHERE question_bank.is_active = TRUE
+                  {question_cohort_filter}
+            ),
+            user_answer_attempts AS (
+                SELECT
+                    answers.id_question,
+                    answers.is_correct,
+                    CAST(answers.time_spent_seconds AS FLOAT64) AS time_spent_seconds
+                FROM `{self._answers_table_id}` AS answers
+                WHERE LOWER(TRIM(answers.user_email)) = @user_email
+                  {answer_cohort_filter}
+            )
+            SELECT
+                active_questions.subject,
+                active_questions.topic,
+                COUNT(DISTINCT active_questions.id_question) AS total_questions,
+                COUNT(DISTINCT IF(
+                    user_answer_attempts.id_question IS NOT NULL,
+                    active_questions.id_question,
+                    NULL
+                )) AS answered_questions,
+                GREATEST(
+                    COUNT(DISTINCT active_questions.id_question)
+                    - COUNT(DISTINCT IF(
+                        user_answer_attempts.id_question IS NOT NULL,
+                        active_questions.id_question,
+                        NULL
+                    )),
+                    0
+                ) AS remaining_questions,
+                SAFE_DIVIDE(
+                    COUNT(DISTINCT IF(
+                        user_answer_attempts.id_question IS NOT NULL,
+                        active_questions.id_question,
+                        NULL
+                    )),
+                    COUNT(DISTINCT active_questions.id_question)
+                ) AS completion_rate,
+                COUNT(user_answer_attempts.id_question) AS total_answers,
+                COUNTIF(user_answer_attempts.is_correct) AS total_correct,
+                COUNTIF(NOT user_answer_attempts.is_correct) AS total_wrong,
+                SAFE_DIVIDE(
+                    COUNTIF(user_answer_attempts.is_correct),
+                    COUNT(user_answer_attempts.id_question)
+                ) AS accuracy_rate,
+                AVG(user_answer_attempts.time_spent_seconds) AS average_time_spent_seconds
+            FROM active_questions
+            LEFT JOIN user_answer_attempts
+                ON user_answer_attempts.id_question = active_questions.id_question
+            GROUP BY active_questions.subject, active_questions.topic
+            ORDER BY
+                active_questions.subject ASC,
+                remaining_questions DESC,
+                active_questions.topic ASC
         """
         return self._bigquery_client.query_to_dataframe(query, parameters=parameters)
 

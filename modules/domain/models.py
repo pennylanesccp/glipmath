@@ -212,9 +212,32 @@ class StudentDashboardSummary:
 
 @dataclass(frozen=True, slots=True)
 class StudentSubjectPerformance:
-    """Per-subject learner performance used by the lightweight dashboard."""
+    """Legacy per-topic attempt performance used by the accuracy chart."""
 
     subject: str | None = None
+    total_answers: int = 0
+    total_correct: int = 0
+    total_wrong: int = 0
+    accuracy_rate: float = 0.0
+    average_time_spent_seconds: float = 0.0
+
+    @property
+    def topic(self) -> str | None:
+        """Expose the legacy ``subject`` value with its actual topic meaning."""
+
+        return self.subject
+
+
+@dataclass(frozen=True, slots=True)
+class StudentTopicProgress:
+    """Question completion and attempt accuracy for one subject/topic pair."""
+
+    subject: str | None = None
+    topic: str | None = None
+    total_questions: int = 0
+    answered_questions: int = 0
+    remaining_questions: int = 0
+    completion_rate: float = 0.0
     total_answers: int = 0
     total_correct: int = 0
     total_wrong: int = 0
