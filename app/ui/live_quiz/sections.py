@@ -63,6 +63,10 @@ def render_pending_actions(current_question_id: int) -> tuple[bool, bool]:
     """Render skip and verify actions and return their click states."""
 
     with st.container(key="gm_quiz_pending_actions"):
+        st.html(
+            '<div class="gm-quiz-action-row-hook '
+            'gm-quiz-action-row-hook--pending" aria-hidden="true"></div>'
+        )
         skip_col, verify_col = st.columns([1, 2], gap="small", vertical_alignment="bottom")
         with skip_col:
             skip_clicked = st.button(

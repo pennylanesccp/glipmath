@@ -848,6 +848,33 @@ def test_render_quiz_section_gap_is_visible_and_not_a_layout_hook(monkeypatch) -
     assert "gm-quiz-layout-hook" not in rendered_html[0]
 
 
+def test_render_pending_actions_adds_scoped_responsive_layout_hook(monkeypatch) -> None:
+    rendered_html: list[str] = []
+    button_calls: list[tuple[str, dict[str, object]]] = []
+
+    monkeypatch.setattr(live_quiz_sections.st, "container", lambda **kwargs: nullcontext())
+    monkeypatch.setattr(live_quiz_sections.st, "html", rendered_html.append)
+    monkeypatch.setattr(
+        live_quiz_sections.st,
+        "columns",
+        lambda *args, **kwargs: (nullcontext(), nullcontext()),
+    )
+    monkeypatch.setattr(
+        live_quiz_sections.st,
+        "button",
+        lambda label, **kwargs: button_calls.append((label, kwargs)) or label == "Pular",
+    )
+
+    result = live_quiz_sections.render_pending_actions(17)
+
+    assert result == (True, False)
+    assert rendered_html == [
+        '<div class="gm-quiz-action-row-hook '
+        'gm-quiz-action-row-hook--pending" aria-hidden="true"></div>'
+    ]
+    assert [label for label, _ in button_calls] == ["Pular", "Verificar resposta"]
+
+
 def test_pending_interaction_fragment_renders_question_with_alternatives(monkeypatch) -> None:
     calls: list[tuple[str, object]] = []
 
@@ -1071,6 +1098,7 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "--gm-pending-choice-content-gap: 6px;" in stylesheet
     assert "--gm-pending-choice-padding-block: 12px;" in stylesheet
     assert "--gm-pending-choice-padding-inline: 12px;" in stylesheet
+    assert "--gm-quiz-action-button-gap: 6px;" in stylesheet
     assert ".gm-live-pending-label" in stylesheet
     assert '.block-container > div[data-testid="stVerticalBlock"]' in stylesheet
     assert ".block-container div[data-testid=\"stHorizontalBlock\"]" in stylesheet
@@ -1168,6 +1196,13 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "width: 0 !important;" in stylesheet
     assert "flex: 1 1 0 !important;" in stylesheet
     assert "flex: 2 1 0 !important;" in stylesheet
+    assert "container-name: gm-quiz-pending-actions;" in stylesheet
+    assert "container-type: inline-size;" in stylesheet
+    assert ":has(.gm-quiz-action-row-hook--pending)" in stylesheet
+    assert "gap: var(--gm-quiz-action-button-gap) !important;" in stylesheet
+    assert "@container gm-quiz-pending-actions (max-width: 330px)" in stylesheet
+    assert "flex-direction: column !important;" in stylesheet
+    assert "flex: 1 1 auto !important;" in stylesheet
 
 
 def test_apply_live_page_styles_keeps_native_sidebar_toggle_unstyled(monkeypatch) -> None:

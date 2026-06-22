@@ -78,6 +78,7 @@ def _apply_live_page_styles() -> None:
             --gm-pending-choice-content-gap: 6px;
             --gm-pending-choice-padding-block: 12px;
             --gm-pending-choice-padding-inline: 12px;
+            --gm-quiz-action-button-gap: 6px;
             --gm-sidebar-section-gap: 0.24rem;
             --gm-sidebar-section-margin-bottom: 16px;
             --gm-sidebar-divider-margin-top: 0.05rem;
@@ -352,6 +353,11 @@ def _apply_live_page_styles() -> None:
             width: var(--gm-wide-surface-width) !important;
         }
 
+        .st-key-gm_quiz_pending_actions {
+            container-name: gm-quiz-pending-actions;
+            container-type: inline-size;
+        }
+
         .st-key-gm_quiz_answer_actions_top {
             margin: 0 !important;
         }
@@ -370,28 +376,36 @@ def _apply_live_page_styles() -> None:
             width: 100% !important;
         }
 
-        .st-key-gm_quiz_pending_actions > div[data-testid="stHorizontalBlock"] {
+        .st-key-gm_quiz_pending_actions:has(.gm-quiz-action-row-hook--pending)
+        div[data-testid="stHorizontalBlock"] {
+            align-items: stretch !important;
             box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: row !important;
             flex-wrap: nowrap !important;
+            gap: var(--gm-quiz-action-button-gap) !important;
             width: 100% !important;
         }
 
         .st-key-gm_quiz_answer_actions_top > div[data-testid="stHorizontalBlock"] > div,
         .st-key-gm_quiz_answer_actions_bottom > div[data-testid="stHorizontalBlock"] > div,
-        .st-key-gm_quiz_pending_actions > div[data-testid="stHorizontalBlock"] > div {
+        .st-key-gm_quiz_pending_actions:has(.gm-quiz-action-row-hook--pending)
+        div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
             min-width: 0 !important;
             width: 0 !important;
         }
 
         .st-key-gm_quiz_answer_actions_top > div[data-testid="stHorizontalBlock"] > div:first-child,
         .st-key-gm_quiz_answer_actions_bottom > div[data-testid="stHorizontalBlock"] > div:first-child,
-        .st-key-gm_quiz_pending_actions > div[data-testid="stHorizontalBlock"] > div:first-child {
+        .st-key-gm_quiz_pending_actions:has(.gm-quiz-action-row-hook--pending)
+        div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
             flex: 1 1 0 !important;
         }
 
         .st-key-gm_quiz_answer_actions_top > div[data-testid="stHorizontalBlock"] > div:last-child,
         .st-key-gm_quiz_answer_actions_bottom > div[data-testid="stHorizontalBlock"] > div:last-child,
-        .st-key-gm_quiz_pending_actions > div[data-testid="stHorizontalBlock"] > div:last-child {
+        .st-key-gm_quiz_pending_actions:has(.gm-quiz-action-row-hook--pending)
+        div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
             flex: 2 1 0 !important;
         }
 
@@ -399,6 +413,26 @@ def _apply_live_page_styles() -> None:
         .st-key-gm_quiz_answer_actions_bottom [data-testid="stButton"] > button,
         .st-key-gm_quiz_pending_actions [data-testid="stButton"] > button {
             white-space: nowrap !important;
+        }
+
+        .st-key-gm_quiz_pending_actions:has(.gm-quiz-action-row-hook--pending)
+        [data-testid="stButton"] > button {
+            width: 100% !important;
+        }
+
+        @container gm-quiz-pending-actions (max-width: 330px) {
+            .st-key-gm_quiz_pending_actions:has(.gm-quiz-action-row-hook--pending)
+            div[data-testid="stHorizontalBlock"] {
+                flex-direction: column !important;
+            }
+
+            .st-key-gm_quiz_pending_actions:has(.gm-quiz-action-row-hook--pending)
+            div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child,
+            .st-key-gm_quiz_pending_actions:has(.gm-quiz-action-row-hook--pending)
+            div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+                flex: 1 1 auto !important;
+                width: 100% !important;
+            }
         }
 
         .gm-live-metrics-bar {
