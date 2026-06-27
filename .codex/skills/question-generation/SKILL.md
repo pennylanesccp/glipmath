@@ -48,7 +48,6 @@ Use this payload shape:
   },
   "questions": [
     {
-      "id_question": 351401101,
       "statement": "...",
       "correct_answer": {
         "alternative_text": "...",
@@ -99,8 +98,8 @@ The loader materializes `created_at_utc` and `updated_at_utc`, normalizes taxono
 
 ## Topic naming convention
 
-- Default to one simple aula topic per seed: `aula 1`, `aula 2`, `aula 11.1`, `aula 11.2`, unless the user explicitly requests formatted titles.
-- For PHA3514 and similar lecture-based courses, when formatted titles are requested, use the format: `Aula [number] - [Formatted Lecture Title]`.
+- Default to one simple aula topic per seed: `aula 1`, `aula 2`, `aula 11.1`, `aula 11.2`.
+- Mandatory Topic Formatting for PHA3514: For the course `PHA3514 - Gestão de Recursos Hídricos` (and similar courses if requested), the topic MUST always use the format `Aula [number] - [Formatted Lecture Title]`, never a simplified topic like `aula 1`.
 - Prefer the first slide/page title when it is a real, descriptive lecture title.
 - Redundant Subject Inference: If the first slide only shows the course name or essentially repeats the subject name, do not repeat the subject name as the lecture title. Instead, infer a short, useful lecture title from the actual content (e.g., `Aula 1 - Introdução à Gestão de Recursos Hídricos`).
 - Formatting Rules: Use normal Portuguese title formatting (not all caps). Keep acronyms (e.g. PNRH, ANA, CONAMA, SISNAMA, etc.) in uppercase. Keep short connectors (e.g., `de`, `da`, `do`, `das`, `dos`, `e`, `em`, `no`, `na`, `nos`, `nas`, `para`, `por`, `com`, `ao`, `aos`) in lowercase.
@@ -119,7 +118,7 @@ Generate questions that test reasoning, interpretation, application, comparison,
 
 Quality requirements:
 
-- Language: Write questions, alternatives, explanations, and topic text in Portuguese-BR by default (unless another language is explicitly requested). Pay close attention to accents and grammar. Strictly reject and rewrite accidental fragments or words from other languages (e.g., Spanish words like "del", "y" instead of Portuguese "do", "e").
+- Language: Write questions, alternatives, explanations, and topic text in Portuguese-BR by default (unless another language is explicitly requested). Pay close attention to accents and grammar. Language Validation: Explicitly identify, reject, and rewrite accidental fragments or words from any other language (including English and Spanish). Common examples to prevent: "metals" instead of "metais", "del" or "y" instead of "do" or "e".
 - Difficulty must be `4` or `5` when the minimum difficulty is 4.
 - Cover all major concepts from each aula, not just slide titles or the easiest points.
 - Use source-supported concepts only; do not hallucinate topics absent from the files.
