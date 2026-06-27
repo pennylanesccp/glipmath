@@ -102,6 +102,7 @@ Manual setup still exists outside the repo for:
 - Keep repository and service boundaries clear.
 - Avoid opportunistic refactors unless they unblock the requested work.
 - If you touch deployment or bootstrap behavior, make sure the docs stay aligned with the real local and Streamlit Cloud flow.
+- For course question-bank generation from PDFs, slides, notes, Markdown, or pasted text, use `.codex/skills/question-generation/SKILL.md` before creating seed JSONs. It documents the repo's canonical seed payload shape, quality bar, naming conventions, cohort defaults, and validation workflow.
 
 ---
 

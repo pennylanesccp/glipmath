@@ -1,0 +1,4 @@
+interface:
+  display_name: "Question Generation"
+  short_description: "Generate validated GlipMath question seeds"
+  default_prompt: "Use $question-generation to create validated GlipMath question-bank JSON seeds from course files."
