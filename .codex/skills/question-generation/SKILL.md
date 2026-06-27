@@ -91,22 +91,20 @@ The loader materializes `created_at_utc` and `updated_at_utc`, normalizes taxono
 
 ## ID generation convention
 
-- First inspect nearby existing seeds for the course before assigning IDs.
-- Preserve existing explicit IDs when editing a seed.
-- For new PHA course/aula batches, prefer deterministic IDs in this pattern:
-  - `<course_digits><aula_two_digits><block_digit><question_two_digits>`
-  - Example: `PHA3514`, Aula 1, difficult block 1, question 1 -> `351401101`.
-  - Example: `PHA3514`, Aula 11.2, question 1 -> `351411201`.
-- Use a new block digit when adding a new independent batch for the same aula.
-- If deterministic IDs would collide and no clean range is available, omit `id_question` and let `scripts/question_seed_ids.py` generate high-range IDs, then record that assumption in the summary.
-- Always validate uniqueness within the new payload and against all local seed payloads being dry-run together.
+- Omit `id_question` from generated question JSONs by default.
+- Rely on the repository seed ingestion/rendering workflow (`scripts/question_seed_ids.py`) to generate unique high-range random integer IDs before loading or rendering.
+- Exception: Preserve existing explicit IDs only when editing a previously loaded seed file where reference consistency is required (e.g. to avoid orphaning user answer history in `glipmath_events.answers`).
+- Warning: When editing an already loaded seed that may have user answers, warn that changing IDs may orphan historical answer references. Preserve the IDs in that case unless the user confirms re-ID is acceptable.
+- Always validate uniqueness of statements and alternatives within the payload.
 
 ## Topic naming convention
 
-- Default to one simple aula topic per seed: `aula 1`, `aula 2`, `aula 11.1`, `aula 11.2`.
-- Do not use verbose topic titles unless the user explicitly requests them.
+- Default to one simple aula topic per seed: `aula 1`, `aula 2`, `aula 11.1`, `aula 11.2`, unless the user explicitly requests formatted titles.
+- For PHA3514 and similar lecture-based courses, when formatted titles are requested, use the format: `Aula [number] - [Formatted Lecture Title]`.
+- Prefer the first slide/page title when it is a real, descriptive lecture title.
+- Redundant Subject Inference: If the first slide only shows the course name or essentially repeats the subject name, do not repeat the subject name as the lecture title. Instead, infer a short, useful lecture title from the actual content (e.g., `Aula 1 - Introdução à Gestão de Recursos Hídricos`).
+- Formatting Rules: Use normal Portuguese title formatting (not all caps). Keep acronyms (e.g. PNRH, ANA, CONAMA, SISNAMA, etc.) in uppercase. Keep short connectors (e.g., `de`, `da`, `do`, `das`, `dos`, `e`, `em`, `no`, `na`, `nos`, `nas`, `para`, `por`, `com`, `ao`, `aos`) in lowercase.
 - Use the same topic for every question in one aula payload through `defaults.topic`.
-- The loader normalizes taxonomy values for storage; keep generated defaults simple and lower-case to match persisted values.
 - Preserve the subject string in the JSON exactly as the user provided it, even though storage normalizes taxonomy for filtering.
 
 ## Question quality rubric
@@ -121,13 +119,15 @@ Generate questions that test reasoning, interpretation, application, comparison,
 
 Quality requirements:
 
+- Language: Write questions, alternatives, explanations, and topic text in Portuguese-BR by default (unless another language is explicitly requested). Pay close attention to accents and grammar. Strictly reject and rewrite accidental fragments or words from other languages (e.g., Spanish words like "del", "y" instead of Portuguese "do", "e").
 - Difficulty must be `4` or `5` when the minimum difficulty is 4.
 - Cover all major concepts from each aula, not just slide titles or the easiest points.
 - Use source-supported concepts only; do not hallucinate topics absent from the files.
 - Avoid pure memorization of numbers, table values, law numbers, resolution numbers, acronym expansions, exact document names, or case names unless the fact is genuinely central to the learning objective.
 - Do not write trick questions. Ambiguity should not be the source of difficulty.
 - Keep explanations concise and instructional; they should state why the correct answer works and why the distractors are insufficient.
-- Keep alternatives similar in tone, length, specificity, and polish.
+- Alternative Length Balance: Keep alternatives similar in tone, length, specificity, level of detail, and technical density. The correct alternative must not be systematically longer, more careful, more polished, or more complete than the distractors.
+- Audit for Visual/Semantic Bias: After drafting questions, perform an audit of alternative lengths and visual cues. If a correct answer is visually obvious because it is much longer or contains significantly more technical detail, rewrite it or the distractors to restore balance.
 - When the source is ambiguous, put assumptions in the generation summary, not in the JSON.
 
 ## Distractor quality rubric
@@ -138,7 +138,7 @@ Good distractors:
 
 - Are plausible to a student with partial understanding.
 - Reflect common misconceptions, incomplete reasoning, wrong transfer of a concept, or misuse of an operational criterion.
-- Include at least one genuinely tempting misconception or incomplete-reasoning option per question.
+- Include at least one or two genuinely tempting misconceptions or incomplete-reasoning options per question. One distractor may be weaker, but at least one/two must be highly plausible to a student without complete mastery.
 - Are not absurd, jokey, or eliminable without knowing the content.
 - Avoid giveaway absolute words such as `always`, `never`, `only`, `must`, `cannot`, `automatically`, `completely`, `exclusively`, `sempre`, `nunca`, `apenas`, `somente`, `obrigatoriamente`, or `automaticamente`, unless the absolute wording is justified and similarly plausible alternatives also use firm wording.
 - Do not make the correct answer systematically longer or more complete than the distractors.
@@ -165,15 +165,15 @@ Perform these checks before finalizing:
 - Confirm `table_id` is `ide-math-app.glipmath_core.question_bank` unless the user provides another target.
 - Confirm `cohort_key` is not a placeholder.
 - Confirm all generated questions are active through `defaults.is_active: true` or explicit question override.
-- Confirm all IDs are unique.
+- Confirm `id_question` is omitted by default unless editing an existing production seed where preserving IDs is explicitly required.
 - Confirm every question has exactly one correct answer and three distractors.
 - Confirm all alternatives are unique within each question.
 - Confirm there are no duplicate statements.
 - Confirm every difficulty is `4` or `5` when minimum difficulty is 4.
 - Confirm every requested aula/source topic has adequate coverage.
-- Confirm correct alternatives are not systematically longer than wrong alternatives.
-- Confirm there is no heavy reliance on absolute giveaway words.
-- Confirm no question depends on memorizing exact law numbers, class numbers, table numbers, acronym expansions, or exact document/case names unless pedagogically necessary.
+- Language Verification: Confirm all statements, alternatives, explanations, and topic text are in the requested language (default to Portuguese-BR). Ensure no foreign fragments (e.g. Spanish words like "del") remain in any field.
+- Visual Audit: Perform a length-balance audit. Confirm that correct alternatives are not systematically longer, more complete, or more detailed than the wrong alternatives.
+- Topic Format Verification: Confirm the topic follows `Aula [number] - [Formatted Lecture Title]`, uses normal Portuguese capitalization (not all caps), has acronyms in uppercase, has short connectors in lowercase, and is not a redundant repetition of the course/subject name.
 - Run the repository's seed tests when reasonably fast.
 
 Recommended commands:
@@ -237,7 +237,6 @@ This is a schema example only; do not treat it as generated course content.
   },
   "questions": [
     {
-      "id_question": 1101,
       "statement": "Uma equipe precisa escolher entre duas alternativas de gestão com riscos e custos diferentes. Qual critério de decisão é mais defensável?",
       "correct_answer": {
         "alternative_text": "Comparar as alternativas pela relação entre objetivo, risco controlado, viabilidade operacional e evidência disponível.",
