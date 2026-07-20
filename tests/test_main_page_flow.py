@@ -1191,6 +1191,33 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "width: var(--gm-narrow-surface-width) !important;" in stylesheet
     assert "max-width: var(--gm-narrow-surface-width);" in stylesheet
     assert "padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;" in stylesheet
+    react_aria_option_selector = (
+        '.st-key-gm_quiz_pending_alternatives\n'
+        '        div[data-testid="stRadio"]\n'
+        '        [role="radiogroup"]\n'
+        '        > label[data-testid="stRadioOption"] {'
+    )
+    react_aria_option_css = stylesheet.split(react_aria_option_selector, 1)[1].split("}", 1)[0]
+    assert "background: #ffffff;" in react_aria_option_css
+    assert "border: 1px solid #dbeafe;" in react_aria_option_css
+    assert "border-radius: 1rem;" in react_aria_option_css
+    assert "display: block !important;" in react_aria_option_css
+    assert (
+        "padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;"
+        in react_aria_option_css
+    )
+    assert "grid-template-columns" not in react_aria_option_css
+    assert 'label[data-baseweb="radio"] {' in stylesheet
+    react_aria_selected_selector = (
+        '.st-key-gm_quiz_pending_alternatives\n'
+        '        div[data-testid="stRadio"]\n'
+        '        [role="radiogroup"]\n'
+        '        > label[data-testid="stRadioOption"]:has(input:checked),'
+    )
+    react_aria_selected_css = stylesheet.split(react_aria_selected_selector, 1)[1].split("}", 1)[0]
+    assert 'label[data-testid="stRadioOption"][data-selected]' in react_aria_selected_css
+    assert "background: #edf4ff;" in react_aria_selected_css
+    assert "border-color: #93c5fd;" in react_aria_selected_css
     assert "align-items: stretch !important;" in stylesheet
     assert "flex-direction: row !important;" in stylesheet
     assert "width: 0 !important;" in stylesheet

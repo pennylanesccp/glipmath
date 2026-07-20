@@ -1072,6 +1072,53 @@ def _apply_live_page_styles() -> None:
             width: 100% !important;
         }
 
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"] {
+            background: #ffffff;
+            border: 1px solid #dbeafe;
+            border-radius: 1rem;
+            box-sizing: border-box;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+            cursor: pointer !important;
+            display: block !important;
+            inline-size: 100% !important;
+            margin-bottom: 0 !important;
+            max-width: none !important;
+            min-width: 100% !important;
+            padding: var(--gm-pending-choice-padding-block) var(--gm-pending-choice-padding-inline) !important;
+            width: 100% !important;
+        }
+
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"] *,
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"] [data-testid="stMarkdownContainer"] {
+            color: #0f172a !important;
+            opacity: 1 !important;
+        }
+
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"] [data-testid="stMarkdownContainer"],
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"] [data-testid="stMarkdownContainer"] > div,
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"] [data-testid="stMarkdownContainer"] p {
+            max-width: none !important;
+            width: 100% !important;
+        }
+
         div[data-testid="stRadio"] label[data-baseweb="radio"] * {
             color: #0f172a !important;
             opacity: 1 !important;
@@ -1125,6 +1172,30 @@ def _apply_live_page_styles() -> None:
             background: #edf4ff;
             border-color: #93c5fd;
             box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
+        }
+
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"]:has(input:checked),
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"][data-selected] {
+            background: #edf4ff;
+            border-color: #93c5fd;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
+        }
+
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"]:has(input:checked) *,
+        .st-key-gm_quiz_pending_alternatives
+        div[data-testid="stRadio"]
+        [role="radiogroup"]
+        > label[data-testid="stRadioOption"][data-selected] * {
+            color: #1d4ed8 !important;
         }
 
         div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) input[type="radio"] {
