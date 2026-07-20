@@ -1354,6 +1354,22 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_apply_button_te
     )
     apply_hover_text_css = stylesheet.split(apply_hover_text_selector, 1)[1].split("}", 1)[0]
     assert "color: #1d4ed8 !important;" in apply_hover_text_css
+    apply_disabled_selector = (
+        'section[data-testid="stSidebar"] '
+        ".st-key-gm_sidebar_apply_subject_topic_filters button:disabled,"
+    )
+    apply_disabled_css = stylesheet.split(apply_disabled_selector, 1)[1].split("}", 1)[0]
+    assert "background: #edf4ff !important;" in apply_disabled_css
+    assert "border-color: #93c5fd !important;" in apply_disabled_css
+    assert "color: #1d4ed8 !important;" in apply_disabled_css
+    assert "opacity: 1 !important;" in apply_disabled_css
+    apply_disabled_text_selector = (
+        'section[data-testid="stSidebar"] '
+        ".st-key-gm_sidebar_apply_subject_topic_filters button:disabled p,"
+    )
+    apply_disabled_text_css = stylesheet.split(apply_disabled_text_selector, 1)[1].split("}", 1)[0]
+    assert "color: #1d4ed8 !important;" in apply_disabled_text_css
+    assert "-webkit-text-fill-color: #1d4ed8 !important;" in apply_disabled_text_css
     assert "button:disabled" in stylesheet
     assert "color: #94a3b8 !important;" in stylesheet
 

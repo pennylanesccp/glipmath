@@ -287,6 +287,22 @@ def _apply_live_page_styles() -> None:
             color: #1d4ed8 !important;
         }
 
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button:disabled,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button[disabled] {
+            background: #edf4ff !important;
+            border-color: #93c5fd !important;
+            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.1) !important;
+            color: #1d4ed8 !important;
+            opacity: 1 !important;
+        }
+
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button:disabled p,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button[disabled] p {
+            color: #1d4ed8 !important;
+            opacity: 1 !important;
+            -webkit-text-fill-color: #1d4ed8 !important;
+        }
+
         section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button:hover {
             background: #e2eeff !important;
             border-color: #60a5fa !important;
