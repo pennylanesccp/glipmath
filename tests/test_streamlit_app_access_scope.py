@@ -302,10 +302,20 @@ def test_apply_workspace_shell_styles_formats_logout_divider_spacing(monkeypatch
     assert "padding-top: var(--gm-sidebar-actions-padding-top) !important;" in stylesheet
     assert "gm-sidebar-logout-separator-hook" in stylesheet
     assert "margin-bottom: 0.78rem;" in stylesheet
+    assert (
+        ':has(.gm-sidebar-logout-button-hook) [data-testid="stButton"]'
+        not in stylesheet
+    )
     assert "background: #fff4f4 !important;" in stylesheet
     assert "border: 1px solid #f5a3a3 !important;" in stylesheet
     assert "color: #b91c1c !important;" in stylesheet
     assert '[data-testid="baseButton-secondary"]' in stylesheet
     assert ".st-key-gm_sidebar_logout_button" in stylesheet
+    logout_hover_text_selector = (
+        'section[data-testid="stSidebar"] '
+        ".st-key-gm_sidebar_logout_button button:hover *,"
+    )
+    logout_hover_text_css = stylesheet.split(logout_hover_text_selector, 1)[1].split("}", 1)[0]
+    assert "color: #991b1b !important;" in logout_hover_text_css
     assert "box-shadow: 0 0 0 0.16rem rgba(245, 163, 163, 0.32) !important;" in stylesheet
     assert "stSegmentedControl" in stylesheet

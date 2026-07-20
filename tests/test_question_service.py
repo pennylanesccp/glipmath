@@ -9,6 +9,7 @@ from modules.services.question_service import (
     build_project_options,
     build_subject_options,
     build_subject_topic_groups,
+    compute_filtered_question_progress,
     QuestionFilterSelection,
     filter_question_index_by_project,
     filter_question_ids_by_filters,
@@ -269,6 +270,22 @@ def test_multi_question_filters_normalize_and_intersect_subjects_with_topics() -
         topics=(("portugues", "gramatica"),),
     )
     assert filter_question_ids_by_filters(question_index, topic_only_filters) == [3]
+
+
+def test_filtered_question_progress_counts_unique_answered_ids_inside_active_pool() -> None:
+    assert compute_filtered_question_progress(
+        active_question_ids=[1, 1, 2, 3],
+        answered_question_ids=[2, 2, 3, 99],
+    ) == (2, 3)
+
+
+def test_filtered_question_progress_handles_filter_changes_and_empty_pool() -> None:
+    answered_question_ids = {2, 3, 99}
+
+    assert compute_filtered_question_progress([1, 2, 3, 4], answered_question_ids) == (2, 4)
+    assert compute_filtered_question_progress([1, 2], answered_question_ids) == (1, 2)
+    assert compute_filtered_question_progress([3], answered_question_ids) == (1, 1)
+    assert compute_filtered_question_progress([], answered_question_ids) == (0, 0)
 
 
 def test_format_question_filter_label_summarizes_multi_selection_state() -> None:

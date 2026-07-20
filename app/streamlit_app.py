@@ -76,6 +76,7 @@ from modules.services.question_service import (
     SubjectTopicGroup,
     build_display_alternatives,
     build_subject_topic_groups,
+    compute_filtered_question_progress,
     filter_question_ids_by_filters,
     format_question_filter_label,
     find_question_by_id,
@@ -281,6 +282,12 @@ def main() -> None:
             timezone_name=settings.timezone,
         )
         user_progress = get_user_progress_snapshot(authorized_user.email)
+        filtered_question_ids = filter_question_ids_by_filters(question_index, normalized_filters)
+        answered_question_ids = get_answered_question_ids(authorized_user.email)
+        answered_questions, total_questions = compute_filtered_question_progress(
+            filtered_question_ids,
+            answered_question_ids,
+        )
 
         leaderboard_rank, leaderboard_total_users, leaderboard_issues = _ensure_leaderboard_position_loaded(
             answer_repository=context.answer_repository,
@@ -295,8 +302,8 @@ def main() -> None:
             question_repository=context.question_repository,
             question_table_id=question_table_id,
             cohort_key=effective_project_scope,
-            active_question_ids=filter_question_ids_by_filters(question_index, normalized_filters),
-            answered_question_ids=get_answered_question_ids(authorized_user.email),
+            active_question_ids=filtered_question_ids,
+            answered_question_ids=answered_question_ids,
         )
     except BigQueryError as exc:
         logger.exception(
@@ -327,6 +334,8 @@ def main() -> None:
         selected_subjects=normalized_filters.subjects,
         selected_topics=normalized_filters.topics,
         selected_filter_label=format_question_filter_label(normalized_filters),
+        answered_questions=answered_questions,
+        total_questions=total_questions,
         day_streak=compute_day_streak_from_activity_dates(
             user_progress.activity_dates,
             today=today_in_timezone(settings.timezone),

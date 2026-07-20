@@ -454,6 +454,17 @@ def filter_question_ids_by_filters(
     return matching_question_ids
 
 
+def compute_filtered_question_progress(
+    active_question_ids: Iterable[int],
+    answered_question_ids: Iterable[int],
+) -> tuple[int, int]:
+    """Return unique answered and total counts within one active filtered pool."""
+
+    active_ids = {int(question_id) for question_id in active_question_ids}
+    answered_ids = {int(question_id) for question_id in answered_question_ids}
+    return len(active_ids & answered_ids), len(active_ids)
+
+
 def normalize_question_filters(
     question_index: Sequence[QuestionIndexEntry],
     *,

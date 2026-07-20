@@ -252,48 +252,6 @@ def _apply_live_page_styles() -> None:
             padding-top: var(--gm-sidebar-actions-padding-top) !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button[kind="secondary"],
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"] {
-            background: #fff4f4 !important;
-            border: 1px solid #f5a3a3 !important;
-            box-shadow: none !important;
-            color: #b91c1c !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"] * {
-            color: #b91c1c !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:hover,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:active,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:hover,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:active {
-            background: #fee2e2 !important;
-            border-color: #f5a3a3 !important;
-            box-shadow: none !important;
-            color: #991b1b !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:focus,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:focus-visible,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:focus,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:focus-visible {
-            background: #fff4f4 !important;
-            border-color: #f5a3a3 !important;
-            box-shadow: 0 0 0 0.16rem rgba(245, 163, 163, 0.32) !important;
-            color: #b91c1c !important;
-            outline: none !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:hover *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:active *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:hover *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:active * {
-            color: #991b1b !important;
-        }
-
         section[data-testid="stSidebar"] [data-testid="stButton"] > button[kind="primary"] {
             color: #ffffff !important;
         }
@@ -315,23 +273,27 @@ def _apply_live_page_styles() -> None:
             color: #94a3b8 !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button[kind="secondary"] {
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button[kind="secondary"] {
             background: #edf4ff !important;
             border: 1px solid #93c5fd !important;
             box-shadow: 0 10px 24px rgba(59, 130, 246, 0.1) !important;
             color: #1d4ed8 !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button:disabled *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button[disabled] * {
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button *,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button:disabled *,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button[disabled] * {
             color: #1d4ed8 !important;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-apply-filters-hook) [data-testid="stButton"] > button:hover {
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button:hover {
             background: #e2eeff !important;
             border-color: #60a5fa !important;
+            color: #1d4ed8 !important;
+        }
+
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_apply_subject_topic_filters button:hover * {
             color: #1d4ed8 !important;
         }
 
@@ -475,6 +437,22 @@ def _apply_live_page_styles() -> None:
             flex: 0 0 auto;
             height: 1.42rem;
             width: 1.42rem;
+        }
+
+        @media (max-width: 420px) {
+            .gm-live-metrics-bar {
+                gap: 4px;
+            }
+
+            .gm-live-metric {
+                font-size: 0.98rem;
+                gap: 4px;
+            }
+
+            .gm-live-metric-icon {
+                height: 1.2rem;
+                width: 1.2rem;
+            }
         }
 
         .gm-live-metric-value {
@@ -1289,6 +1267,13 @@ def _apply_live_page_styles() -> None:
             background: #fee2e2 !important;
             border-color: #f5a3a3 !important;
             box-shadow: none !important;
+            color: #991b1b !important;
+        }
+
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button button:hover *,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button button:active *,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button [data-testid="baseButton-secondary"]:hover *,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button [data-testid="baseButton-secondary"]:active * {
             color: #991b1b !important;
         }
 

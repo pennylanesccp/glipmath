@@ -1152,6 +1152,10 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "min-height" not in metrics_bar_css
     assert "min-height" not in metric_css
     assert "min-height" not in status_container_css
+    assert "@media (max-width: 420px)" in stylesheet
+    assert "font-size: 0.98rem;" in stylesheet
+    assert "height: 1.2rem;" in stylesheet
+    assert "width: 1.2rem;" in stylesheet
     question_card_css = stylesheet.split(".gm-live-question-card {", 1)[1].split("}", 1)[0]
     assert "margin-bottom" not in question_card_css
     question_container_css = stylesheet.split(
@@ -1278,6 +1282,10 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_apply_button_te
     assert "padding-top: 0.38rem !important;" in stylesheet
     assert "gm-sidebar-apply-filters-hook" in stylesheet
     assert 'button[kind="secondary"]' in stylesheet
+    assert (
+        ':has(.gm-sidebar-logout-button-hook) [data-testid="stButton"]'
+        not in stylesheet
+    )
     assert "background: #fff4f4 !important;" in stylesheet
     assert "border: 1px solid #f5a3a3 !important;" in stylesheet
     assert "color: #b91c1c !important;" in stylesheet
@@ -1286,6 +1294,12 @@ def test_apply_live_page_styles_tunes_sidebar_filter_spacing_and_apply_button_te
     assert stylesheet.rfind(".st-key-gm_sidebar_logout_button") > stylesheet.rfind("background: #edf4ff !important;")
     assert "background: #edf4ff !important;" in stylesheet
     assert "color: #1d4ed8 !important;" in stylesheet
+    apply_hover_text_selector = (
+        'section[data-testid="stSidebar"] '
+        ".st-key-gm_sidebar_apply_subject_topic_filters button:hover * {"
+    )
+    apply_hover_text_css = stylesheet.split(apply_hover_text_selector, 1)[1].split("}", 1)[0]
+    assert "color: #1d4ed8 !important;" in apply_hover_text_css
     assert "button:disabled" in stylesheet
     assert "color: #94a3b8 !important;" in stylesheet
 
@@ -1322,26 +1336,33 @@ def test_build_answer_status_chip_html_matches_result_state() -> None:
     assert "gm-live-status-chip--wrong" in wrong_html
 
 
-def test_build_metrics_bar_html_orders_day_and_question_streak_icons() -> None:
+def test_build_metrics_bar_html_includes_filtered_question_progress() -> None:
     html = live_quiz_components._build_metrics_bar_html(
         day_streak_text="5",
         question_streak_text="3",
         rank_text="#1",
+        question_progress_text="15/40",
         timer_text="00:12",
         timer_warning=False,
         calendar_icon_data_uri="calendar-uri",
         fire_icon_data_uri="fire-uri",
         podium_icon_data_uri="podium-uri",
+        questions_icon_data_uri="questions-uri",
         timer_icon_data_uri="timer-uri",
     )
 
     assert "gm-quiz-status-block" in html
     assert html.index("calendar-uri") < html.index("fire-uri")
-    assert html.index("fire-uri") < html.index("podium-uri")
+    assert html.index("fire-uri") < html.index("questions-uri")
+    assert html.index("questions-uri") < html.index("podium-uri")
+    assert html.index("podium-uri") < html.index("timer-uri")
     assert ">5<" in html
     assert ">3<" in html
+    assert ">15/40<" in html
     assert "Dias seguidos com atividade." in html
     assert "Sequência atual de respostas corretas." in html
+    assert "Questões respondidas / questões ativas nos filtros selecionados." in html
+    assert html.count('<button class="gm-live-metric') == 5
 
 
 def test_streak_text_helpers_use_day_and_question_values_independently() -> None:
@@ -1349,6 +1370,19 @@ def test_streak_text_helpers_use_day_and_question_values_independently() -> None
     assert main_page._format_day_streak_text(-1) == "0"
     assert main_page._format_question_streak_text(7) == "7"
     assert main_page._format_question_streak_text(-2) == "0"
+
+
+def test_question_progress_text_helper_clamps_invalid_counts() -> None:
+    assert main_page._format_question_progress_text(15, 40) == "15/40"
+    assert main_page._format_question_progress_text(50, 40) == "40/40"
+    assert main_page._format_question_progress_text(-2, 40) == "0/40"
+    assert main_page._format_question_progress_text(3, -1) == "0/0"
+
+
+def test_question_progress_icon_asset_is_available() -> None:
+    data_uri = main_page._load_icon_data_uri(main_page.QUESTIONS_ICON_RELATIVE_PATH)
+
+    assert data_uri.startswith("data:image/png;base64,")
 
 
 def test_resolve_live_timer_text_uses_current_time_when_running(monkeypatch) -> None:

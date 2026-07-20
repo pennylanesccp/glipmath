@@ -270,48 +270,6 @@ def _apply_workspace_shell_styles() -> None:
             margin-bottom: 0.78rem;
         }
 
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button[kind="secondary"],
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"] {
-            background: #fff4f4 !important;
-            border: 1px solid #f5a3a3 !important;
-            box-shadow: none !important;
-            color: #b91c1c !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"] * {
-            color: #b91c1c !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:hover,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:active,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:hover,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:active {
-            background: #fee2e2 !important;
-            border-color: #f5a3a3 !important;
-            box-shadow: none !important;
-            color: #991b1b !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:focus,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:focus-visible,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:focus,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:focus-visible {
-            background: #fff4f4 !important;
-            border-color: #f5a3a3 !important;
-            box-shadow: 0 0 0 0.16rem rgba(245, 163, 163, 0.32) !important;
-            color: #b91c1c !important;
-            outline: none !important;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:hover *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > button:active *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:hover *,
-        section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]:has(.gm-sidebar-logout-button-hook) [data-testid="stButton"] > [data-testid="baseButton-secondary"]:active * {
-            color: #991b1b !important;
-        }
-
         section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button button,
         section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button button[kind="secondary"],
         section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button [data-testid="baseButton-secondary"] {
@@ -333,6 +291,13 @@ def _apply_workspace_shell_styles() -> None:
             background: #fee2e2 !important;
             border-color: #f5a3a3 !important;
             box-shadow: none !important;
+            color: #991b1b !important;
+        }
+
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button button:hover *,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button button:active *,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button [data-testid="baseButton-secondary"]:hover *,
+        section[data-testid="stSidebar"] .st-key-gm_sidebar_logout_button [data-testid="baseButton-secondary"]:active * {
             color: #991b1b !important;
         }
 

@@ -61,6 +61,7 @@ from modules.utils.datetime_utils import utc_now
 CALENDAR_ICON_RELATIVE_PATH = "assets/icons/calendar.png"
 FIRE_ICON_RELATIVE_PATH = "assets/icons/fire-svgrepo-com.svg"
 PODIUM_ICON_RELATIVE_PATH = "assets/icons/pedestal-podium-svgrepo-com.svg"
+QUESTIONS_ICON_RELATIVE_PATH = "assets/icons/questoes.png"
 TIMER_ICON_RELATIVE_PATH = "assets/icons/timer-outline-svgrepo-com.svg"
 TIMER_WARNING_THRESHOLD_SECONDS = 120
 SIDEBAR_FILTER_SUBJECT_COLUMN = "Mat\u00e9ria"
@@ -77,6 +78,8 @@ def render_main_page(
     selected_subjects: tuple[str, ...],
     selected_topics: tuple[tuple[str, str], ...],
     selected_filter_label: str,
+    answered_questions: int,
+    total_questions: int,
     day_streak: int,
     question_streak: int,
     leaderboard_position: str,
@@ -89,6 +92,7 @@ def render_main_page(
     calendar_icon_data_uri = _load_icon_data_uri(CALENDAR_ICON_RELATIVE_PATH)
     fire_icon_data_uri = _load_icon_data_uri(FIRE_ICON_RELATIVE_PATH)
     podium_icon_data_uri = _load_icon_data_uri(PODIUM_ICON_RELATIVE_PATH)
+    questions_icon_data_uri = _load_icon_data_uri(QUESTIONS_ICON_RELATIVE_PATH)
     timer_icon_data_uri = _load_icon_data_uri(TIMER_ICON_RELATIVE_PATH)
 
     question_answered = is_current_question_answered()
@@ -111,12 +115,14 @@ def render_main_page(
         day_streak_text=_format_day_streak_text(day_streak),
         question_streak_text=_format_question_streak_text(question_streak),
         rank_text=_format_rank_text(leaderboard_position),
+        question_progress_text=_format_question_progress_text(answered_questions, total_questions),
         timer_elapsed_seconds=elapsed_seconds,
         timer_started_at=timer_started_at,
         timer_running=not question_answered and current_question is not None,
         calendar_icon_data_uri=calendar_icon_data_uri,
         fire_icon_data_uri=fire_icon_data_uri,
         podium_icon_data_uri=podium_icon_data_uri,
+        questions_icon_data_uri=questions_icon_data_uri,
         timer_icon_data_uri=timer_icon_data_uri,
     )
 
@@ -527,12 +533,14 @@ def _render_metrics_bar(
     day_streak_text: str,
     question_streak_text: str,
     rank_text: str,
+    question_progress_text: str,
     timer_elapsed_seconds: int,
     timer_started_at: datetime | None,
     timer_running: bool,
     calendar_icon_data_uri: str,
     fire_icon_data_uri: str,
     podium_icon_data_uri: str,
+    questions_icon_data_uri: str,
     timer_icon_data_uri: str,
 ) -> None:
     if timer_running:
@@ -540,11 +548,13 @@ def _render_metrics_bar(
             day_streak_text=day_streak_text,
             question_streak_text=question_streak_text,
             rank_text=rank_text,
+            question_progress_text=question_progress_text,
             timer_elapsed_seconds=timer_elapsed_seconds,
             timer_started_at=timer_started_at,
             calendar_icon_data_uri=calendar_icon_data_uri,
             fire_icon_data_uri=fire_icon_data_uri,
             podium_icon_data_uri=podium_icon_data_uri,
+            questions_icon_data_uri=questions_icon_data_uri,
             timer_icon_data_uri=timer_icon_data_uri,
         )
         return
@@ -554,11 +564,13 @@ def _render_metrics_bar(
             day_streak_text=day_streak_text,
             question_streak_text=question_streak_text,
             rank_text=rank_text,
+            question_progress_text=question_progress_text,
             timer_text=format_elapsed_time(timer_elapsed_seconds),
             timer_warning=_is_timer_warning(timer_elapsed_seconds),
             calendar_icon_data_uri=calendar_icon_data_uri,
             fire_icon_data_uri=fire_icon_data_uri,
             podium_icon_data_uri=podium_icon_data_uri,
+            questions_icon_data_uri=questions_icon_data_uri,
             timer_icon_data_uri=timer_icon_data_uri,
         )
     )
@@ -570,11 +582,13 @@ def _render_live_metrics_bar_fragment(
     day_streak_text: str,
     question_streak_text: str,
     rank_text: str,
+    question_progress_text: str,
     timer_elapsed_seconds: int,
     timer_started_at: datetime | None,
     calendar_icon_data_uri: str,
     fire_icon_data_uri: str,
     podium_icon_data_uri: str,
+    questions_icon_data_uri: str,
     timer_icon_data_uri: str,
 ) -> None:
     live_elapsed_seconds = _resolve_live_timer_seconds(
@@ -586,11 +600,13 @@ def _render_live_metrics_bar_fragment(
             day_streak_text=day_streak_text,
             question_streak_text=question_streak_text,
             rank_text=rank_text,
+            question_progress_text=question_progress_text,
             timer_text=format_elapsed_time(live_elapsed_seconds),
             timer_warning=_is_timer_warning(live_elapsed_seconds),
             calendar_icon_data_uri=calendar_icon_data_uri,
             fire_icon_data_uri=fire_icon_data_uri,
             podium_icon_data_uri=podium_icon_data_uri,
+            questions_icon_data_uri=questions_icon_data_uri,
             timer_icon_data_uri=timer_icon_data_uri,
         )
     )
@@ -967,6 +983,12 @@ def _format_day_streak_text(day_streak: int) -> str:
 
 def _format_question_streak_text(question_streak: int) -> str:
     return str(max(question_streak, 0))
+
+
+def _format_question_progress_text(answered_questions: int, total_questions: int) -> str:
+    normalized_total = max(int(total_questions), 0)
+    normalized_answered = min(max(int(answered_questions), 0), normalized_total)
+    return f"{normalized_answered}/{normalized_total}"
 
 
 def _format_rank_text(leaderboard_position: str) -> str:

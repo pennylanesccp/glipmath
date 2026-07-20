@@ -10,6 +10,7 @@ from modules.domain.models import DisplayAlternative
 DAY_STREAK_DESCRIPTION = "Dias seguidos com atividade."
 QUESTION_STREAK_DESCRIPTION = "Sequência atual de respostas corretas."
 RANK_DESCRIPTION = "Sua posição atual no ranking."
+QUESTION_PROGRESS_DESCRIPTION = "Questões respondidas / questões ativas nos filtros selecionados."
 TIMER_DESCRIPTION = "Tempo gasto na questão atual."
 FENCED_CODE_BLOCK_PATTERN = re.compile(r"```[^\n`]*\n(.*?)```", re.DOTALL)
 QUESTION_BOARD_CONTROL_LABELS = frozenset({"show", "hint"})
@@ -84,11 +85,13 @@ def _build_metrics_bar_html(
     day_streak_text: str,
     question_streak_text: str,
     rank_text: str,
+    question_progress_text: str,
     timer_text: str,
     timer_warning: bool,
     calendar_icon_data_uri: str,
     fire_icon_data_uri: str,
     podium_icon_data_uri: str,
+    questions_icon_data_uri: str,
     timer_icon_data_uri: str,
 ) -> str:
     return (
@@ -96,6 +99,7 @@ def _build_metrics_bar_html(
         '<div class="gm-live-metrics-bar">'
         f"{_build_metric_chip_html(day_streak_text, calendar_icon_data_uri, description=DAY_STREAK_DESCRIPTION)}"
         f"{_build_metric_chip_html(question_streak_text, fire_icon_data_uri, description=QUESTION_STREAK_DESCRIPTION)}"
+        f"{_build_metric_chip_html(question_progress_text, questions_icon_data_uri, description=QUESTION_PROGRESS_DESCRIPTION)}"
         f"{_build_metric_chip_html(rank_text, podium_icon_data_uri, description=RANK_DESCRIPTION)}"
         f"{_build_metric_chip_html(timer_text, timer_icon_data_uri, description=TIMER_DESCRIPTION, is_timer=True, timer_warning=timer_warning)}"
         "</div>"
