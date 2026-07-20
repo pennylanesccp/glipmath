@@ -767,7 +767,8 @@ def test_answered_quiz_renders_after_question_gap_before_top_actions(monkeypatch
         statement="Quanto é 2 + 2?",
         correct_answer=QuestionAlternative("4"),
         wrong_answers=(QuestionAlternative("3"),),
-        subject="Matemática",
+        subject="pha3525",
+        topic="aula 1",
     )
 
     monkeypatch.setattr(
@@ -778,7 +779,7 @@ def test_answered_quiz_renders_after_question_gap_before_top_actions(monkeypatch
     monkeypatch.setattr(
         main_page,
         "_render_question_card",
-        lambda statement: calls.append(("question", statement)),
+        lambda statement, **labels: calls.append(("question", (statement, labels))),
     )
     monkeypatch.setattr(
         main_page,
@@ -800,19 +801,45 @@ def test_answered_quiz_renders_after_question_gap_before_top_actions(monkeypatch
 
     assert calls == [
         ("container", {"key": "gm_quiz_flow", "gap": None}),
-        ("question", "Quanto é 2 + 2?"),
+        (
+            "question",
+            (
+                "Quanto é 2 + 2?",
+                {"subject_label": "PHA3525", "topic_label": "Aula 1"},
+            ),
+        ),
         ("gap", "after-question"),
         ("answered", True),
     ]
 
 
 def test_build_question_card_html_renders_markdown_snippets() -> None:
-    html = live_quiz_components._build_question_card_html("```sql\nSELECT 1\n```")
+    html = live_quiz_components._build_question_card_html(
+        "```sql\nSELECT 1\n```",
+        subject_label="PHA3525",
+        topic_label="Aula 1",
+    )
 
     assert "gm-quiz-question-block" in html
     assert "gm-live-question-card" in html
+    assert 'role="heading" aria-level="2"' in html
+    assert 'aria-label="Questão | PHA3525 | Aula 1"' in html
+    assert html.index(">Questão<") < html.index(">PHA3525<") < html.index(">Aula 1<")
+    assert html.count('class="gm-live-card-title-context-item"') == 2
     assert "<pre>" in html
     assert "SELECT 1" in html
+
+
+def test_build_question_card_html_escapes_context_and_omits_blank_labels() -> None:
+    html = live_quiz_components._build_question_card_html(
+        "Enunciado",
+        subject_label="<PHA3525>",
+        topic_label=" ",
+    )
+
+    assert 'aria-label="Questão | &lt;PHA3525&gt;"' in html
+    assert "<PHA3525>" not in html
+    assert html.count('class="gm-live-card-title-context-item"') == 1
 
 
 def test_render_question_card_uses_wide_html_surface(monkeypatch) -> None:
@@ -829,9 +856,14 @@ def test_render_question_card_uses_wide_html_surface(monkeypatch) -> None:
         rendered_html.append,
     )
 
-    live_quiz_sections.render_question_card("Quanto é **2 + 2**?")
+    live_quiz_sections.render_question_card(
+        "Quanto é **2 + 2**?",
+        subject_label="PHA3525",
+        topic_label="Aula 1",
+    )
 
     assert "gm-live-question-card" in rendered_html[0]
+    assert 'aria-label="Questão | PHA3525 | Aula 1"' in rendered_html[0]
     assert "Quanto é" in rendered_html[0]
 
 
@@ -886,7 +918,7 @@ def test_pending_interaction_fragment_renders_question_with_alternatives(monkeyp
     monkeypatch.setattr(
         main_page,
         "_render_question_card",
-        lambda statement: calls.append(("question", statement)),
+        lambda statement, **labels: calls.append(("question", (statement, labels))),
     )
     monkeypatch.setattr(
         main_page,
@@ -912,7 +944,8 @@ def test_pending_interaction_fragment_renders_question_with_alternatives(monkeyp
             statement="Quanto Ã© 2 + 2?",
             correct_answer=QuestionAlternative("4"),
             wrong_answers=(QuestionAlternative("3"),),
-            subject="MatemÃ¡tica",
+            subject="pha3525",
+            topic="aula 1",
         ),
         alternatives=[
             DisplayAlternative(
@@ -928,7 +961,13 @@ def test_pending_interaction_fragment_renders_question_with_alternatives(monkeyp
 
     assert calls == [
         ("container", {"key": "gm_quiz_flow", "gap": None}),
-        ("question", "Quanto Ã© 2 + 2?"),
+        (
+            "question",
+            (
+                "Quanto Ã© 2 + 2?",
+                {"subject_label": "PHA3525", "topic_label": "Aula 1"},
+            ),
+        ),
         ("gap", "after-question"),
         ("alternatives", 17),
         ("gap", "before-pending-actions"),
@@ -1158,6 +1197,21 @@ def test_apply_live_page_styles_tunes_pending_choice_gap_and_padding(monkeypatch
     assert "width: 1.2rem;" in stylesheet
     question_card_css = stylesheet.split(".gm-live-question-card {", 1)[1].split("}", 1)[0]
     assert "margin-bottom" not in question_card_css
+    question_title_css = stylesheet.split(".gm-live-card-title {", 1)[1].split("}", 1)[0]
+    assert "display: flex;" in question_title_css
+    assert "flex-wrap: wrap;" in question_title_css
+    assert "text-transform: none;" in question_title_css
+    title_context_item_css = stylesheet.split(
+        ".gm-live-card-title-context-item {",
+        1,
+    )[1].split("}", 1)[0]
+    assert "display: inline-flex;" in title_context_item_css
+    assert "min-width: 0;" in title_context_item_css
+    title_context_css = stylesheet.split(
+        ".gm-live-card-title-context {",
+        1,
+    )[1].split("}", 1)[0]
+    assert "overflow-wrap: anywhere;" in title_context_css
     question_container_css = stylesheet.split(
         'div[data-testid="stElementContainer"]:has(.gm-quiz-question-block) {',
         1,

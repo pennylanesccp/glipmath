@@ -534,12 +534,36 @@ def _apply_live_page_styles() -> None:
         }
 
         .gm-live-card-title {
+            align-items: center;
             color: #475569;
+            display: flex;
             font-size: 0.76rem;
+            flex-wrap: wrap;
             font-weight: 700;
+            gap: 0.34rem;
             letter-spacing: 0.08em;
             margin-bottom: 12px;
+            text-transform: none;
+        }
+
+        .gm-live-card-title-primary {
             text-transform: uppercase;
+        }
+
+        .gm-live-card-title-context-item {
+            align-items: center;
+            display: inline-flex;
+            gap: 0.34rem;
+            min-width: 0;
+        }
+
+        .gm-live-card-title-context {
+            letter-spacing: 0.04em;
+            overflow-wrap: anywhere;
+        }
+
+        .gm-live-card-title-separator {
+            color: #94a3b8;
         }
 
         .gm-live-question-text,

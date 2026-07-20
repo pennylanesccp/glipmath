@@ -405,7 +405,11 @@ def _render_answered_quiz(
     answer_is_correct: bool,
 ) -> None:
     with st.container(key="gm_quiz_flow", gap=None):
-        _render_question_card(current_question.statement)
+        _render_question_card(
+            current_question.statement,
+            subject_label=format_subject_label(current_question.subject),
+            topic_label=format_topic_label(current_question.topic),
+        )
         _render_quiz_section_gap("after-question")
         _render_answered_state(
             alternatives=alternatives,
@@ -424,7 +428,11 @@ def _render_pending_interaction_fragment(
     selected_option_id: str | None,
 ) -> None:
     with st.container(key="gm_quiz_flow", gap=None):
-        _render_question_card(current_question.statement)
+        _render_question_card(
+            current_question.statement,
+            subject_label=format_subject_label(current_question.subject),
+            topic_label=format_topic_label(current_question.topic),
+        )
         _render_quiz_section_gap("after-question")
 
         if not alternatives:

@@ -322,6 +322,7 @@ def test_project_option_helpers_build_filter_and_format_labels() -> None:
     assert format_project_label("crescer_e_conectar") == "Crescer e Conectar"
     assert format_project_label("ano_1") == "Ano 1"
     assert format_subject_label("matematica") == "Matemática"
+    assert format_subject_label("pha3525") == "PHA3525"
     assert format_topic_label("auto_loader") == "Auto Loader"
     assert format_topic_label("radiciacao") == "Radiciação"
     assert format_subject_topic_filter_label("matematica", "divisao") == "Matemática · Divisão"

@@ -63,7 +63,20 @@ TOPIC_LABEL_BY_KEY = {
     "subtracao": "Subtração",
 }
 LOWERCASE_LABEL_WORDS = {"a", "as", "com", "da", "das", "de", "do", "dos", "e", "em", "o", "os", "para", "por"}
-UPPERCASE_LABEL_WORDS = {"api", "bi", "cdc", "ci", "cli", "dbfs", "dlt", "etl", "ia", "sql", "ui"}
+UPPERCASE_LABEL_WORDS = {
+    "api",
+    "bi",
+    "cdc",
+    "ci",
+    "cli",
+    "dbfs",
+    "dlt",
+    "etl",
+    "ia",
+    "pha3525",
+    "sql",
+    "ui",
+}
 
 
 @dataclass(frozen=True, slots=True)

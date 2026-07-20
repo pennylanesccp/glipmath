@@ -107,13 +107,44 @@ def _build_metrics_bar_html(
     )
 
 
-def _build_question_card_html(statement: str) -> str:
+def _build_question_card_html(
+    statement: str,
+    *,
+    subject_label: str = "",
+    topic_label: str = "",
+) -> str:
     question_html = _move_question_board_controls_below_content(_text_to_html(statement))
+    title_html = _build_question_card_title_html(subject_label, topic_label)
     return (
         '<section class="gm-quiz-question-block gm-live-card gm-live-question-card">'
-        '<div class="gm-live-card-title">Questão</div>'
+        f"{title_html}"
         f'<div class="gm-live-question-text">{question_html}</div>'
         "</section>"
+    )
+
+
+def _build_question_card_title_html(subject_label: str, topic_label: str) -> str:
+    context_labels = [
+        label
+        for value in (subject_label, topic_label)
+        if (label := str(value or "").strip())
+    ]
+    title_text = " | ".join(["Questão", *context_labels])
+    context_html = "".join(
+        (
+            '<span class="gm-live-card-title-context-item">'
+            '<span class="gm-live-card-title-separator" aria-hidden="true">|</span>'
+            f'<span class="gm-live-card-title-context">{escape(label)}</span>'
+            "</span>"
+        )
+        for label in context_labels
+    )
+    return (
+        '<div class="gm-live-card-title" role="heading" aria-level="2" '
+        f'aria-label="{escape(title_text, quote=True)}">'
+        '<span class="gm-live-card-title-primary">Questão</span>'
+        f"{context_html}"
+        "</div>"
     )
 
 

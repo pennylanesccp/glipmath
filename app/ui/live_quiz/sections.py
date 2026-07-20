@@ -12,10 +12,21 @@ from app.ui.live_quiz.components import (
 from modules.domain.models import DisplayAlternative
 
 
-def render_question_card(statement: str) -> None:
+def render_question_card(
+    statement: str,
+    *,
+    subject_label: str = "",
+    topic_label: str = "",
+) -> None:
     """Render the full-width question surface."""
 
-    st.html(_build_question_card_html(statement))
+    st.html(
+        _build_question_card_html(
+            statement,
+            subject_label=subject_label,
+            topic_label=topic_label,
+        )
+    )
 
 
 def render_quiz_section_gap(name: str) -> None:
